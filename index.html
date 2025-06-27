@@ -230,7 +230,7 @@
         }
         .fab-button:active {
             transform: translateY(0);
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+            box_shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
         }
 
 
@@ -587,10 +587,8 @@
         }
 
         .radio-group input[type="radio"] {
-            /* Hide default radio button */
-            appearance: none;
-            -webkit-appearance: none;
-            -moz-appearance: none;
+            /* Restore default radio button appearance */
+            /* Removed: appearance: none; -webkit-appearance: none; -moz-appearance: none; */
             width: 20px;
             height: 20px;
             border: 2px solid var(--md-outline); /* M3 outline color */
@@ -606,7 +604,8 @@
             background-color: var(--md-primary);
         }
 
-        .radio-group input[type="radio"]:checked::before {
+        /* Removed custom pseudo-element as it interferes with native radio button */
+        /* .radio-group input[type="radio"]:checked::before {
             content: '';
             position: absolute;
             top: 50%;
@@ -615,7 +614,30 @@
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            background-color: var(--md-on-primary); /* White dot inside checked radio */
+            background-color: var(--md-on-primary);
+        } */
+
+
+        /* Message box for import/export status */
+        .message-box {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #4CAF50; /* Green for success */
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .message-box.error {
+            background-color: var(--md-error); /* Red for error */
+        }
+        .message-box.show {
+            opacity: 1;
         }
 
 
@@ -740,7 +762,19 @@
             <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">我的記事本</h1>
             <p class="text-center text-gray-600 text-lg mb-8"></p> <!-- Removed: 在這裡管理您的所有數字追蹤器。 -->
 
-            <div class="flex justify-end items-center mb-8 header-controls">
+            <div class="flex justify-between items-center mb-8 header-controls">
+                <!-- Import/Export Buttons -->
+                <div class="flex space-x-3">
+                    <button id="importBtn" class="button-base button-outlined">
+                        <span class="material-symbols-outlined">upload_file</span>
+                        匯入資料
+                    </button>
+                    <button id="exportBtn" class="button-base button-outlined">
+                        <span class="material-symbols-outlined">download</span>
+                        匯出資料
+                    </button>
+                </div>
+
                 <!-- Top right controls for view mode and sort -->
                 <div class="flex items-center space-x-3 header-right-controls">
                     <!-- View Mode Toggles - Material 3 Segmented Button inspired -->
@@ -851,6 +885,9 @@
         </div>
     </div>
 
+    <!-- Message Box for notifications -->
+    <div id="messageBox" class="message-box"></div>
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // DOM Elements
@@ -872,6 +909,12 @@
             const limitedNotesSection = document.getElementById('limitedNotesSection');
             const unlimitedRecordTextSection = document.getElementById('unlimitedRecordTextSection');
             const recordTextInput = document.getElementById('recordTextInput');
+
+            // Import/Export Buttons
+            const importBtn = document.getElementById('importBtn');
+            const exportBtn = document.getElementById('exportBtn');
+            const messageBox = document.getElementById('messageBox');
+
 
             // Custom Modal Elements
             const customModal = document.getElementById('customModal');
@@ -928,6 +971,19 @@
                     minute: '2-digit',
                     hour12: false
                 });
+            }
+
+            // Show a temporary message
+            function showMessage(message, isError = false) {
+                messageBox.textContent = message;
+                messageBox.classList.remove('error');
+                if (isError) {
+                    messageBox.classList.add('error');
+                }
+                messageBox.classList.add('show');
+                setTimeout(() => {
+                    messageBox.classList.remove('show');
+                }, 3000); // Message disappears after 3 seconds
             }
 
             // Load all record books, display mode, and sort mode from localStorage
@@ -1591,6 +1647,96 @@
                 if (!sortDropdown.contains(event.target) && !sortButton.contains(event.target)) {
                     sortDropdown.classList.add('hidden');
                 }
+            });
+
+            // --- Import/Export Functionality ---
+
+            // Export data to a JSON file
+            exportBtn.addEventListener('click', () => {
+                try {
+                    const dataToExport = localStorage.getItem(storageKey);
+                    if (!dataToExport || JSON.parse(dataToExport).length === 0) {
+                        showMessage('沒有記事本資料可匯出！', true);
+                        return;
+                    }
+                    const blob = new Blob([dataToExport], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `記事本備份_${new Date().toISOString().slice(0, 10)}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    showMessage('記事本資料已成功匯出！');
+                } catch (error) {
+                    console.error('匯出資料時發生錯誤:', error);
+                    showMessage('匯出資料時發生錯誤。', true);
+                }
+            });
+
+            // Import data from a JSON file
+            importBtn.addEventListener('click', () => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                input.onchange = async (event) => {
+                    const file = event.target.files[0];
+                    if (file) {
+                        try {
+                            const fileContent = await file.text();
+                            const importedData = JSON.parse(fileContent);
+
+                            // Validate imported data structure (basic check)
+                            if (!Array.isArray(importedData) || !importedData.every(item => item.id && item.name)) {
+                                showMessage('匯入的檔案格式不正確。', true);
+                                return;
+                            }
+
+                            // Optionally, ask user if they want to merge or overwrite
+                            const confirmImport = await showCustomModal(
+                                "匯入記事本資料",
+                                {
+                                    confirmButtonText: '覆蓋現有資料',
+                                    cancelButtonText: '取消',
+                                    inputs: [
+                                        {
+                                            label: '您想如何處理現有的記事本資料？',
+                                            type: 'radio',
+                                            name: 'import_mode',
+                                            options: [
+                                                { label: '覆蓋所有現有記事本', value: 'overwrite', checked: true },
+                                                { label: '與現有記事本合併 (新資料會加入)', value: 'merge' }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            );
+
+                            if (confirmImport.confirmed) {
+                                const importMode = confirmImport.values.import_mode;
+
+                                if (importMode === 'overwrite') {
+                                    recordBooks = importedData;
+                                    showMessage('記事本資料已成功覆蓋！');
+                                } else { // merge
+                                    const existingIds = new Set(recordBooks.map(book => book.id));
+                                    const newBooks = importedData.filter(book => !existingIds.has(book.id));
+                                    recordBooks = [...recordBooks, ...newBooks];
+                                    showMessage('記事本資料已成功合併！');
+                                }
+                                saveRecordBooks();
+                                renderManagementView();
+                            } else {
+                                showMessage('匯入操作已取消。');
+                            }
+                        } catch (error) {
+                            console.error('匯入資料時發生錯誤:', error);
+                            showMessage('匯入資料時發生錯誤。請確保檔案是有效的 JSON 格式。', true);
+                        }
+                    }
+                };
+                input.click();
             });
 
 
