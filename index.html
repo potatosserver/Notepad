@@ -604,20 +604,6 @@
             background-color: var(--md-primary);
         }
 
-        /* Removed custom pseudo-element as it interferes with native radio button */
-        /* .radio-group input[type="radio"]:checked::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background-color: var(--md-on-primary);
-        } */
-
-
         /* Message box for import/export status */
         .message-box {
             position: fixed;
@@ -639,7 +625,6 @@
         .message-box.show {
             opacity: 1;
         }
-
 
         /* Responsive adjustments */
         @media (max-width: 768px) {
@@ -675,6 +660,29 @@
                 min-width: 48px; /* Slightly smaller for mobile if needed */
                 min-height: 36px;
                 padding: 6px 12px;
+            }
+            /* Number Tracker View specific adjustments for smaller screens */
+            .number-tracker-header {
+                flex-direction: column; /* Stack name and buttons vertically */
+                align-items: center; /* Center items when stacked */
+                gap: 15px; /* Space between elements */
+            }
+            .number-tracker-header #currentRecordBookName {
+                margin-bottom: 0; /* No margin below name as it will be centered */
+                width: 100%; /* Take full width */
+                text-align: center; /* Center the text */
+                order: -1; /* Place name above buttons */
+            }
+            .number-tracker-header .button-group {
+                flex-direction: column; /* Stack buttons vertically */
+                width: 100%; /* Buttons take full width */
+            }
+            .number-tracker-header .button-group button {
+                width: 100%; /* Make buttons full width */
+                margin-bottom: 10px; /* Add space between stacked buttons */
+            }
+            .number-tracker-header .button-group button:last-child {
+                margin-bottom: 0; /* No margin for the last button */
             }
         }
         @media (max-width: 600px) {
@@ -821,19 +829,26 @@
 
         <!-- Number Tracker View -->
         <div id="numberTrackerView" class="view hidden">
-            <div class="flex justify-between items-center mb-6">
-                <!-- 返回管理頁面按鈕 - Material 3 Filled Button (Primary) -->
-                <button id="backToManagementBtn" class="button-base button-filled-primary">
-                    <span class="material-symbols-outlined">arrow_back</span>
-                    返回管理頁面
-                </button>
-                <h1 id="currentRecordBookName" class="text-2xl font-bold text-gray-800 text-center flex-grow"></h1>
-                <!-- 重設此紀錄本按鈕 - Material 3 Filled Button (Secondary/Error) -->
-                <button id="resetCurrentBookBtn" class="button-base button-filled-secondary">
-                    <span class="material-symbols-outlined">refresh</span>
-                    重設此記事本
-                </button>
+            <!-- Header for Number Tracker View - Adjusted for responsive layout -->
+            <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 number-tracker-header">
+                <!-- Book Name - Moved to its own line on small screens, centered -->
+                <h1 id="currentRecordBookName" class="text-2xl font-bold text-gray-800 text-center w-full mb-4 md:mb-0"></h1>
+
+                <!-- Buttons Group - Will stack on small screens, take full width, and center content -->
+                <div class="flex flex-col md:flex-row space-y-3 md:space-y-0 md:space-x-3 w-full md:w-auto">
+                    <!-- 返回管理頁面按鈕 - Material 3 Filled Button (Primary) -->
+                    <button id="backToManagementBtn" class="button-base button-filled-primary w-full justify-center">
+                        <span class="material-symbols-outlined">arrow_back</span>
+                        返回管理頁面
+                    </button>
+                    <!-- 重設此紀錄本按鈕 - Material 3 Filled Button (Secondary/Error) -->
+                    <button id="resetCurrentBookBtn" class="button-base button-filled-secondary w-full justify-center">
+                        <span class="material-symbols-outlined">refresh</span>
+                        重設此記事本
+                    </button>
+                </div>
             </div>
+
 
             <!-- Limited Notes Section -->
             <div id="limitedNotesSection" class="mb-6 bg-gray-100 p-4 rounded-lg">
