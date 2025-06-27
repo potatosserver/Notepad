@@ -1155,6 +1155,7 @@
                 const bookNameInput = modalInputsContainer.querySelector('#bookName');
                 const maxNumInput = modalInputsContainer.querySelector('#maxNum');
                 const bookTypeRadios = modalInputsContainer.querySelectorAll('input[name="bookType"]');
+                const newNameInput = modalInputsContainer.querySelector('#newName'); // For rename modal
 
                 if (bookNameInput) {
                     if (bookNameInput.value.trim() === '') {
@@ -1162,6 +1163,14 @@
                         isValid = false;
                     }
                     values.bookName = bookNameInput.value.trim();
+                }
+                
+                if (newNameInput) { // Check if rename input exists
+                    if (newNameInput.value.trim() === '') {
+                        errorMessage = '新名稱不能為空。';
+                        isValid = false;
+                    }
+                    values.newName = newNameInput.value.trim(); // Get new name for rename
                 }
 
                 let selectedBookType = 'number'; // Default to number
