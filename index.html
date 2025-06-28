@@ -449,11 +449,11 @@
             flex-direction: column;
             align-items: flex-start;
             padding: 20px;
-            height: auto;
+            min-height: 140px; /* Adjusted height */
             text-align: left;
             margin-bottom: 0;
             transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-            position: relative;
+            position: relative; /* Make it a positioning context for absolute children */
         }
         .record-book-grid-view .record-book-item:hover {
              transform: translateY(-2px);
@@ -472,19 +472,23 @@
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             margin-bottom: 5px;
+            padding-right: 30px; /* Add padding to prevent name overlapping with options button */
         }
         .record-book-grid-view .record-book-meta {
-            display: block;
-            font-size: 0.9rem;
-            margin-bottom: 15px;
-            width: 100%;
+            display: block; /* Ensure it's displayed */
+            font-size: 0.8rem; /* Smaller font for meta info */
+            color: var(--md-on-surface-variant); /* Color for meta info */
+            position: absolute; /* Position absolutely */
+            bottom: 10px; /* 10px from bottom */
+            right: 15px; /* 15px from right */
+            text-align: right;
+            line-height: 1; /* Adjust line height to prevent extra space */
+            padding-left: 10px; /* Give some space from text if it wraps */
         }
         .record-book-grid-view .record-book-max-num,
-        .record-book-grid-view .record-book-created-at {
-            display: none;
-        }
+        .record-book-grid-view .record-book-created-at,
         .record-book-grid-view .record-book-last-updated-col {
-            display: none;
+            display: none; /* Hide these specific spans if they were used for separate elements */
         }
         .record-book-grid-view .record-book-actions {
             position: absolute;
@@ -712,8 +716,9 @@
                 font-size: 1.15rem;
             }
             .record-book-meta {
-                font-size: 0.8rem;
-                margin-bottom: 10px;
+                font-size: 0.75rem; /* Even smaller on small screens */
+                bottom: 8px; /* Closer to bottom */
+                right: 10px; /* Closer to right */
             }
             .record-book-actions {
                 width: 100%;
@@ -1312,11 +1317,12 @@
                             nameSpan.classList.add('record-book-name');
                             nameSpan.textContent = book.name;
                             nameWrapper.appendChild(nameSpan);
-
-                            const metaSpan = document.createElement('span');
-                            metaSpan.classList.add('record-book-meta');
-                            metaSpan.textContent = formatDateTime(book.lastUpdated);
-                            nameWrapper.appendChild(metaSpan);
+                            
+                            // Last updated date for grid view, positioned at bottom right
+                            const lastUpdatedMeta = document.createElement('span');
+                            lastUpdatedMeta.classList.add('record-book-meta'); // Use existing meta class for styling
+                            lastUpdatedMeta.textContent = formatDateTime(book.lastUpdated);
+                            bookItem.appendChild(lastUpdatedMeta); // Append directly to bookItem for absolute positioning
 
                             bookItem.appendChild(nameWrapper);
                         }
