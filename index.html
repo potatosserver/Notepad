@@ -4,110 +4,103 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>記事本</title>
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Material Symbols CDN for icons - Replaces Font Awesome -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Material 3 Color Palette (Simplified for this app, focusing on lighter tones) */
         :root {
-            --md-primary: #6750A4; /* M3 Primary */
+            --md-primary: #6750A4;
             --md-on-primary: #FFFFFF;
-            --md-primary-container: #E8DEF8; /* M3 Primary Container - used for lighter filled buttons */
+            --md-primary-container: #E8DEF8;
             --md-on-primary-container: #21005D;
 
-            --md-error: #B3261E; /* M3 Error */
+            --md-error: #B3261E;
             --md-on-error: #FFFFFF;
-            --md-error-container: #F9DEDC; /* M3 Error Container - used for lighter error buttons */
+            --md-error-container: #F9DEDC;
             --md-on-error-container: #410E0B;
 
             --md-outline: #79747E;
-            --md-surface-variant: #E7E0EC; /* A lighter general surface variant */
+            --md-surface-variant: #E7E0EC;
             --md-on-surface-variant: #49454F;
 
-            /* Updated to a more saturated green for checked items */
-            --md-tertiary-container: #B2F082; /* A more vivid, saturated green for checked */
-            --md-on-tertiary-container: #0C1F03; /* Dark text on vivid green */
+            --md-tertiary-container: #B2F082;
+            --md-on-tertiary-container: #0C1F03;
 
 
-            --md-neutral-container: #E0E0E0; /* For general neutral buttons/backgrounds */
-            --md-on-neutral-container: #333333; /* Dark text on light neutral */
+            --md-neutral-container: #E0E0E0;
+            --md-on-neutral-container: #333333;
 
-            /* Updated Amber Color for Rename Button - Made lighter */
-            --md-amber-500: #FFE082; /* A softer, lighter amber */
-            --md-amber-700: #FFD54F; /* A slightly darker but still light amber for hover/active */
-            --md-on-amber: #000000; /* Dark text on amber for contrast */
+            --md-amber-500: #FFE082;
+            --md-amber-700: #FFD54F;
+            --md-on-amber: #000000;
         }
 
-        /* Base styles */
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f0f2f5; /* Light grey background */
+            background-color: #f0f2f5;
             display: flex;
             justify-content: center;
-            align-items: flex-start; /* Content starts from top */
-            min-height: 100vh; /* Minimum height is viewport height */
-            padding: 20px; /* Overall padding */
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 20px;
             box-sizing: border-box;
+            overflow-x: hidden; /* Prevent horizontal scroll during view transitions */
         }
         .container {
-            background-color: #ffffff; /* White card background */
-            border-radius: 16px; /* More rounded corners for M3 feel */
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.08); /* Softer, slightly larger shadow */
-            padding: 32px; /* Inner padding */
+            background-color: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.08);
+            padding: 32px;
             width: 100%;
-            max-width: 800px; /* Max width */
+            max-width: 800px;
             box-sizing: border-box;
-            position: relative; /* For FAB positioning context */
+            position: relative;
         }
         .grid-container {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); /* Auto columns, min width 80px */
-            gap: 16px; /* Grid spacing */
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 16px;
         }
         .grid-item {
             display: flex;
-            flex-direction: column; /* Vertical alignment */
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            background-color: #e0e0e0; /* Default number background */
-            border-radius: 8px; /* Rounded corners */
-            padding: 18px 8px; /* Padding, no checkbox */
+            background-color: #e0e0e0;
+            border-radius: 8px;
+            padding: 18px 8px;
             transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
             cursor: pointer;
-            user-select: none; /* Prevent text selection */
+            user-select: none;
         }
         .grid-item.checked {
-            background-color: var(--md-tertiary-container); /* M3 light green for checked */
-            color: var(--md-on-tertiary-container); /* Dark text on light green */
-            transform: scale(1.02); /* Slightly larger when checked */
+            background-color: var(--md-tertiary-container);
+            color: var(--md-on-tertiary-container);
+            transform: scale(1.02);
         }
         .grid-item:hover:not(.checked) {
-            background-color: #d0d0d0; /* Hover effect */
+            background-color: #d0d0d0;
         }
         .number {
-            font-size: 1.5rem; /* Number size */
-            font-weight: 600; /* Bold */
-            color: #333333; /* Default number color */
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #333333;
         }
         .grid-item.checked .number {
-            color: var(--md-on-tertiary-container); /* Number color turns dark on light green when checked */
+            color: var(--md-on-tertiary-container);
         }
 
-        /* Material Symbols style */
         .material-symbols-outlined {
           font-variation-settings:
           'FILL' 0,
           'wght' 400,
           'GRAD' 0,
           'opsz' 24;
-          /* Ensure fixed size to prevent CLS */
           font-size: 24px;
-          line-height: 1; /* Adjust line height to match font size */
-          display: inline-block; /* Treat as block element to control dimensions */
-          width: 24px; /* Explicit width */
-          height: 24px; /* Explicit height */
+          line-height: 1;
+          display: inline-block;
+          width: 24px;
+          height: 24px;
         }
         .material-symbols-outlined.fill {
           font-variation-settings:
@@ -117,33 +110,31 @@
           'opsz' 24;
         }
 
-        /* Reusable Material 3 Button Styles */
         .button-base {
-            padding: 10px 20px; /* Adjust padding for M3 standard */
-            border-radius: 20px; /* More rounded corners */
-            font-size: 0.95rem; /* Standard M3 font size */
-            font-weight: 500; /* Medium weight */
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.95rem;
+            font-weight: 500;
             cursor: pointer;
             transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, color 0.2s ease-in-out;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 8px; /* Space between text and icon */
+            gap: 8px;
         }
         .button-base:active {
-            transform: translateY(0); /* No translate on active, M3 uses subtle press */
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); /* Very subtle shadow for pressed state */
+            transform: translateY(0);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
 
-        /* Filled Button (Primary) - Material 3 inspired - uses Primary Container color for "淡淡的" feel */
         .button-filled-primary {
             background-color: var(--md-primary-container);
             color: var(--md-on-primary-container);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15); /* Elevated shadow */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
         }
         .button-filled-primary:hover {
-            background-color: #D3CEE2; /* Slightly darker tint of primaryContainer */
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* More pronounced shadow on hover */
+            background-color: #D3CEE2;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
             transform: translateY(-1px);
         }
         .button-filled-primary:active {
@@ -151,14 +142,13 @@
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
 
-        /* Filled Button (Secondary/Error) - Material 3 inspired - uses Error Container color for "淡淡的" feel */
         .button-filled-secondary {
             background-color: var(--md-error-container);
             color: var(--md-on-error-container);
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
         }
         .button-filled-secondary:hover {
-            background-color: #E2C7C7; /* Slightly darker tint of errorContainer */
+            background-color: #E2C7C7;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
             transform: translateY(-1px);
         }
@@ -167,66 +157,63 @@
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
 
-        /* Outlined Button - Material 3 inspired */
         .button-outlined {
             background-color: transparent;
-            color: var(--md-primary); /* Primary color for text/icon */
-            border: 1px solid var(--md-outline); /* M3 outline color */
-            box-shadow: none; /* No initial shadow */
+            color: var(--md-primary);
+            border: 1px solid var(--md-outline);
+            box-shadow: none;
         }
         .button-outlined:hover {
-            background-color: rgba(var(--md-primary-container-rgb), 0.08); /* Subtle primary tint on hover */
+            background-color: rgba(var(--md-primary-container-rgb), 0.08);
             color: var(--md-primary);
             transform: translateY(-1px);
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); /* Slight shadow on hover */
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
         }
         .button-outlined:active {
-            background-color: rgba(var(--md-primary-container-rgb), 0.12); /* Stronger tint on active */
+            background-color: rgba(var(--md-primary-container-rgb), 0.12);
             box-shadow: none;
         }
 
-        /* Text Button - Material 3 inspired */
         .button-text {
             background-color: transparent;
-            color: var(--md-primary); /* Primary color for text/icon */
+            color: var(--md-primary);
             border: none;
             box-shadow: none;
-            padding: 10px 12px; /* Less padding for text buttons */
+            padding: 10px 12px;
         }
         .button-text:hover {
-            background-color: rgba(var(--md-primary-container-rgb), 0.08); /* Subtle primary tint on hover */
+            background-color: rgba(var(--md-primary-container-rgb), 0.08);
             color: var(--md-primary);
-            transform: translateY(0); /* No lift on text buttons */
+            transform: translateY(0);
             box-shadow: none;
         }
         .button-text:active {
-            background-color: rgba(var(--md-primary-container-rgb), 0.12); /* Stronger tint on active */
+            background-color: rgba(var(--md-primary-container-rgb), 0.12);
             box-shadow: none;
         }
 
 
-        /* FAB Button - Material 3 inspired */
         .fab-button {
             position: fixed;
             bottom: 30px;
             right: 30px;
             z-index: 40;
-            width: 56px; /* Standard M3 FAB size */
-            height: 56px; /* Standard M3 FAB size */
-            border-radius: 16px; /* Rounded corners for square FAB */
-            background-color: var(--md-primary); /* M3 Primary color */
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background-color: var(--md-primary);
             color: var(--md-on-primary);
-            font-size: 1.7rem; /* Icon size */
+            font-size: 1.7rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2), 0 2px 5px rgba(0, 0, 0, 0.1); /* M3 FAB shadow */
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2), 0 2px 5px rgba(0, 0, 0, 0.1);
             transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
         }
         .fab-button:hover {
-            background-color: color-mix(in srgb, var(--md-primary) 80%, white); /* Lighter Primary on hover */
+            background-color: color-mix(in srgb, var(--md-primary) 80%, white);
             transform: translateY(-2px);
-            box-shadow: 0 8px 14px rgba(0, 0, 0, 0.25), 0 3px 6px rgba(0, 0, 0, 0.15); /* More pronounced shadow on hover */
+            box-shadow: 0 8px 14px rgba(0, 0, 0, 0.25), 0 3px 6px rgba(0, 0, 0, 0.15);
         }
         .fab-button:active {
             transform: translateY(0);
@@ -234,20 +221,19 @@
         }
 
 
-        /* Record Book Item - Base Styles */
         .record-book-item {
-            background-color: var(--md-primary-container); /* Using Primary Container for the light background */
-            border-radius: 12px; /* Slightly more rounded for M3 */
-            box-shadow: 0 2px 6px rgba(0,0,0,0.08); /* Softer, slightly larger shadow */
+            background-color: var(--md-primary-container);
+            border-radius: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
             transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
             cursor: pointer;
             margin-bottom: 12px;
-            border: none; /* No explicit border, rely on shadow for separation */
+            border: none;
         }
         .record-book-item:hover {
-            background-color: color-mix(in srgb, var(--md-primary-container) 90%, black); /* Slightly darker tint on hover */
-            transform: translateY(-2px); /* Lift slightly on hover */
-            box-shadow: 0 4px 10px rgba(0,0,0,0.12); /* Enhanced shadow on hover */
+            background-color: color-mix(in srgb, var(--md-primary-container) 90%, black);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.12);
         }
 
         .record-book-name-wrapper {
@@ -257,7 +243,7 @@
         .record-book-name {
             font-size: 1.25rem;
             font-weight: 500;
-            color: var(--md-on-primary-container); /* Text color on light primary container */
+            color: var(--md-on-primary-container);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -265,7 +251,7 @@
         }
         .record-book-meta {
             font-size: 0.85rem;
-            color: var(--md-on-surface-variant); /* General text color for meta info */
+            color: var(--md-on-surface-variant);
             margin-top: 4px;
         }
         .record-book-actions {
@@ -273,43 +259,64 @@
             align-items: center;
             flex-shrink: 0;
         }
-        /* M3 inspired small icon buttons for actions */
         .record-book-actions .action-icon-button {
             background-color: transparent;
             border: none;
-            color: var(--md-on-surface-variant); /* Icon color on light surfaces */
+            color: var(--md-on-surface-variant);
             padding: 8px;
             border-radius: 50%;
             cursor: pointer;
             transition: background-color 0.2s, color 0.2s;
         }
         .record-book-actions .action-icon-button:hover {
-            background-color: rgba(var(--md-on-surface-variant-rgb), 0.08); /* Subtle tint on hover */
+            background-color: rgba(var(--md-on-surface-variant-rgb), 0.08);
             color: var(--md-on-surface-variant);
         }
         .record-book-actions .action-icon-button:active {
             background-color: rgba(var(--md-on-surface-variant-rgb), 0.12);
         }
 
-        /* Options button - now uses action-icon-button class */
         .options-button {
-            /* No specific styles here, inherits from .action-icon-button */
         }
 
-        /* Custom Modal Styles */
+        /* Custom Modal Styling */
         .custom-modal-overlay {
             background-color: rgba(0, 0, 0, 0.75);
+            transition: opacity 0.3s ease-out;
+            opacity: 0; /* Start hidden */
+            display: flex; /* Always flex to center content */
+            align-items: center;
+            justify-content: center;
+        }
+        .custom-modal-overlay.show-modal {
+            opacity: 1; /* Show with fade-in */
+        }
+        .custom-modal-overlay.hide-modal {
+            opacity: 0; /* Hide with fade-out */
+            pointer-events: none; /* Disable interaction during fade-out */
         }
         .custom-modal-content {
             background-color: #ffffff;
-            border-radius: 28px; /* More rounded for M3 dialogs */
+            border-radius: 28px;
             box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2), 0 4px 6px rgba(0, 0, 0, 0.05);
+            transform: scale(0.9); /* Start slightly smaller for pop effect */
+            transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+            opacity: 0;
         }
-        /* Custom modal action buttons - now use M3 button styles */
+        .custom-modal-overlay.show-modal .custom-modal-content {
+            transform: scale(1); /* Pop to full size */
+            opacity: 1;
+        }
+        .custom-modal-overlay.hide-modal .custom-modal-content {
+            transform: scale(0.9); /* Shrink slightly on fade-out */
+            opacity: 0;
+        }
+
+
         .modal-action-button {
             width: 100%;
             padding: 12px;
-            border-radius: 20px; /* Consistent with other pill buttons */
+            border-radius: 20px;
             font-size: 1rem;
             font-weight: 500;
             cursor: pointer;
@@ -320,66 +327,63 @@
         .modal-action-button:last-child {
             margin-bottom: 0;
         }
-        /* Using filled/outlined styles for modal buttons */
         .modal-action-button.rename {
-            background-color: var(--md-amber-500); /* Lighter amber */
-            color: var(--md-on-amber); /* Dark text on amber */
+            background-color: var(--md-amber-500);
+            color: var(--md-on-amber);
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         .modal-action-button.rename:hover {
-            background-color: var(--md-amber-700); /* Slightly darker amber on hover */
+            background-color: var(--md-amber-700);
             box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
             transform: translateY(-1px);
         }
         .modal-action-button.delete {
-            background-color: var(--md-error-container); /* M3 Error Container Red */
+            background-color: var(--md-error-container);
             color: var(--md-on-error-container);
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         .modal-action-button.delete:hover {
-            background-color: color-mix(in srgb, var(--md-error-container) 90%, black); /* Slightly darker tint */
+            background-color: color-mix(in srgb, var(--md-error-container) 90%, black);
             box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
             transform: translateY(-1px);
         }
         .modal-action-button.cancel {
-            background-color: var(--md-surface-variant); /* Light gray for cancel (tonal) */
+            background-color: var(--md-surface-variant);
             color: var(--md-on-surface-variant);
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); /* Very subtle shadow */
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
         }
         .modal-action-button.cancel:hover {
-            background-color: color-mix(in srgb, var(--md-surface-variant) 90%, black); /* Slightly darker tint */
+            background-color: color-mix(in srgb, var(--md-surface-variant) 90%, black);
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             transform: translateY(-1px);
         }
 
 
-        /* View Mode Specific Styles */
         .record-book-list-container {
             display: flex;
             flex-direction: column;
         }
         .record-book-grid-container {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); /* Grid layout */
-            gap: 20px; /* Space between cards */
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
         }
 
-        /* List View (Table-like) Specific Styles */
         .record-book-list-view .record-book-item {
             display: grid;
-            grid-template-columns: 3fr 2fr auto; /* Title, Last Updated, Actions */
+            grid-template-columns: 3fr 2fr auto;
             align-items: center;
             gap: 10px;
             padding: 10px 16px;
-            border-bottom: 1px solid #e0e0e0; /* Separator lines */
+            border-bottom: 1px solid #e0e0e0;
             border-left: none;
             border-right: none;
             border-top: none;
-            background-color: var(--md-primary-container); /* Inherit from base for consistency */
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Lighter shadow for list view items */
+            background-color: var(--md-primary-container);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         .record-book-list-view .record-book-item:hover {
-            background-color: color-mix(in srgb, var(--md-primary-container) 90%, black); /* Slightly darker tint on hover */
+            background-color: color-mix(in srgb, var(--md-primary-container) 90%, black);
             transform: none;
             box-shadow: 0 2px 5px rgba(0,0,0,0.08);
         }
@@ -429,7 +433,6 @@
             font-size: 0.75rem;
         }
 
-        /* List View Header */
         .list-view-header {
             display: grid;
             grid-template-columns: 3fr 2fr auto;
@@ -439,21 +442,20 @@
             color: var(--md-on-surface-variant);
             border-bottom: 2px solid #ccc;
             margin-bottom: 12px;
-            background-color: var(--md-surface-variant); /* Lighter background for header */
+            background-color: var(--md-surface-variant);
             border-top-left-radius: 8px;
             border-top-right-radius: 8px;
         }
 
-        /* Grid View Specific Styles */
         .record-book-grid-view .record-book-item {
             flex-direction: column;
             align-items: flex-start;
             padding: 20px;
-            min-height: 140px; /* Adjusted height */
+            min-height: 140px;
             text-align: left;
             margin-bottom: 0;
             transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-            position: relative; /* Make it a positioning context for absolute children */
+            position: relative;
         }
         .record-book-grid-view .record-book-item:hover {
              transform: translateY(-2px);
@@ -472,23 +474,23 @@
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             margin-bottom: 5px;
-            padding-right: 30px; /* Add padding to prevent name overlapping with options button */
+            padding-right: 30px;
         }
         .record-book-grid-view .record-book-meta {
-            display: block; /* Ensure it's displayed */
-            font-size: 0.8rem; /* Smaller font for meta info */
-            color: var(--md-on-surface-variant); /* Color for meta info */
-            position: absolute; /* Position absolutely */
-            bottom: 10px; /* 10px from bottom */
-            right: 15px; /* 15px from right */
+            display: block;
+            font-size: 0.8rem;
+            color: var(--md-on-surface-variant);
+            position: absolute;
+            bottom: 10px;
+            right: 15px;
             text-align: right;
-            line-height: 1; /* Adjust line height to prevent extra space */
-            padding-left: 10px; /* Give some space from text if it wraps */
+            line-height: 1;
+            padding-left: 10px;
         }
         .record-book-grid-view .record-book-max-num,
         .record-book-grid-view .record-book-created-at,
         .record-book-grid-view .record-book-last-updated-col {
-            display: none; /* Hide these specific spans if they were used for separate elements */
+            display: none;
         }
         .record-book-grid-view .record-book-actions {
             position: absolute;
@@ -503,7 +505,6 @@
         }
 
 
-        /* Sort Dropdown Styles */
         .sort-dropdown-content {
             position: absolute;
             background-color: #f9f9f9;
@@ -539,42 +540,38 @@
             font-weight: 600;
         }
 
-        /* View Mode Button Styling (Material 3 Outlined Segmented Button inspired) */
         .view-mode-group {
             display: flex;
-            border: 1px solid var(--md-outline); /* M3 outline color */
-            border-radius: 20px; /* Fully rounded segments */
-            overflow: hidden; /* Ensure inner elements conform to border-radius */
+            border: 1px solid var(--md-outline);
+            border-radius: 20px;
+            overflow: hidden;
         }
         .view-mode-button {
-            /* Ensure fixed size to prevent CLS, calculated from padding + icon size (24px) */
-            min-width: 56px; /* 16px padding-left + 24px icon + 16px padding-right */
-            min-height: 40px; /* 8px padding-top + 24px icon + 8px padding-bottom */
-            padding: 8px 16px; /* Slightly more horizontal padding */
-            border: none; /* No individual borders within group */
+            min-width: 56px;
+            min-height: 40px;
+            padding: 8px 16px;
+            border: none;
             cursor: pointer;
             transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
             background-color: transparent;
-            color: var(--md-on-surface-variant); /* M3 On-Surface-Variant */
+            color: var(--md-on-surface-variant);
             outline: none;
-            flex-grow: 1; /* Distribute space evenly */
-            /* Centering the icon within the button */
+            flex-grow: 1;
             display: flex;
             justify-content: center;
             align-items: center;
         }
         .view-mode-button:hover:not(.selected) {
-            background-color: rgba(var(--md-on-surface-variant-rgb), 0.08); /* Subtle hover tint */
+            background-color: rgba(var(--md-on-surface-variant-rgb), 0.08);
         }
         .view-mode-button.selected {
-            background-color: var(--md-primary-container); /* M3 Primary Container (tonal) */
-            color: var(--md-on-primary-container); /* M3 On-Primary Container */
+            background-color: var(--md-primary-container);
+            color: var(--md-on-primary-container);
         }
         .view-mode-button.selected:hover {
-            background-color: var(--md-primary-container); /* Keep same background on hover for selected */
+            background-color: var(--md-primary-container);
         }
 
-        /* Radio button custom styling */
         .radio-group label {
             display: inline-flex;
             align-items: center;
@@ -583,19 +580,17 @@
             border-radius: 8px;
             transition: background-color 0.2s ease-in-out;
             font-size: 0.95rem;
-            color: #49454F; /* M3 On-Surface-Variant */
+            color: #49454F;
         }
 
         .radio-group label:hover {
-            background-color: #F0F0F0; /* Light hover effect */
+            background-color: #F0F0F0;
         }
 
         .radio-group input[type="radio"] {
-            /* Restore default radio button appearance */
-            /* Removed: appearance: none; -webkit-appearance: none; -moz-appearance: none; */
             width: 20px;
             height: 20px;
-            border: 2px solid var(--md-outline); /* M3 outline color */
+            border: 2px solid var(--md-outline);
             border-radius: 50%;
             margin-right: 8px;
             position: relative;
@@ -604,17 +599,16 @@
         }
 
         .radio-group input[type="radio"]:checked {
-            border-color: var(--md-primary); /* M3 Primary for checked state */
+            border-color: var(--md-primary);
             background-color: var(--md-primary);
         }
 
-        /* Message box for import/export status */
         .message-box {
             position: fixed;
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background-color: #4CAF50; /* Green for success */
+            background-color: #4CAF50;
             color: white;
             padding: 10px 20px;
             border-radius: 8px;
@@ -624,13 +618,51 @@
             transition: opacity 0.5s ease-in-out;
         }
         .message-box.error {
-            background-color: var(--md-error); /* Red for error */
+            background-color: var(--md-error);
         }
         .message-box.show {
             opacity: 1;
         }
 
-        /* Responsive adjustments */
+        /* View Transition Animations */
+        .view {
+            transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+            position: absolute; /* Needed for positioning during transition */
+            width: 100%;
+            top: 0;
+            left: 0;
+            padding: inherit; /* Inherit padding from container */
+            /* Add this to prevent content shifting during position: absolute */
+            box-sizing: border-box; 
+        }
+
+        .view.slide-in-right {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        .view.slide-in-right.active {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .view.slide-out-left {
+            transform: translateX(-100%);
+            opacity: 0;
+        }
+        .view.slide-out-left.active { /* This class is added to the *old* view that's sliding out */
+            transform: translateX(0);
+            opacity: 1;
+        }
+        
+        .view.active-visible {
+            position: relative; /* When active, take up space in layout */
+            transform: translateX(0);
+            opacity: 1;
+        }
+        .view.hidden {
+            display: none;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 15px;
@@ -660,33 +692,30 @@
             .record-book-list-view .record-book-item {
                  grid-template-columns: 2fr 1.5fr auto;
             }
-            .view-mode-button { /* Adjust for smaller screens */
-                min-width: 48px; /* Slightly smaller for mobile if needed */
+            .view-mode-button {
+                min-width: 48px;
                 min-height: 36px;
                 padding: 6px 12px;
             }
-            /* Number Tracker View specific adjustments for smaller screens */
             .number-tracker-header {
-                flex-direction: column; /* Stack name and buttons vertically */
-                align-items: center; /* Center items when stacked */
-                gap: 15px; /* Space between elements */
+                flex-direction: column;
+                align-items: center;
+                gap: 15px;
             }
             .number-tracker-header #currentRecordBookName {
-                margin-bottom: 0; /* No margin below name as it will be centered */
-                width: 100%; /* Take full width */
-                text-align: center; /* Center the text */
-                order: -1; /* Place name above buttons */
+                margin-bottom: 0;
+                width: 100%;
+                text-align: center;
+                order: -1;
             }
-            .number-tracker-header .button-group {
-                flex-direction: column; /* Stack buttons vertically */
-                width: 100%; /* Buttons take full width */
+            .number-tracker-header #backToManagementBtn {
+                margin-bottom: 10px;
+                width: 100%;
+                justify-content: center;
             }
-            .number-tracker-header .button-group button {
-                width: 100%; /* Make buttons full width */
-                margin-bottom: 10px; /* Add space between stacked buttons */
-            }
-            .number-tracker-header .button-group button:last-child {
-                margin-bottom: 0; /* No margin for the last button */
+            .number-tracker-header #resetCurrentBookBtn {
+                width: 100%;
+                justify-content: center;
             }
         }
         @media (max-width: 600px) {
@@ -716,9 +745,9 @@
                 font-size: 1.15rem;
             }
             .record-book-meta {
-                font-size: 0.75rem; /* Even smaller on small screens */
-                bottom: 8px; /* Closer to bottom */
-                right: 10px; /* Closer to right */
+                font-size: 0.75rem;
+                bottom: 8px;
+                right: 10px;
             }
             .record-book-actions {
                 width: 100%;
@@ -760,7 +789,7 @@
             .record-book-list-view .record-book-last-updated-col {
                  font-size: 0.75rem;
             }
-             .view-mode-button { /* Adjust for even smaller screens */
+             .view-mode-button {
                 min-width: 40px;
                 min-height: 32px;
                 padding: 4px 8px;
@@ -770,13 +799,11 @@
 </head>
 <body>
     <div class="container">
-        <!-- Management Page View -->
-        <div id="managementView" class="view">
+        <div id="managementView" class="view"> <!-- Added .view class -->
             <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">我的記事本</h1>
-            <p class="text-center text-gray-600 text-lg mb-8"></p> <!-- Removed: 在這裡管理您的所有數字追蹤器。 -->
+            <p class="text-center text-gray-600 text-lg mb-8"></p>
 
             <div class="flex justify-between items-center mb-8 header-controls">
-                <!-- Import/Export Buttons -->
                 <div class="flex space-x-3">
                     <button id="importBtn" class="button-base button-outlined">
                         <span class="material-symbols-outlined">upload_file</span>
@@ -788,9 +815,7 @@
                     </button>
                 </div>
 
-                <!-- Top right controls for view mode and sort -->
                 <div class="flex items-center space-x-3 header-right-controls">
-                    <!-- View Mode Toggles - Material 3 Segmented Button inspired -->
                     <div class="view-mode-group">
                         <button id="listViewBtn" class="view-mode-button">
                             <span class="material-symbols-outlined">view_list</span>
@@ -800,7 +825,6 @@
                         </button>
                     </div>
 
-                    <!-- Sort Option - Material 3 Outlined Button inspired -->
                     <div class="relative">
                         <button id="sortButton" class="button-base button-outlined">
                             <span class="material-symbols-outlined">sort</span>
@@ -815,47 +839,35 @@
             </div>
 
             <div id="recordBookListContainer" class="mb-6">
-                <!-- List view header (only for list mode) -->
                 <div id="listViewHeader" class="list-view-header hidden">
                     <span class="font-bold">標題</span>
                     <span class="font-bold">最後更新時間</span>
                     <span></span>
                 </div>
                 <div id="recordBookList" class="record-book-list-container">
-                    <!-- Record books will be listed here -->
                 </div>
-                <!-- Message when no record books are present -->
                 <p id="noRecordBooksMessage" class="text-center text-gray-500 text-base italic hidden p-4 mt-8">
                     目前沒有記事本。點擊右下角「＋」按鈕開始一個新的記事本！
                 </p>
             </div>
-            <!-- Removed: <p class="text-center text-gray-600 text-sm mt-4">所有紀錄本狀態會自動儲存在此瀏覽器中。</p> -->
         </div>
 
-        <!-- Number Tracker View -->
-        <div id="numberTrackerView" class="view hidden">
-            <!-- Header for Number Tracker View - Adjusted for responsive layout -->
+        <div id="numberTrackerView" class="view hidden"> <!-- Added .view class -->
             <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 number-tracker-header">
-                <!-- Book Name - Moved to its own line on small screens, centered -->
-                <h1 id="currentRecordBookName" class="text-2xl font-bold text-gray-800 text-center w-full mb-4 md:mb-0"></h1>
+                <button id="backToManagementBtn" class="button-base button-filled-primary w-full whitespace-nowrap justify-center md:w-auto md:justify-start md:order-1">
+                    <span class="material-symbols-outlined">arrow_back</span>
+                    返回管理頁面
+                </button>
 
-                <!-- Buttons Group - Will stack on small screens, take full width, and center content -->
-                <div class="flex flex-col md:flex-row space-y-3 md:space-y-0 md:space-x-3 w-full md:w-auto">
-                    <!-- 返回管理頁面按鈕 - Material 3 Filled Button (Primary) -->
-                    <button id="backToManagementBtn" class="button-base button-filled-primary w-full justify-center">
-                        <span class="material-symbols-outlined">arrow_back</span>
-                        返回管理頁面
-                    </button>
-                    <!-- 重設此紀錄本按鈕 - Material 3 Filled Button (Secondary/Error) -->
-                    <button id="resetCurrentBookBtn" class="button-base button-filled-secondary w-full justify-center">
-                        <span class="material-symbols-outlined">refresh</span>
-                        重設此記事本
-                    </button>
-                </div>
+                <h1 id="currentRecordBookName" class="text-2xl font-bold text-gray-800 text-center w-full mb-4 md:mb-0 md:order-2 md:flex-grow"></h1>
+
+                <button id="resetCurrentBookBtn" class="button-base button-filled-secondary w-full whitespace-nowrap justify-center md:w-auto md:justify-end md:order-3">
+                    <span class="material-symbols-outlined">refresh</span>
+                    重設此記事本
+                </button>
             </div>
 
 
-            <!-- Limited Notes Section -->
             <div id="limitedNotesSection" class="mb-6 bg-gray-100 p-4 rounded-lg">
                 <label for="notesInput" class="block text-gray-700 text-sm font-bold mb-2">簡短備註 (最多 50 個字):</label>
                 <textarea id="notesInput" maxlength="50" rows="2"
@@ -866,7 +878,6 @@
                 </div>
             </div>
 
-            <!-- Unlimited Record Text Section (New) -->
             <div id="unlimitedRecordTextSection" class="mb-6 bg-gray-100 p-4 rounded-lg hidden">
                 <label for="recordTextInput" class="block text-gray-700 text-sm font-bold mb-2">記事本內容:</label>
                 <textarea id="recordTextInput" rows="10"
@@ -875,42 +886,94 @@
             </div>
 
             <div id="numbersGrid" class="grid-container mb-6">
-                <!-- Numbers will be dynamically generated here -->
             </div>
-            <p class="text-center text-gray-600 text-sm mt-4"></p> <!-- Removed: 您的打勾狀態會自動儲存在此瀏覽器中。 -->
+            <p class="text-center text-gray-600 text-sm mt-4"></p>
         </div>
     </div>
 
-    <!-- Floating Action Button for Add New Record Book - Material 3 FAB -->
     <button id="fabAddNewRecordBookBtn" class="fab-button">
         <span class="material-symbols-outlined">add</span>
     </button>
 
-    <!-- Custom Modal Structure -->
-    <div id="customModal" class="fixed inset-0 custom-modal-overlay flex items-center justify-center z-50 hidden">
+    <div id="customModal" class="fixed inset-0 custom-modal-overlay z-50 hidden">
         <div class="custom-modal-content p-8 max-w-sm w-full relative">
             <h2 id="modalTitle" class="text-2xl font-bold mb-4 text-gray-800"></h2>
             <p id="modalErrorMessage" class="text-red-500 text-sm mb-4 hidden"></p>
             <div id="modalInputsContainer">
-                <!-- Inputs will be dynamically added here -->
             </div>
             <div id="modalActionButtonsContainer" class="flex flex-col space-y-3 mt-6 hidden">
-                <!-- Action buttons will be dynamically added here -->
             </div>
             <div id="modalConfirmCancelButtons" class="flex justify-end space-x-3 mt-6 hidden">
-                <!-- Modal Confirm Button - Material 3 Filled Button -->
                 <button id="modalCancelBtn" class="button-base button-outlined">取消</button>
                 <button id="modalConfirmBtn" class="button-base button-filled-primary">確認</button>
             </div>
         </div>
     </div>
 
-    <!-- Message Box for notifications -->
     <div id="messageBox" class="message-box"></div>
 
     <script>
+        const defaultMaxNumber = 40;
+        const notesCharLimit = 50;
+        const storageKey = 'multiNumberTrackerState';
+        const displayModeKey = 'multiNumberTrackerDisplayMode';
+        const sortModeKey = 'multiNumberTrackerSortMode';
+
+        let recordBooks = [];
+        let currentRecordBookId = null;
+        let displayMode = 'list';
+        let sortMode = 'latest';
+
+        function generateUUID() {
+            return crypto.randomUUID();
+        }
+
+        function formatDateTime(isoDateString) {
+            if (!isoDateString) return 'N/A';
+            const date = new Date(isoDateString);
+            return date.toLocaleString('zh-TW', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+        }
+
+        function showMessage(message, isError = false) {
+            const messageBox = document.getElementById('messageBox');
+            messageBox.textContent = message;
+            messageBox.classList.remove('error');
+            if (isError) {
+                messageBox.classList.add('error');
+            }
+            messageBox.classList.add('show');
+            setTimeout(() => {
+                messageBox.classList.remove('show');
+            }, 3000);
+        }
+
+        function sortRecordBooks() {
+            const currentSortText = document.getElementById('currentSortText');
+            const sortByLatestBtn = document.getElementById('sortByLatestBtn');
+            const sortByTitleBtn = document.getElementById('sortByTitleBtn');
+
+            if (sortMode === 'latest') {
+                recordBooks.sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime());
+                currentSortText.textContent = '最新';
+                sortByLatestBtn.classList.add('selected-sort-option');
+                sortByTitleBtn.classList.remove('selected-sort-option');
+            } else if (sortMode === 'title') {
+                recordBooks.sort((a, b) => a.name.localeCompare(b.name, 'zh-TW', { sensitivity: 'base' }));
+                currentSortText.textContent = '標題';
+                sortByTitleBtn.classList.add('selected-sort-option');
+                sortByLatestBtn.classList.remove('selected-sort-option');
+            }
+        }
+
+
         document.addEventListener('DOMContentLoaded', () => {
-            // DOM Elements
             const managementView = document.getElementById('managementView');
             const numberTrackerView = document.getElementById('numberTrackerView');
             const fabAddNewRecordBookBtn = document.getElementById('fabAddNewRecordBookBtn');
@@ -922,21 +985,16 @@
             const currentRecordBookName = document.getElementById('currentRecordBookName');
             const resetCurrentBookBtn = document.getElementById('resetCurrentBookBtn');
             const numbersGrid = document.getElementById('numbersGrid');
-            const notesInput = document.getElementById('notesInput'); // Limited notes input
-            const notesCharCount = document.getElementById('notesCharCount'); // Limited notes character count
+            const notesInput = document.getElementById('notesInput');
+            const notesCharCount = document.getElementById('notesCharCount');
 
-            // New DOM Elements for the unlimited text section
             const limitedNotesSection = document.getElementById('limitedNotesSection');
             const unlimitedRecordTextSection = document.getElementById('unlimitedRecordTextSection');
             const recordTextInput = document.getElementById('recordTextInput');
 
-            // Import/Export Buttons
             const importBtn = document.getElementById('importBtn');
             const exportBtn = document.getElementById('exportBtn');
-            const messageBox = document.getElementById('messageBox');
 
-
-            // Custom Modal Elements
             const customModal = document.getElementById('customModal');
             const modalTitle = document.getElementById('modalTitle');
             const modalInputsContainer = document.getElementById('modalInputsContainer');
@@ -947,137 +1005,93 @@
             const modalErrorMessage = document.getElementById('modalErrorMessage');
             let currentModalResolve;
 
-            // View Mode Buttons
             const listViewBtn = document.getElementById('listViewBtn');
             const gridViewBtn = document.getElementById('gridViewBtn');
 
-            // Sort Elements
             const sortButton = document.getElementById('sortButton');
             const sortDropdown = document.getElementById('sortDropdown');
-            const sortByLatestBtn = document.getElementById('sortByLatestBtn');
-            const sortByTitleBtn = document.getElementById('sortByTitleBtn');
-            const currentSortText = document.getElementById('currentSortText');
 
 
-            // Constants
-            const defaultMaxNumber = 40;
-            const notesCharLimit = 50; // Define notes character limit
-            const storageKey = 'multiNumberTrackerState';
-            const displayModeKey = 'multiNumberTrackerDisplayMode';
-            const sortModeKey = 'multiNumberTrackerSortMode';
-
-            // Global State
-            let recordBooks = [];
-            let currentRecordBookId = null;
-            let displayMode = 'list';
-            let sortMode = 'latest';
-
-            // --- Utility Functions ---
-
-            // Generate a unique ID
-            function generateUUID() {
-                return crypto.randomUUID();
-            }
-
-            // Format date and time for display (for "最後更新時間")
-            function formatDateTime(isoDateString) {
-                if (!isoDateString) return 'N/A';
-                const date = new Date(isoDateString);
-                return date.toLocaleString('zh-TW', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false
-                });
-            }
-
-            // Show a temporary message
-            function showMessage(message, isError = false) {
-                messageBox.textContent = message;
-                messageBox.classList.remove('error');
-                if (isError) {
-                    messageBox.classList.add('error');
-                }
-                messageBox.classList.add('show');
-                setTimeout(() => {
-                    messageBox.classList.remove('show');
-                }, 3000); // Message disappears after 3 seconds
-            }
-
-            // Load all record books, display mode, and sort mode from localStorage
             function loadRecordBooks() {
-                let needsRecordBookSave = false; // Flag to indicate if recordBooks were modified during load
+                let needsRecordBookSave = false;
                 const storedData = localStorage.getItem(storageKey);
                 if (storedData) {
                     recordBooks = JSON.parse(storedData);
                     recordBooks.forEach(book => {
                         if (book.maxNumber === undefined) {
                             book.maxNumber = defaultMaxNumber;
-                            needsRecordBookSave = true; // Mark for saving if updated
+                            needsRecordBookSave = true;
                         }
                         if (book.lastUpdated === undefined) {
                             book.lastUpdated = book.createdAt || new Date().toISOString();
-                            delete book.createdAt; // Clean up old 'createdAt'
-                            needsRecordBookSave = true; // Mark for saving if updated
+                            delete book.createdAt;
+                            needsRecordBookSave = true;
                         }
-                        // Initialize notes field if it doesn't exist (for existing books)
                         if (book.notes === undefined) {
                             book.notes = "";
-                            needsRecordBookSave = true; // Mark for saving if updated
+                            needsRecordBookSave = true;
                         }
-                        // Initialize recordText field if it doesn't exist (for existing books)
                         if (book.recordText === undefined) {
                             book.recordText = "";
-                            needsRecordBookSave = true; // Mark for saving if updated
+                            needsRecordBookSave = true;
                         }
-                        // Initialize bookType field if it doesn't exist (for existing books)
                         if (book.bookType === undefined) {
-                            book.bookType = "number"; // Default to number tracker
-                            needsRecordBookSave = true; // Mark for saving if updated
+                            book.bookType = "number";
+                            needsRecordBookSave = true;
                         }
                     });
                 } else {
                     recordBooks = [];
                 }
 
-                // Load display mode
                 const storedDisplayMode = localStorage.getItem(displayModeKey);
                 if (storedDisplayMode) {
                     displayMode = storedDisplayMode;
                 } else {
-                    displayMode = 'list'; // Default if not found
+                    displayMode = 'list';
                 }
 
-                // Load sort mode
                 const storedSortMode = localStorage.getItem(sortModeKey);
                 if (storedSortMode) {
                     sortMode = storedSortMode;
                 } else {
-                    sortMode = 'latest'; // Default if not found
+                    sortMode = 'latest';
                 }
 
-                // Only save record books if they were modified during load (e.g., migration of fields)
-                // This ensures displayMode and sortMode are already loaded before this save.
                 if (needsRecordBookSave) {
                     saveRecordBooks();
                 }
 
-                renderManagementView();
+                const initialState = history.state;
+                if (initialState && initialState.view === 'tracker' && initialState.bookId) {
+                    currentRecordBookId = initialState.bookId;
+                    renderNumberTrackerView('initial'); // Pass 'initial' to prevent animation on first load
+                } else {
+                    // Always replace the initial state to avoid adding an extra history entry on load
+                    history.replaceState({ view: 'management', modalOpen: false }, '我的記事本', '');
+                    renderManagementView('initial'); // Pass 'initial'
+                }
             }
 
-            // Save all record books, display mode, and sort mode to localStorage
             function saveRecordBooks() {
                 localStorage.setItem(storageKey, JSON.stringify(recordBooks));
-                localStorage.setItem(displayModeKey, displayMode); // Save the current display mode
-                localStorage.setItem(sortModeKey, sortMode); // Save the current sort mode
+                localStorage.setItem(displayModeKey, displayMode);
+                localStorage.setItem(sortModeKey, sortMode);
             }
 
-            // --- Custom Modal Logic ---
-            // This function is kept generic but for 'add new record book' we will handle content directly
+            /**
+             * 顯示自訂模態框。
+             * @param {string} title 模態框標題。
+             * @param {object} options 選項物件。
+             * @param {Array} options.inputs 輸入欄位定義陣列。
+             * @param {Array} options.actions 動作按鈕定義陣列。
+             * @param {string} options.confirmButtonText 確認按鈕文字。
+             * @param {string} options.cancelButtonText 取消按鈕文字。
+             * @param {boolean} options.trackHistory 是否在瀏覽器歷史中追蹤此模態框的開啟狀態 (使用 pushState)。
+             * @returns {Promise<object>} 模態框關閉時的結果。
+             */
             function showCustomModal(title, options = {}) {
-                const { inputs = [], actions = [], confirmButtonText = '確認', cancelButtonText = '取消' } = options;
+                const { inputs = [], actions = [], confirmButtonText = '確認', cancelButtonText = '取消', trackHistory = false } = options;
 
                 modalTitle.textContent = title;
                 modalInputsContainer.innerHTML = '';
@@ -1089,22 +1103,24 @@
                     modalActionButtonsContainer.classList.remove('hidden');
                     actions.forEach(actionDef => {
                         const button = document.createElement('button');
-                        // Use a consistent class for action buttons within the modal
                         button.classList.add('modal-action-button', actionDef.class);
                         button.textContent = actionDef.text;
                         button.onclick = () => {
-                            customModal.classList.add('hidden');
-                            currentModalResolve({ confirmed: true, action: actionDef.value });
+                            // Close modal with animation, then resolve promise
+                            closeCustomModal().then(() => {
+                                currentModalResolve({ confirmed: true, action: actionDef.value });
+                            });
                         };
                         modalActionButtonsContainer.appendChild(button);
                     });
                     const cancelButton = document.createElement('button');
-                    cancelButton.classList.add('modal-action-button', 'cancel'); /* Use .cancel class for styling */
+                    cancelButton.classList.add('modal-action-button', 'cancel');
                     cancelButton.textContent = cancelButtonText;
                     cancelButton.onclick = () => {
-                        modalErrorMessage.classList.add('hidden');
-                        customModal.classList.add('hidden');
-                        currentModalResolve({ confirmed: false });
+                        // Close modal with animation, then resolve promise
+                        closeCustomModal().then(() => {
+                            currentModalResolve({ confirmed: false });
+                        });
                     };
                     modalActionButtonsContainer.appendChild(cancelButton);
 
@@ -1117,16 +1133,20 @@
                     inputs.forEach(inputDef => {
                         const div = document.createElement('div');
                         div.classList.add('mb-4');
+                        // Add a specific class to identify input groups for dynamic hiding/showing
+                        if (inputDef.id === 'maxNum') {
+                            div.classList.add('max-num-input-group');
+                        }
+
 
                         const label = document.createElement('label');
                         label.classList.add('block', 'text-gray-700', 'text-sm', 'font-bold', 'mb-2');
                         label.textContent = inputDef.label;
                         div.appendChild(label);
 
-                        // If input type is radio, create a radio group
                         if (inputDef.type === 'radio') {
                             const radioGroupDiv = document.createElement('div');
-                            radioGroupDiv.classList.add('flex', 'space-x-4', 'radio-group'); // Added radio-group class for styling
+                            radioGroupDiv.classList.add('flex', 'space-x-4', 'radio-group');
                             inputDef.options.forEach(option => {
                                 const radioLabel = document.createElement('label');
                                 radioLabel.innerHTML = `
@@ -1153,7 +1173,17 @@
                     });
                 }
 
-                customModal.classList.remove('hidden');
+                // Show modal with animation
+                customModal.classList.remove('hidden', 'hide-modal'); // Ensure it's not display: none and remove hide animation class
+                customModal.classList.add('show-modal'); // Add show animation class
+
+                // History tracking for modal
+                if (trackHistory) {
+                    history.pushState({ view: history.state.view, modalOpen: true }, '');
+                } else {
+                    history.replaceState({ view: history.state.view, modalOpen: true }, '');
+                }
+
                 if (inputs.length > 0) {
                     modalInputsContainer.querySelector('input')?.focus();
                 } else if (actions.length > 0) {
@@ -1161,21 +1191,76 @@
                 } else {
                     modalConfirmBtn.focus();
                 }
+
+                // Handle the visibility of maxNumInputGroup based on bookType radio selection
+                const bookTypeRadios = modalInputsContainer.querySelectorAll('input[name="bookType"]');
+                const maxNumInputGroup = modalInputsContainer.querySelector('.max-num-input-group'); // Select by the new class
+
+                const toggleMaxNumInput = () => {
+                    const selectedType = document.querySelector('input[name="bookType"]:checked').value;
+                    if (maxNumInputGroup) { // Ensure maxNumInputGroup exists before manipulating
+                        if (selectedType === 'number') {
+                            maxNumInputGroup.classList.remove('hidden');
+                        } else {
+                            maxNumInputGroup.classList.add('hidden');
+                        }
+                    }
+                };
+
+                // Add event listeners only if elements are present (after modal content is rendered)
+                if (bookTypeRadios.length > 0) {
+                    bookTypeRadios.forEach(radio => {
+                        radio.addEventListener('change', toggleMaxNumInput);
+                    });
+                }
+                toggleMaxNumInput(); // Initial call to set correct visibility
+
+
                 return new Promise(resolve => {
                     currentModalResolve = resolve;
                 });
             }
+
+            /**
+             * 關閉自訂模態框。此函數會替換當前的瀏覽器歷史狀態，將 modalOpen 設為 false。
+             * @returns {Promise<void>} 當動畫結束時解析。
+             */
+            function closeCustomModal() {
+                return new Promise(resolve => {
+                    modalErrorMessage.classList.add('hidden');
+                    customModal.classList.remove('show-modal');
+                    customModal.classList.add('hide-modal');
+
+                    // Listen for the end of the transition
+                    const onTransitionEnd = () => {
+                        customModal.classList.add('hidden'); // Hide after animation
+                        customModal.classList.remove('hide-modal');
+                        customModal.removeEventListener('transitionend', onTransitionEnd);
+                        // Programmatically close, replace current history state, ensure modalOpen is false
+                        history.replaceState({ view: history.state.view, modalOpen: false }, '');
+                        resolve();
+                    };
+                    customModal.addEventListener('transitionend', onTransitionEnd);
+
+                    // Fallback for transitionend not firing (e.g., if element was hidden immediately)
+                    setTimeout(() => {
+                        if (customModal.classList.contains('hide-modal')) {
+                            onTransitionEnd();
+                        }
+                    }, 350); // A bit longer than CSS transition duration
+                });
+            }
+
 
             modalConfirmBtn.onclick = () => {
                 const values = {};
                 let isValid = true;
                 let errorMessage = '';
 
-                // Get all inputs in the modal
                 const bookNameInput = modalInputsContainer.querySelector('#bookName');
                 const maxNumInput = modalInputsContainer.querySelector('#maxNum');
                 const bookTypeRadios = modalInputsContainer.querySelectorAll('input[name="bookType"]');
-                const newNameInput = modalInputsContainer.querySelector('#newName'); // For rename modal
+                const newNameInput = modalInputsContainer.querySelector('#newName');
 
                 if (bookNameInput) {
                     if (bookNameInput.value.trim() === '') {
@@ -1185,15 +1270,15 @@
                     values.bookName = bookNameInput.value.trim();
                 }
                 
-                if (newNameInput) { // Check if rename input exists
+                if (newNameInput) {
                     if (newNameInput.value.trim() === '') {
                         errorMessage = '新名稱不能為空。';
                         isValid = false;
                     }
-                    values.newName = newNameInput.value.trim(); // Get new name for rename
+                    values.newName = newNameInput.value.trim();
                 }
 
-                let selectedBookType = 'number'; // Default to number
+                let selectedBookType = 'number';
                 for (const radio of bookTypeRadios) {
                     if (radio.checked) {
                         selectedBookType = radio.value;
@@ -1209,8 +1294,9 @@
                         isValid = false;
                     }
                     values.maxNum = numValue;
-                } else {
-                    values.maxNum = defaultMaxNumber; // Not applicable for text, set default
+                } else if (selectedBookType === 'text') {
+                    // For text type, maxNum is not relevant, set to a default/non-number
+                    values.maxNum = 0; 
                 }
 
 
@@ -1218,63 +1304,104 @@
                     modalErrorMessage.textContent = errorMessage;
                     modalErrorMessage.classList.remove('hidden');
                 } else {
-                    modalErrorMessage.classList.add('hidden');
-                    customModal.classList.add('hidden');
-                    currentModalResolve({ confirmed: true, values });
+                    // Close modal with animation, then resolve promise
+                    closeCustomModal().then(() => {
+                        currentModalResolve({ confirmed: true, values });
+                    });
                 }
             };
 
             modalCancelBtn.onclick = () => {
-                modalErrorMessage.classList.add('hidden');
-                customModal.classList.add('hidden');
-                currentModalResolve({ confirmed: false });
+                // Close modal with animation, then resolve promise
+                closeCustomModal().then(() => {
+                    currentModalResolve({ confirmed: false });
+                });
             };
 
-            // --- View Rendering Functions ---
+            /**
+             * 顯示指定視圖並更新瀏覽器歷史，並應用動畫效果。
+             * @param {HTMLElement} newViewElement 要顯示的新視圖元素。
+             * @param {object} state 要儲存到歷史中的狀態物件。
+             * @param {string} title 頁面標題。
+             * @param {string} direction 'forward' (進入追蹤器) 或 'backward' (返回管理頁面) 或 'initial' (初始載入，無動畫)。
+             */
+            function showView(newViewElement, state, title, direction = 'forward') {
+                const currentViewElement = document.querySelector('.view.active-visible'); // Get currently active view
 
-            function showView(viewElement) {
-                managementView.classList.add('hidden');
-                numberTrackerView.classList.add('hidden');
-                viewElement.classList.remove('hidden');
-            }
-
-            function sortRecordBooks() {
-                if (sortMode === 'latest') {
-                    recordBooks.sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime());
-                    currentSortText.textContent = '最新';
-                    sortByLatestBtn.classList.add('selected-sort-option');
-                    sortByTitleBtn.classList.remove('selected-sort-option');
-                } else if (sortMode === 'title') {
-                    recordBooks.sort((a, b) => a.name.localeCompare(b.name, 'zh-TW', { sensitivity: 'base' }));
-                    currentSortText.textContent = '標題';
-                    sortByTitleBtn.classList.add('selected-sort-option');
-                    sortByLatestBtn.classList.remove('selected-sort-option');
+                // If there's an active view and it's not the new view and we're animating
+                if (currentViewElement && currentViewElement !== newViewElement && direction !== 'initial') {
+                    currentViewElement.classList.remove('active-visible');
+                    if (direction === 'forward') {
+                        currentViewElement.classList.add('slide-out-left');
+                    } else if (direction === 'backward') {
+                        currentViewElement.classList.add('slide-in-right'); // Re-use slide-in-right for reverse transition
+                    }
+                    
+                    // Listen for transition end on the exiting view
+                    currentViewElement.addEventListener('transitionend', function _listener() {
+                        currentViewElement.classList.add('hidden');
+                        currentViewElement.classList.remove('slide-out-left', 'slide-in-right');
+                        currentViewElement.removeEventListener('transitionend', _listener);
+                    }, { once: true }); // Use once: true to automatically remove listener
+                } else if (currentViewElement && currentViewElement === newViewElement) {
+                    // If switching to the same view, just ensure it's visible and active
+                    newViewElement.classList.remove('hidden', 'slide-in-right', 'slide-out-left');
+                    newViewElement.classList.add('active-visible');
+                    // No animation needed, directly update history state if different
+                    if (JSON.stringify(history.state) !== JSON.stringify(state)) {
+                        history.replaceState(state, title, '');
+                    }
+                    document.title = title;
+                    return; 
                 }
+
+                // Prepare new view for entry animation
+                newViewElement.classList.remove('hidden', 'active-visible'); // Ensure it's not hidden and remove old active class
+                if (direction === 'forward') {
+                    newViewElement.classList.add('slide-in-right'); // Start off-screen right
+                } else if (direction === 'backward') {
+                    newViewElement.classList.add('slide-out-left'); // Start off-screen left (visually from left when sliding right)
+                }
+
+                // Force reflow to ensure animation starts from correct initial state
+                void newViewElement.offsetWidth;
+
+                // Apply entry animation to the new view
+                newViewElement.classList.add('active-visible'); // Animate to on-screen position
+                newViewElement.classList.remove('slide-in-right', 'slide-out-left'); // Remove initial position class to start transition
+
+                // Update history state
+                // Push state if going from management to tracker, or replacing if internal view change
+                if (state.view === 'tracker' && (!history.state || history.state.view !== 'tracker')) {
+                     history.pushState(state, title, '');
+                } else {
+                    history.replaceState(state, title, '');
+                }
+                document.title = title;
             }
 
-            function renderManagementView() {
-                showView(managementView);
+            function renderManagementView(animationDirection = 'forward') { // Default to 'forward' for general rendering
+                showView(managementView, { view: 'management', modalOpen: false }, '我的記事本', animationDirection);
                 recordBookList.innerHTML = '';
 
-                sortRecordBooks(); // Apply sorting before rendering
+                sortRecordBooks();
 
                 recordBookList.className = '';
 
                 listViewBtn.classList.remove('selected');
                 gridViewBtn.classList.remove('selected');
 
-                // Apply the saved display mode
                 if (displayMode === 'list') {
                     recordBookList.classList.add('record-book-list-container');
                     recordBookList.classList.add('record-book-list-view');
                     listViewBtn.classList.add('selected');
-                    gridViewBtn.classList.remove('selected'); // Ensure grid button is not selected
+                    gridViewBtn.classList.remove('selected');
                     listViewHeader.classList.remove('hidden');
                 } else {
                     recordBookList.classList.add('record-book-grid-container');
                     recordBookList.classList.add('record-book-grid-view');
                     gridViewBtn.classList.add('selected');
-                    listViewBtn.classList.remove('selected'); // Ensure list button is not selected
+                    listViewBtn.classList.remove('selected');
                     listViewHeader.classList.add('hidden');
                 }
 
@@ -1284,7 +1411,6 @@
                     listViewHeader.classList.add('hidden');
                 } else {
                     noRecordBooksMessage.classList.add('hidden');
-                    // The displayMode logic above already handles adding appropriate classes
                 }
 
                 if (recordBooks.length > 0) {
@@ -1297,7 +1423,6 @@
                            selectRecordBook(book.id);
                         });
 
-                        // Display name and last updated based on display mode
                         if (displayMode === 'list') {
                             const titleCol = document.createElement('span');
                             titleCol.classList.add('record-book-name');
@@ -1309,7 +1434,7 @@
                             lastUpdatedCol.textContent = formatDateTime(book.lastUpdated);
                             bookItem.appendChild(lastUpdatedCol);
 
-                        } else { // Grid view
+                        } else {
                             const nameWrapper = document.createElement('div');
                             nameWrapper.classList.add('record-book-name-wrapper');
 
@@ -1318,11 +1443,10 @@
                             nameSpan.textContent = book.name;
                             nameWrapper.appendChild(nameSpan);
                             
-                            // Last updated date for grid view, positioned at bottom right
                             const lastUpdatedMeta = document.createElement('span');
-                            lastUpdatedMeta.classList.add('record-book-meta'); // Use existing meta class for styling
+                            lastUpdatedMeta.classList.add('record-book-meta');
                             lastUpdatedMeta.textContent = formatDateTime(book.lastUpdated);
-                            bookItem.appendChild(lastUpdatedMeta); // Append directly to bookItem for absolute positioning
+                            bookItem.appendChild(lastUpdatedMeta);
 
                             bookItem.appendChild(nameWrapper);
                         }
@@ -1331,8 +1455,8 @@
                         actionsDiv.classList.add('record-book-actions');
 
                         const optionsBtn = document.createElement('button');
-                        optionsBtn.classList.add('options-button', 'action-icon-button'); /* Added M3 icon button class */
-                        optionsBtn.innerHTML = '<span class="material-symbols-outlined">more_vert</span>'; /* Material Icon */
+                        optionsBtn.classList.add('options-button', 'action-icon-button');
+                        optionsBtn.innerHTML = '<span class="material-symbols-outlined">more_vert</span>';
                         optionsBtn.addEventListener('click', (e) => {
                             e.stopPropagation();
                             showRecordBookActionsModal(book.id);
@@ -1346,32 +1470,28 @@
             }
 
 
-            function renderNumberTrackerView() {
-                showView(numberTrackerView);
+            function renderNumberTrackerView(animationDirection = 'forward') { // Default to 'forward'
                 const currentBook = recordBooks.find(book => book.id === currentRecordBookId);
-
                 if (!currentBook) {
                     console.error("No record book selected or found.");
-                    renderManagementView();
+                    renderManagementView('backward'); // If no book, go back to management
                     return;
                 }
 
+                showView(numberTrackerView, { view: 'tracker', bookId: currentRecordBookId, modalOpen: false }, `記事本: ${currentBook.name}`, animationDirection);
                 currentRecordBookName.textContent = currentBook.name;
-                numbersGrid.innerHTML = ''; // Clear numbers grid
+                numbersGrid.innerHTML = '';
 
-                // Conditionally display sections based on bookType
                 if (currentBook.bookType === 'number') {
                     limitedNotesSection.classList.remove('hidden');
                     numbersGrid.classList.remove('hidden');
                     unlimitedRecordTextSection.classList.add('hidden');
 
-                    // Set notes input value and character count for number type
                     notesInput.value = currentBook.notes || '';
                     notesInput.setAttribute('maxlength', notesCharLimit);
                     notesCharCount.textContent = `${notesInput.value.length}/${notesCharLimit}`;
 
-                    // Generate numbers grid
-                    for (let i = 1; i <= currentBook.maxNumber; i++) {
+                    for (let i = 1; i <= currentBook.maxNumber; i++) { // Fixed loop condition
                         const isChecked = currentBook.checkedNumbers[i] || false;
 
                         const gridItem = document.createElement('div');
@@ -1399,22 +1519,19 @@
                     numbersGrid.classList.add('hidden');
                     unlimitedRecordTextSection.classList.remove('hidden');
 
-                    // Set unlimited record text value
                     recordTextInput.value = currentBook.recordText || '';
                 }
 
-                // Add event listener for limited notes input (always available in DOM, just hidden)
                 notesInput.oninput = () => {
                     if (notesInput.value.length > notesCharLimit) {
                         notesInput.value = notesInput.value.substring(0, notesCharLimit);
                     }
                     currentBook.notes = notesInput.value;
-                    currentBook.lastUpdated = new Date().toISOString(); // Update last updated when notes change
+                    currentBook.lastUpdated = new Date().toISOString();
                     saveRecordBooks();
-                    notesCharCount.textContent = `${notesInput.value.length}/${notesCharLimit}`; // Update char count display
+                    notesCharCount.textContent = `${notesInput.value.length}/${notesCharLimit}`;
                 };
 
-                // Add event listener for unlimited record text input (always available in DOM, just hidden)
                 recordTextInput.oninput = () => {
                     currentBook.recordText = recordTextInput.value;
                     currentBook.lastUpdated = new Date().toISOString();
@@ -1422,7 +1539,21 @@
                 };
             }
 
-            // --- Record Book Management Actions ---
+            // Function to update the state of a number in the current book
+            function updateNumberState(bookId, number, isChecked, gridItem) {
+                const book = recordBooks.find(b => b.id === bookId);
+                if (book) {
+                    book.checkedNumbers[number] = isChecked;
+                    book.lastUpdated = new Date().toISOString();
+                    saveRecordBooks();
+                    if (isChecked) {
+                        gridItem.classList.add('checked');
+                    } else {
+                        gridItem.classList.remove('checked');
+                    }
+                }
+            }
+
 
             async function showRecordBookActionsModal(bookId) {
                 const book = recordBooks.find(b => b.id === bookId);
@@ -1435,7 +1566,8 @@
                             { text: '重新命名', value: 'rename', class: 'rename' },
                             { text: '刪除', value: 'delete', class: 'delete' }
                         ],
-                        cancelButtonText: '關閉'
+                        cancelButtonText: '關閉',
+                        trackHistory: true
                     }
                 );
 
@@ -1449,65 +1581,41 @@
             }
 
             fabAddNewRecordBookBtn.addEventListener('click', async () => {
-                // Show a specific modal for adding a new record book
-                modalTitle.textContent = "新增記事本";
-                modalInputsContainer.innerHTML = `
-                    <div class="mb-4">
-                        <label class="block text-gray-700 text-sm font-bold mb-2">記事本類型:</label>
-                        <div class="flex space-x-4 radio-group">
-                            <label>
-                                <input type="radio" name="bookType" value="number" checked>
-                                數字追蹤
-                            </label>
-                            <label>
-                                <input type="radio" name="bookType" value="text">
-                                純文字記事
-                            </label>
-                        </div>
-                    </div>
-                    <div class="mb-4">
-                        <label for="bookName" class="block text-gray-700 text-sm font-bold mb-2">記事本名稱:</label>
-                        <input type="text" id="bookName" value="新記事本 ${recordBooks.length + 1}" placeholder="例如: 我的待辦事項"
-                            class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
-                            data-label="記事本名稱">
-                    </div>
-                    <div id="maxNumInputGroup" class="mb-4">
-                        <label for="maxNum" class="block text-gray-700 text-sm font-bold mb-2">最大數字設定 (1-100):</label>
-                        <input type="number" id="maxNum" value="${defaultMaxNumber}" min="1" max="100"
-                            class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
-                            data-label="最大數字設定">
-                    </div>
-                `;
-                // Show/hide maxNum input based on selected type
-                const bookTypeRadios = modalInputsContainer.querySelectorAll('input[name="bookType"]');
-                const maxNumInputGroup = modalInputsContainer.querySelector('#maxNumInputGroup');
-
-                const toggleMaxNumInput = () => {
-                    const selectedType = document.querySelector('input[name="bookType"]:checked').value;
-                    if (selectedType === 'number') {
-                        maxNumInputGroup.classList.remove('hidden');
-                    } else {
-                        maxNumInputGroup.classList.add('hidden');
+                const result = await showCustomModal(
+                    "新增記事本",
+                    {
+                        inputs: [
+                            {
+                                label: '記事本類型:',
+                                type: 'radio',
+                                name: 'bookType',
+                                options: [
+                                    { label: '數字追蹤', value: 'number', checked: true },
+                                    { label: '純文字記事', value: 'text' }
+                                ]
+                            },
+                            {
+                                id: 'bookName',
+                                label: '記事本名稱:',
+                                type: 'text',
+                                defaultValue: `新記事本 ${recordBooks.length + 1}`,
+                                placeholder: '例如: 我的待辦事項'
+                            },
+                            {
+                                id: 'maxNum',
+                                label: '最大數字設定 (1-100):',
+                                type: 'number',
+                                defaultValue: defaultMaxNumber,
+                                min: '1',
+                                max: '100'
+                            }
+                        ],
+                        confirmButtonText: '新增',
+                        cancelButtonText: '取消',
+                        trackHistory: true
                     }
-                };
-
-                bookTypeRadios.forEach(radio => {
-                    radio.addEventListener('change', toggleMaxNumInput);
-                });
-
-                // Initial state based on default value
-                toggleMaxNumInput();
-
-                modalActionButtonsContainer.classList.add('hidden'); // Hide action buttons for this mode
-                modalConfirmCancelButtons.classList.remove('hidden'); // Show confirm/cancel
-
-                customModal.classList.remove('hidden');
-                modalInputsContainer.querySelector('#bookName').focus();
-
-                const result = await new Promise(resolve => {
-                    currentModalResolve = resolve;
-                });
-
+                );
+                
                 if (result.confirmed) {
                     let newName = result.values.bookName.trim();
                     let newMaxNumber = result.values.maxNum;
@@ -1521,8 +1629,8 @@
                         id: generateUUID(),
                         name: newName,
                         lastUpdated: new Date().toISOString(),
-                        notes: "", // Limited notes
-                        recordText: "", // Unlimited text
+                        notes: "",
+                        recordText: "",
                         bookType: newBookType
                     };
 
@@ -1530,19 +1638,22 @@
                         newBook.maxNumber = newMaxNumber;
                         newBook.checkedNumbers = {};
                     } else {
-                        newBook.maxNumber = 0; // Not applicable for text
-                        newBook.checkedNumbers = {}; // Still keep for consistency, but won't be used
+                        newBook.maxNumber = 0; // Not relevant for text type
+                        newBook.checkedNumbers = {}; // Not relevant for text type
                     }
 
                     recordBooks.push(newBook);
                     saveRecordBooks();
-                    renderManagementView();
+                    renderManagementView(); // Rerender management view to show new book
+                    showMessage('記事本已成功新增！');
+                } else {
+                    showMessage('新增記事本已取消。');
                 }
             });
 
             function selectRecordBook(id) {
                 currentRecordBookId = id;
-                renderNumberTrackerView();
+                renderNumberTrackerView('forward'); // Animate forward when selecting a book
             }
 
             async function renameRecordBook(id) {
@@ -1564,6 +1675,9 @@
                         bookToRename.lastUpdated = new Date().toISOString();
                         saveRecordBooks();
                         renderManagementView();
+                        showMessage('記事本已成功重新命名！');
+                    } else {
+                        showMessage('重新命名已取消或新名稱無效。', true);
                     }
                 }
             }
@@ -1587,6 +1701,9 @@
                     }
                     saveRecordBooks();
                     renderManagementView();
+                    showMessage('記事本已成功刪除！');
+                } else {
+                    showMessage('刪除操作已取消。');
                 }
             }
 
@@ -1606,54 +1723,35 @@
                         } else if (currentBook.bookType === 'text') {
                             currentBook.recordText = "";
                         }
-                        currentBook.notes = ""; // Limited notes are always cleared
+                        currentBook.notes = "";
                         currentBook.lastUpdated = new Date().toISOString();
                         saveRecordBooks();
-                        renderNumberTrackerView();
+                        renderNumberTrackerView('none'); // No animation for reset
+                        showMessage('記事本已成功重設！');
+                    } else {
+                        showMessage('重設操作已取消。');
                     }
                 }
             });
 
-            function updateNumberState(bookId, number, isChecked, element) {
-                const book = recordBooks.find(b => b.id === bookId);
-                if (book) {
-                    if (number > book.maxNumber) {
-                        console.warn(`Attempted to check number ${number} which is beyond maxNumber ${book.maxNumber} for book ${book.name}.`);
-                        return;
-                    }
-
-                    book.checkedNumbers[number] = isChecked;
-                    book.lastUpdated = new Date().toISOString();
-                    saveRecordBooks();
-
-                    if (isChecked) {
-                        element.classList.add('checked');
-                    } else {
-                        element.classList.remove('checked');
-                    }
-                }
-            }
-
-            // --- Event Listeners for Navigation ---
             backToManagementBtn.addEventListener('click', () => {
                 currentRecordBookId = null;
-                renderManagementView();
+                // When returning to the management page, go back one step in history
+                history.back(); 
             });
 
-            // --- Display Mode Toggles ---
             listViewBtn.addEventListener('click', () => {
                 displayMode = 'list';
                 saveRecordBooks();
-                renderManagementView();
+                renderManagementView('none'); // No animation for view mode change
             });
 
             gridViewBtn.addEventListener('click', () => {
                 displayMode = 'grid';
                 saveRecordBooks();
-                renderManagementView();
+                renderManagementView('none'); // No animation for view mode change
             });
 
-            // --- Sort Dropdown Logic ---
             sortButton.addEventListener('click', (event) => {
                 sortDropdown.classList.toggle('hidden');
                 event.stopPropagation();
@@ -1663,14 +1761,14 @@
                 sortMode = 'latest';
                 sortDropdown.classList.add('hidden');
                 saveRecordBooks();
-                renderManagementView();
+                renderManagementView('none'); // No animation for sort change
             });
 
             sortByTitleBtn.addEventListener('click', () => {
                 sortMode = 'title';
                 sortDropdown.classList.add('hidden');
                 saveRecordBooks();
-                renderManagementView();
+                renderManagementView('none'); // No animation for sort change
             });
 
             document.addEventListener('click', (event) => {
@@ -1679,9 +1777,6 @@
                 }
             });
 
-            // --- Import/Export Functionality ---
-
-            // Export data to a JSON file
             exportBtn.addEventListener('click', () => {
                 try {
                     const dataToExport = localStorage.getItem(storageKey);
@@ -1705,7 +1800,6 @@
                 }
             });
 
-            // Import data from a JSON file
             importBtn.addEventListener('click', () => {
                 const input = document.createElement('input');
                 input.type = 'file';
@@ -1717,13 +1811,11 @@
                             const fileContent = await file.text();
                             const importedData = JSON.parse(fileContent);
 
-                            // Validate imported data structure (basic check)
                             if (!Array.isArray(importedData) || !importedData.every(item => item.id && item.name)) {
                                 showMessage('匯入的檔案格式不正確。', true);
                                 return;
                             }
 
-                            // Optionally, ask user if they want to merge or overwrite
                             const confirmImport = await showCustomModal(
                                 "匯入記事本資料",
                                 {
@@ -1749,7 +1841,7 @@
                                 if (importMode === 'overwrite') {
                                     recordBooks = importedData;
                                     showMessage('記事本資料已成功覆蓋！');
-                                } else { // merge
+                                } else {
                                     const existingIds = new Set(recordBooks.map(book => book.id));
                                     const newBooks = importedData.filter(book => !existingIds.has(book.id));
                                     recordBooks = [...recordBooks, ...newBooks];
@@ -1769,8 +1861,50 @@
                 input.click();
             });
 
+            // Added event listener to close modal when clicking outside its content
+            customModal.addEventListener('click', (event) => {
+                // If the click target is the modal overlay itself (not a child element within the modal content)
+                if (event.target === customModal) {
+                    closeCustomModal();
+                }
+            });
 
-            // --- Initialization ---
+            window.addEventListener('popstate', (event) => {
+                const state = event.state;
+                if (state) {
+                    if (state.modalOpen) {
+                        // If popstate leads to modal open state, show the modal (with animation)
+                        customModal.classList.remove('hidden', 'hide-modal');
+                        customModal.classList.add('show-modal');
+                    } else {
+                        // If popstate leads to modal close state, and modal is currently open, close it (with animation)
+                        if (customModal.classList.contains('show-modal')) {
+                            // Call closeCustomModal which handles animation and history state replacement
+                            closeCustomModal();
+                        }
+                    }
+
+                    // Handle view transitions based on popstate
+                    if (state.view === 'management') {
+                        currentRecordBookId = null;
+                        // Determine animation direction based on previous view, if available
+                        const prevView = document.querySelector('.view.active-visible');
+                        const animationDir = prevView && prevView.id === 'numberTrackerView' ? 'backward' : 'none';
+                        renderManagementView(animationDir); // Animate backward when returning to management
+                    } else if (state.view === 'tracker' && state.bookId) {
+                        currentRecordBookId = state.bookId;
+                        // Determine animation direction based on previous view, if available
+                        const prevView = document.querySelector('.view.active-visible');
+                        const animationDir = prevView && prevView.id === 'managementView' ? 'forward' : 'none';
+                        renderNumberTrackerView(animationDir); // Animate forward when going to tracker view via history
+                    }
+                } else {
+                    // Handle initial load or direct navigation without specific state
+                    currentRecordBookId = null;
+                    renderManagementView('initial'); // No animation for initial load
+                }
+            });
+
             loadRecordBooks();
         });
     </script>
