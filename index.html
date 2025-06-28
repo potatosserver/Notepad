@@ -282,8 +282,6 @@
             background-color: rgba(var(--md-on-surface-variant-rgb), 0.12);
         }
 
-        .options-button {
-        }
 
         /* Custom Modal Styling */
         .custom-modal-overlay {
@@ -489,6 +487,7 @@
             text-overflow: ellipsis;
             display: -webkit-box;
             -webkit-line-clamp: 2;
+            line-clamp: 2;
             -webkit-box-orient: vertical;
             margin-bottom: 5px;
             padding-right: 30px;
@@ -650,7 +649,7 @@
             left: 0;
             padding: inherit; /* Inherit padding from container */
             /* Add this to prevent content shifting during position: absolute */
-            box-sizing: border-box; 
+            box-sizing: border-box;
         }
 
         .view.slide-in-right {
@@ -670,7 +669,7 @@
             transform: translateX(0);
             opacity: 1;
         }
-        
+
         .view.active-visible {
             position: relative; /* When active, take up space in layout */
             transform: translateX(0);
@@ -703,7 +702,7 @@
         }
         .modal-checkbox-list input[type="checkbox"] {
             margin-right: 10px;
-            transform: scale(1.2);
+            transform: scale(1.2); /* Adjusted to ensure consistent size */
         }
         .modal-checkbox-list .book-name {
             flex-grow: 1;
@@ -720,6 +719,12 @@
             padding-bottom: 5px;
             border-bottom: 1px solid #e0e0e0;
         }
+        .select-all-checkbox-container label input[type="checkbox"] {
+            /* Fix the size issue for select all checkbox */
+            transform: scale(1.2); /* Adjusted to ensure consistent size */
+            margin-right: 10px; /* Ensure margin is consistent */
+        }
+
 
         .hidden-if-no-selection {
             display: none !important; /* Use !important to override flex/inline-flex */
@@ -939,7 +944,8 @@
 
             <div id="recordBookListContainer" class="mb-6">
                 <div id="listViewHeader" class="list-view-header hidden">
-                    <input type="checkbox" id="selectAllCheckboxes" class="cursor-pointer">
+                    <!-- Adjusted inline styles for better consistency and size -->
+                    <input type="checkbox" id="selectAllCheckboxes" class="cursor-pointer transform scale-125 mr-3">
                     <span class="font-bold">標題</span>
                     <span class="font-bold">最後更新時間</span>
                     <span></span>
@@ -992,6 +998,7 @@
         </div>
     </div>
 
+    <!-- FAB button is only displayed in management view via JavaScript -->
     <button id="fabAddNewRecordBookBtn" class="fab-button">
         <span class="material-symbols-outlined">add</span>
     </button>
@@ -1295,6 +1302,7 @@
                     if (checkboxes.length > 0) {
                         const selectAllContainer = document.createElement('div');
                         selectAllContainer.classList.add('select-all-checkbox-container');
+                        // Corrected styling for the "Select All" checkbox in the modal
                         selectAllContainer.innerHTML = `
                             <label class="inline-flex items-center cursor-pointer">
                                 <input type="checkbox" id="modalSelectAllCheckboxes" class="mr-2 transform scale-125"> 全選
@@ -1453,7 +1461,7 @@
                     }
                     values.bookName = bookNameInput.value.trim();
                 }
-                
+
                 if (newNameInput) {
                     if (newNameInput.value.trim() === '') {
                         errorMessage = '新名稱不能為空。';
@@ -1481,7 +1489,7 @@
                     values.maxNum = numValue;
                 } else if (selectedBookType === 'text') {
                     // For text type, maxNum is not relevant, set to a default/non-number
-                    values.maxNum = 0; 
+                    values.maxNum = 0;
                 }
 
 
@@ -1512,6 +1520,13 @@
              */
             function showView(newViewElement, state, title, direction = 'forward') {
                 const allViews = document.querySelectorAll('.view'); // Get all view elements
+
+                // Toggle FAB button visibility based on the view
+                if (newViewElement === managementView) {
+                    fabAddNewRecordBookBtn.classList.remove('hidden');
+                } else {
+                    fabAddNewRecordBookBtn.classList.add('hidden');
+                }
 
                 // First, hide all views immediately to prevent flicker
                 allViews.forEach(view => {
@@ -1568,7 +1583,7 @@
             function renderManagementView(animationDirection = 'forward') { // Default to 'forward' for general rendering
                 showView(managementView, { view: 'management', modalOpen: false }, '我的記事本', animationDirection);
                 recordBookList.innerHTML = '';
-                
+
                 sortRecordBooks();
 
                 recordBookList.className = '';
@@ -1622,7 +1637,8 @@
                         // Checkbox for list view (always added, but hidden in grid view via CSS)
                         const checkbox = document.createElement('input');
                         checkbox.type = 'checkbox';
-                        checkbox.classList.add('record-book-checkbox', 'mr-3', 'transform', 'scale-125', 'cursor-pointer'); // Added Tailwind classes
+                        // Applied transform scale directly in JS for checkbox in list view header
+                        checkbox.classList.add('record-book-checkbox', 'mr-3', 'transform', 'scale-125', 'cursor-pointer');
                         checkbox.dataset.id = book.id;
                         checkbox.checked = selectedRecordBookIds.has(book.id); // Set initial checked state
                         checkbox.addEventListener('change', (e) => {
@@ -1660,14 +1676,14 @@
                             nameSpan.classList.add('record-book-name');
                             nameSpan.textContent = book.name;
                             nameWrapper.appendChild(nameSpan);
-                            
+
                             const lastUpdatedMeta = document.createElement('span');
                             lastUpdatedMeta.classList.add('record-book-meta');
                             lastUpdatedMeta.textContent = formatDateTime(book.lastUpdated);
                             nameWrapper.appendChild(lastUpdatedMeta); // Append to nameWrapper for grid view
 
                             bookItem.appendChild(nameWrapper); // Append nameWrapper to bookItem
-                            
+
                             // Add direct click listener to grid item for navigation
                              bookItem.addEventListener('click', (e) => {
                                 // Exclude clicks on the checkbox or options button in grid view
@@ -1848,7 +1864,7 @@
                         trackHistory: true
                     }
                 );
-                
+
                 if (result.confirmed) {
                     let newName = result.values.bookName.trim();
                     let newMaxNumber = result.values.maxNum;
@@ -1857,7 +1873,7 @@
                     if (newName === '') {
                         newName = `未命名記事本 ${recordBooks.length + 1}`;
                     }
-                    
+
                     const newBook = {
                         id: generateUUID(),
                         name: newName,
@@ -1978,7 +1994,7 @@
                     if (currentRecordBookId && selectedRecordBookIds.has(currentRecordBookId)) {
                         currentRecordBookId = null;
                     }
-                    
+
                     selectedRecordBookIds.clear(); // Clear selections after deletion
                     saveRecordBooks();
                     renderManagementView();
@@ -2022,7 +2038,7 @@
                 selectedRecordBookIds.clear(); // Clear selected IDs when returning to management
                 updateToolbarButtonStates();
                 // When returning to the management page, go back one step in history
-                history.back(); 
+                history.back();
             });
 
             listViewBtn.addEventListener('click', () => {
@@ -2040,13 +2056,18 @@
 
             // New: Select All Checkbox functionality in list view header
             selectAllCheckboxes.addEventListener('change', () => {
-                const checkboxes = document.querySelectorAll('.record-book-checkbox');
+                // Select all checkboxes that are part of the recordBookList and are visible
+                const checkboxes = recordBookList.querySelectorAll('.record-book-checkbox:not(.hidden)');
                 checkboxes.forEach(cb => {
                     cb.checked = selectAllCheckboxes.checked;
-                    // Manually trigger change event for each checkbox to update selectedRecordBookIds
-                    const event = new Event('change');
-                    cb.dispatchEvent(event);
+                    // Manually update the selectedRecordBookIds set directly
+                    if (cb.checked) {
+                        selectedRecordBookIds.add(cb.dataset.id);
+                    } else {
+                        selectedRecordBookIds.delete(cb.dataset.id);
+                    }
                 });
+                updateToolbarButtonStates();
             });
 
 
