@@ -493,7 +493,6 @@
             padding-right: 30px;
         }
         .record-book-grid-view .record-book-meta {
-            display: block;
             font-size: 0.8rem;
             color: var(--md-on-surface-variant);
             position: absolute;
@@ -723,6 +722,47 @@
             /* Fix the size issue for select all checkbox */
             transform: scale(1.2); /* Adjusted to ensure consistent size */
             margin-right: 10px; /* Ensure margin is consistent */
+        }
+
+        /* New styles for bulk delete confirmation list */
+        .bulk-delete-list {
+            max-height: 250px; /* Limit height and enable scroll */
+            overflow-y: auto;
+            border: 1px solid var(--md-outline);
+            border-radius: 12px;
+            padding: 10px;
+            margin-top: 15px;
+            margin-bottom: 20px;
+            background-color: var(--md-surface-variant);
+        }
+
+        .bulk-delete-list-item {
+            display: flex;
+            flex-direction: column;
+            padding: 8px 12px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .bulk-delete-list-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .bulk-delete-item-name {
+            font-weight: 500;
+            color: #333;
+            font-size: 1rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .bulk-delete-item-date {
+            font-size: 0.85rem;
+            color: #777;
+            margin-top: 2px;
         }
 
 
@@ -1204,13 +1244,14 @@
              * @param {Array} options.inputs 輸入欄位定義陣列。
              * @param {Array} options.actions 動作按鈕定義陣列。
              * @param {Array} options.checkboxes 複選框列表定義陣列 (for export/delete selection).
+             * @param {Array} options.itemsToDelete 待刪除記事本的列表 (for bulk delete confirmation).
              * @param {string} options.confirmButtonText 確認按鈕文字。
              * @param {string} options.cancelButtonText 取消按鈕文字。
              * @param {boolean} options.trackHistory 是否在瀏覽器歷史中追蹤此模態框的開啟狀態 (使用 pushState)。
              * @returns {Promise<object>} 模態框關閉時的結果。
              */
             function showCustomModal(title, options = {}) {
-                const { inputs = [], actions = [], checkboxes = [], confirmButtonText = '確認', cancelButtonText = '取消', trackHistory = false, message = '' } = options;
+                const { inputs = [], actions = [], checkboxes = [], itemsToDelete = [], confirmButtonText = '確認', cancelButtonText = '取消', trackHistory = false, message = '' } = options;
 
                 modalTitle.textContent = title;
                 modalInputsContainer.innerHTML = '';
@@ -1341,6 +1382,23 @@
                         });
                         // Initial state of select all
                         modalSelectAll.checked = Array.from(modalCheckboxes).every(item => item.checked);
+                    }
+                    
+                    // New: Render list of items to delete (for bulk delete confirmation)
+                    if (itemsToDelete.length > 0) {
+                        const deleteListContainer = document.createElement('div');
+                        deleteListContainer.classList.add('bulk-delete-list');
+
+                        itemsToDelete.forEach(item => {
+                            const itemDiv = document.createElement('div');
+                            itemDiv.classList.add('bulk-delete-list-item');
+                            itemDiv.innerHTML = `
+                                <span class="bulk-delete-item-name">${item.name}</span>
+                                <span class="bulk-delete-item-date">${formatDateTime(item.lastUpdated)}</span>
+                            `;
+                            deleteListContainer.appendChild(itemDiv);
+                        });
+                        modalInputsContainer.appendChild(deleteListContainer);
                     }
                 }
 
@@ -1847,7 +1905,7 @@
                                 id: 'bookName',
                                 label: '記事本名稱:',
                                 type: 'text',
-                                defaultValue: `新記事本 ${recordBooks.length + 1}`,
+                                defaultValue: `記事本 ${recordBooks.length + 1}`,
                                 placeholder: '例如: 我的待辦事項'
                             },
                             {
@@ -1972,14 +2030,15 @@
                     return;
                 }
 
-                const booksToDeleteNames = Array.from(selectedRecordBookIds)
-                    .map(id => recordBooks.find(book => book.id === id)?.name)
-                    .filter(name => name); // Filter out undefined names
+                const booksToDelete = Array.from(selectedRecordBookIds)
+                    .map(id => recordBooks.find(book => book.id === id))
+                    .filter(book => book); // Filter out undefined books
 
                 const result = await showCustomModal(
                     `確認大量刪除`,
                     {
-                        message: `確定要刪除選定的 ${selectedRecordBookIds.size} 個記事本嗎？這包含：\n- ${booksToDeleteNames.join('\n- ')}\n\n此操作無法復原。`,
+                        message: `確定要刪除選定的 ${selectedRecordBookIds.size} 個記事本嗎？此操作無法復原。`,
+                        itemsToDelete: booksToDelete, // Pass the list of books to delete
                         confirmButtonText: '確定刪除',
                         cancelButtonText: '取消',
                         trackHistory: true
@@ -1998,7 +2057,7 @@
                     selectedRecordBookIds.clear(); // Clear selections after deletion
                     saveRecordBooks();
                     renderManagementView();
-                    showMessage(`${booksToDeleteNames.length} 個記事本已成功刪除！`);
+                    showMessage(`${booksToDelete.length} 個記事本已成功刪除！`);
                 } else {
                     showMessage('大量刪除操作已取消。');
                 }
