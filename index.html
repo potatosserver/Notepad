@@ -33,6 +33,10 @@
             --md-amber-500: #FFE082;
             --md-amber-700: #FFD54F;
             --md-on-amber: #000000;
+
+            /* Define RGB values for transparency in hover states */
+            --md-primary-container-rgb: 232, 222, 248; /* E8DEF8 */
+            --md-on-surface-variant-rgb: 73, 69, 79; /* 49454F */
         }
 
         body {
@@ -149,7 +153,7 @@
         }
         .button-filled-secondary:hover {
             background-color: #E2C7C7;
-            box-shadow: 0 4 cultivators 8px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
             transform: translateY(-1px);
         }
         .button-filled-secondary:active {
@@ -217,7 +221,7 @@
         }
         .fab-button:active {
             transform: translateY(0);
-            box_shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
         }
 
 
@@ -302,6 +306,8 @@
             transform: scale(0.9); /* Start slightly smaller for pop effect */
             transition: transform 0.3s ease-out, opacity 0.3s ease-out;
             opacity: 0;
+            overflow-y: auto; /* Enable scrolling for content within modal */
+            max-height: 90vh; /* Limit modal height */
         }
         .custom-modal-overlay.show-modal .custom-modal-content {
             transform: scale(1); /* Pop to full size */
@@ -371,7 +377,8 @@
 
         .record-book-list-view .record-book-item {
             display: grid;
-            grid-template-columns: 3fr 2fr auto;
+            /* Adjusted grid-template-columns to accommodate checkbox */
+            grid-template-columns: auto 3fr 2fr auto;
             align-items: center;
             gap: 10px;
             padding: 10px 16px;
@@ -396,33 +403,40 @@
             border-bottom-right-radius: 8px;
             border-bottom: none;
         }
-        .record-book-list-view .record-book-name-wrapper {
-            margin-bottom: 0;
-            padding-right: 10px;
-            display: block;
-        }
-        .record-book-list-view .record-book-name {
+        .record-book-list-view .record-book-name-cell { /* New class for list view name column */
             font-size: 1rem;
             font-weight: normal;
             color: var(--md-on-primary-container);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            cursor: pointer; /* Make it clickable */
         }
-        .record-book-list-view .record-book-meta {
-            display: none;
-        }
-        .record-book-list-view .record-book-max-num,
-        .record-book-list-view .record-book-created-at {
-            display: none;
-        }
-        .record-book-list-view .record-book-last-updated-col {
+        .record-book-list-view .record-book-last-updated-cell { /* New class for list view last updated column */
             font-size: 0.9rem;
             color: var(--md-on-surface-variant);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            cursor: pointer; /* Make it clickable */
         }
+        .record-book-list-view .record-book-name-wrapper, /* These are for grid view, hide in list view */
+        .record-book-list-view .record-book-name,
+        .record-book-list-view .record-book-meta,
+        .record-book-list-view .record-book-max-num,
+        .record-book-list-view .record-book-created-at,
+        .record-book-list-view .record-book-last-updated-col {
+            display: none;
+        }
+        /* Override specific classes that might be used by record-book-name and record-book-last-updated-col in list view */
+        .record-book-list-view .record-book-name {
+             display: none; /* Hide default name styles */
+        }
+        .record-book-list-view .record-book-last-updated-col {
+            display: none; /* Hide default last updated styles */
+        }
+
+
         .record-book-list-view .record-book-actions {
             justify-content: flex-end;
             gap: 5px;
@@ -434,8 +448,10 @@
         }
 
         .list-view-header {
+            /* Adjusted grid-template-columns to accommodate checkbox */
             display: grid;
-            grid-template-columns: 3fr 2fr auto;
+            grid-template-columns: auto 3fr 2fr auto;
+            align-items: center; /* Align items in the grid row */
             gap: 10px;
             padding: 10px 16px;
             font-weight: 600;
@@ -445,6 +461,23 @@
             background-color: var(--md-surface-variant);
             border-top-left-radius: 8px;
             border-top-right-radius: 8px;
+        }
+
+        /* Specific styles for header text alignment */
+        .list-view-header .header-text-cell {
+            display: flex; /* Use flex to align text content */
+            align-items: center; /* Vertically center text within the cell */
+            font-size: 1rem; /* Match record-book-name-cell font size for alignment */
+            padding: 0; /* Remove default span padding, controlled by grid item padding */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            /* Removed min-height here, relying on parent grid for vertical centering */
+        }
+        /* Style for the header checkbox */
+        .list-view-header #selectAllCheckboxes {
+            transform: scale(1.2); /* Make it same size as individual checkboxes */
+            /* Removed margin-right: 3px; now using Tailwind's mr-3 directly in HTML */
         }
 
         .record-book-grid-view .record-book-item {
@@ -663,6 +696,52 @@
             display: none;
         }
 
+        /* Styling for checkboxes in export/delete modal */
+        .modal-checkbox-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 15px;
+            margin-bottom: 20px;
+        }
+
+        .modal-checkbox-list label {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+        }
+        .modal-checkbox-list label:last-child {
+            border-bottom: none;
+        }
+        .modal-checkbox-list input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+        .modal-checkbox-list .book-name {
+            flex-grow: 1;
+            font-size: 1rem;
+            color: #333;
+        }
+        .modal-checkbox-list .book-date {
+            font-size: 0.8rem;
+            color: #777;
+            white-space: nowrap;
+        }
+        .select-all-checkbox-container {
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .hidden-if-no-selection {
+            display: none !important; /* Use !important to override flex/inline-flex */
+        }
+
+
         @media (max-width: 768px) {
             .container {
                 padding: 15px;
@@ -676,6 +755,16 @@
                 width: 100%;
                 justify-content: space-between;
             }
+            .toolbar { /* Added for toolbar responsiveness */
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+                margin-top: 15px;
+            }
+            .toolbar .button-base { /* Make toolbar buttons full width */
+                width: 100%;
+                justify-content: center;
+            }
             .record-book-grid-container {
                 grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
             }
@@ -687,10 +776,10 @@
                 font-size: 1.5rem;
             }
             .list-view-header {
-                grid-template-columns: 2fr 1.5fr auto;
+                grid-template-columns: auto 2fr 1.5fr auto; /* Adjusted for checkbox */
             }
             .record-book-list-view .record-book-item {
-                 grid-template-columns: 2fr 1.5fr auto;
+                 grid-template-columns: auto 2fr 1.5fr auto; /* Adjusted for checkbox */
             }
             .view-mode-button {
                 min-width: 48px;
@@ -775,18 +864,14 @@
             }
             .list-view-header,
             .record-book-list-view .record-book-item {
-                 grid-template-columns: 1.5fr 1fr auto;
+                 grid-template-columns: auto 1.5fr 1fr auto; /* Adjusted for checkbox */
                  gap: 5px;
                  padding: 8px 10px;
             }
-            .record-book-list-view .record-book-name {
+            .record-book-list-view .record-book-name-cell {
                 font-size: 0.9rem;
             }
-            .record-book-list-view .record-book-max-num,
-            .record-book-list-view .record-book-created-at {
-                display: none;
-            }
-            .record-book-list-view .record-book-last-updated-col {
+            .record-book-list-view .record-book-last-updated-cell {
                  font-size: 0.75rem;
             }
              .view-mode-button {
@@ -803,45 +888,56 @@
             <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">我的記事本</h1>
             <p class="text-center text-gray-600 text-lg mb-8"></p>
 
-            <div class="flex justify-between items-center mb-8 header-controls">
-                <div class="flex space-x-3">
-                    <button id="importBtn" class="button-base button-outlined">
-                        <span class="material-symbols-outlined">upload_file</span>
-                        匯入資料
+            <div class="flex justify-end items-center mb-4 header-controls space-x-3">
+                <div class="view-mode-group">
+                    <button id="listViewBtn" class="view-mode-button">
+                        <span class="material-symbols-outlined">view_list</span>
                     </button>
-                    <button id="exportBtn" class="button-base button-outlined">
-                        <span class="material-symbols-outlined">download</span>
-                        匯出資料
+                    <button id="gridViewBtn" class="view-mode-button">
+                        <span class="material-symbols-outlined">grid_view</span>
                     </button>
                 </div>
 
-                <div class="flex items-center space-x-3 header-right-controls">
-                    <div class="view-mode-group">
-                        <button id="listViewBtn" class="view-mode-button">
-                            <span class="material-symbols-outlined">view_list</span>
-                        </button>
-                        <button id="gridViewBtn" class="view-mode-button">
-                            <span class="material-symbols-outlined">grid_view</span>
-                        </button>
-                    </div>
-
-                    <div class="relative">
-                        <button id="sortButton" class="button-base button-outlined">
-                            <span class="material-symbols-outlined">sort</span>
-                            <span id="currentSortText">最新</span>
-                        </button>
-                        <div id="sortDropdown" class="sort-dropdown-content hidden">
-                            <button id="sortByLatestBtn" class="button-text">最新</button>
-                            <button id="sortByTitleBtn" class="button-text">標題</button>
-                        </div>
+                <div class="relative">
+                    <button id="sortButton" class="button-base button-outlined">
+                        <span class="material-symbols-outlined">sort</span>
+                        <span id="currentSortText">最新</span>
+                    </button>
+                    <div id="sortDropdown" class="sort-dropdown-content hidden">
+                        <button id="sortByLatestBtn" class="button-text">最新</button>
+                        <button id="sortByTitleBtn" class="button-text">標題</button>
                     </div>
                 </div>
             </div>
 
+            <!-- New Toolbar -->
+            <div id="managementToolbar" class="flex justify-between items-center mb-6 toolbar">
+                <div class="flex space-x-3">
+                    <button id="importBtn" class="button-base button-outlined">
+                        <span class="material-symbols-outlined">upload_file</span>
+                        匯入
+                    </button>
+                    <!-- Export button now gets the conditional class -->
+                    <button id="exportBtn" class="button-base button-outlined hidden-if-no-selection">
+                        <span class="material-symbols-outlined">download</span>
+                        匯出
+                    </button>
+                </div>
+                <div>
+                    <!-- Delete Selected button now gets 'hidden-if-no-selection' -->
+                    <button id="deleteSelectedBtn" class="button-base button-filled-secondary hidden-if-no-selection" disabled>
+                        <span class="material-symbols-outlined">delete</span>
+                        刪除選取項目
+                    </button>
+                </div>
+            </div>
+
+
             <div id="recordBookListContainer" class="mb-6">
                 <div id="listViewHeader" class="list-view-header hidden">
-                    <span class="font-bold">標題</span>
-                    <span class="font-bold">最後更新時間</span>
+                    <input type="checkbox" id="selectAllCheckboxes" class="cursor-pointer mr-3">
+                    <span class="font-bold header-text-cell">標題</span>
+                    <span class="font-bold header-text-cell">最後更新時間</span>
                     <span></span>
                 </div>
                 <div id="recordBookList" class="record-book-list-container">
@@ -924,6 +1020,7 @@
         let currentRecordBookId = null;
         let displayMode = 'list';
         let sortMode = 'latest';
+        let selectedRecordBookIds = new Set(); // New Set to store IDs of selected record books
 
         function generateUUID() {
             return crypto.randomUUID();
@@ -995,10 +1092,13 @@
 
             const importBtn = document.getElementById('importBtn');
             const exportBtn = document.getElementById('exportBtn');
+            const deleteSelectedBtn = document.getElementById('deleteSelectedBtn'); // New delete selected button
+            const selectAllCheckboxes = document.getElementById('selectAllCheckboxes'); // New select all checkbox
+
 
             const customModal = document.getElementById('customModal');
             const modalTitle = document.getElementById('modalTitle');
-            const modalMessage = document.getElementById('modalMessage'); // Get the new message element
+            const modalMessage = document.getElementById('modalMessage');
             const modalInputsContainer = document.getElementById('modalInputsContainer');
             const modalActionButtonsContainer = document.getElementById('modalActionButtonsContainer');
             const modalConfirmCancelButtons = document.getElementById('modalConfirmCancelButtons');
@@ -1064,6 +1164,9 @@
                     saveRecordBooks();
                 }
 
+                // Clear selected IDs when loading/reloading record books
+                selectedRecordBookIds.clear();
+
                 const initialState = history.state;
                 if (initialState && initialState.view === 'tracker' && initialState.bookId) {
                     currentRecordBookId = initialState.bookId;
@@ -1088,13 +1191,14 @@
              * @param {string} [options.message] 要顯示在標題下的訊息。
              * @param {Array} options.inputs 輸入欄位定義陣列。
              * @param {Array} options.actions 動作按鈕定義陣列。
+             * @param {Array} options.checkboxes 複選框列表定義陣列 (for export/delete selection).
              * @param {string} options.confirmButtonText 確認按鈕文字。
              * @param {string} options.cancelButtonText 取消按鈕文字。
              * @param {boolean} options.trackHistory 是否在瀏覽器歷史中追蹤此模態框的開啟狀態 (使用 pushState)。
              * @returns {Promise<object>} 模態框關閉時的結果。
              */
             function showCustomModal(title, options = {}) {
-                const { inputs = [], actions = [], confirmButtonText = '確認', cancelButtonText = '取消', trackHistory = false, message = '' } = options;
+                const { inputs = [], actions = [], checkboxes = [], confirmButtonText = '確認', cancelButtonText = '取消', trackHistory = false, message = '' } = options;
 
                 modalTitle.textContent = title;
                 modalInputsContainer.innerHTML = '';
@@ -1140,6 +1244,7 @@
                     modalConfirmBtn.textContent = confirmButtonText;
                     modalCancelBtn.textContent = cancelButtonText;
 
+                    // Render regular inputs if available
                     inputs.forEach(inputDef => {
                         const div = document.createElement('div');
                         div.classList.add('mb-4');
@@ -1147,7 +1252,6 @@
                         if (inputDef.id === 'maxNum') {
                             div.classList.add('max-num-input-group');
                         }
-
 
                         const label = document.createElement('label');
                         label.classList.add('block', 'text-gray-700', 'text-sm', 'font-bold', 'mb-2');
@@ -1173,7 +1277,7 @@
                             input.value = inputDef.defaultValue || '';
                             input.placeholder = inputDef.placeholder || '';
                             input.classList.add('w-full', 'p-3', 'border', 'border-gray-300', 'rounded-md', 'focus:outline-none', 'focus:ring-2', 'focus:ring-blue-500');
-                            if (inputDef.min !== undefined) input.min = inputDef.min;
+                            if (inputDef.min !== undefined) input.min = input.min;
                             if (inputDef.max !== undefined) input.max = input.max;
                             input.dataset.label = inputDef.label;
                             div.appendChild(input);
@@ -1181,6 +1285,50 @@
 
                         modalInputsContainer.appendChild(div);
                     });
+
+                    // Render checkboxes if available (for export/delete selection)
+                    if (checkboxes.length > 0) {
+                        const selectAllContainer = document.createElement('div');
+                        selectAllContainer.classList.add('select-all-checkbox-container');
+                        selectAllContainer.innerHTML = `
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="modalSelectAllCheckboxes" class="mr-2 transform scale-125"> 全選
+                            </label>
+                        `;
+                        modalInputsContainer.appendChild(selectAllContainer);
+
+
+                        const checkboxListDiv = document.createElement('div');
+                        checkboxListDiv.classList.add('modal-checkbox-list');
+
+                        checkboxes.forEach(checkboxDef => {
+                            const label = document.createElement('label');
+                            label.innerHTML = `
+                                <input type="checkbox" class="modal-checkbox-item" value="${checkboxDef.value}" ${checkboxDef.checked ? 'checked' : ''}>
+                                <span class="book-name">${checkboxDef.label}</span>
+                                <span class="book-date ml-auto">${checkboxDef.meta}</span>
+                            `;
+                            checkboxListDiv.appendChild(label);
+                        });
+                        modalInputsContainer.appendChild(checkboxListDiv);
+
+                        // Add event listener for select all checkbox in modal
+                        const modalSelectAll = selectAllContainer.querySelector('#modalSelectAllCheckboxes');
+                        const modalCheckboxes = checkboxListDiv.querySelectorAll('.modal-checkbox-item');
+
+                        modalSelectAll.addEventListener('change', () => {
+                            modalCheckboxes.forEach(cb => cb.checked = modalSelectAll.checked);
+                        });
+
+                        // Update select all based on individual checkboxes
+                        modalCheckboxes.forEach(cb => {
+                            cb.addEventListener('change', () => {
+                                modalSelectAll.checked = Array.from(modalCheckboxes).every(item => item.checked);
+                            });
+                        });
+                        // Initial state of select all
+                        modalSelectAll.checked = Array.from(modalCheckboxes).every(item => item.checked);
+                    }
                 }
 
                 // Show modal with animation
@@ -1280,6 +1428,18 @@
                 const maxNumInput = modalInputsContainer.querySelector('#maxNum');
                 const bookTypeRadios = modalInputsContainer.querySelectorAll('input[name="bookType"]');
                 const newNameInput = modalInputsContainer.querySelector('#newName');
+                const modalCheckboxes = modalInputsContainer.querySelectorAll('.modal-checkbox-item'); // Get all checkboxes in the modal
+
+                // If there are checkboxes, collect their values
+                if (modalCheckboxes.length > 0) {
+                    values.selectedIds = Array.from(modalCheckboxes)
+                                          .filter(cb => cb.checked)
+                                          .map(cb => cb.value);
+                    if (values.selectedIds.length === 0) {
+                        errorMessage = '請至少選擇一個記事本。';
+                        isValid = false;
+                    }
+                }
 
                 if (bookNameInput) {
                     if (bookNameInput.value.trim() === '') {
@@ -1400,10 +1560,29 @@
                 document.title = title;
             }
 
+            function updateToolbarButtonStates() {
+                const hasSelection = selectedRecordBookIds.size > 0;
+
+                // Delete button logic
+                deleteSelectedBtn.disabled = !hasSelection;
+                if (hasSelection) {
+                    deleteSelectedBtn.classList.remove('hidden-if-no-selection');
+                } else {
+                    deleteSelectedBtn.classList.add('hidden-if-no-selection');
+                }
+
+                // Export button logic
+                if (hasSelection) {
+                    exportBtn.classList.remove('hidden-if-no-selection');
+                } else {
+                    exportBtn.classList.add('hidden-if-no-selection');
+                }
+            }
+
             function renderManagementView(animationDirection = 'forward') { // Default to 'forward' for general rendering
                 showView(managementView, { view: 'management', modalOpen: false }, '我的記事本', animationDirection);
                 recordBookList.innerHTML = '';
-
+                
                 sortRecordBooks();
 
                 recordBookList.className = '';
@@ -1417,12 +1596,17 @@
                     listViewBtn.classList.add('selected');
                     gridViewBtn.classList.remove('selected');
                     listViewHeader.classList.remove('hidden');
+
+                    // Set initial state of select all checkbox based on current selection
+                    selectAllCheckboxes.checked = recordBooks.length > 0 && selectedRecordBookIds.size === recordBooks.length;
+                    selectAllCheckboxes.classList.remove('hidden'); // Ensure it's visible in list mode
                 } else {
                     recordBookList.classList.add('record-book-grid-container');
                     recordBookList.classList.add('record-book-grid-view');
                     gridViewBtn.classList.add('selected');
                     listViewBtn.classList.remove('selected');
                     listViewHeader.classList.add('hidden');
+                    selectAllCheckboxes.classList.add('hidden'); // Hide in grid mode
                 }
 
 
@@ -1438,23 +1622,47 @@
                         const bookItem = document.createElement('div');
                         bookItem.classList.add('record-book-item');
                         bookItem.dataset.id = book.id;
-                        bookItem.addEventListener('click', (e) => {
-                           if (e.target.closest('button')) return;
-                           selectRecordBook(book.id);
+
+                        // Checkbox for list view (always added, but hidden in grid view via CSS)
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.classList.add('record-book-checkbox', 'mr-3', 'transform', 'scale-125', 'cursor-pointer'); // Added Tailwind classes
+                        checkbox.dataset.id = book.id;
+                        checkbox.checked = selectedRecordBookIds.has(book.id); // Set initial checked state
+                        checkbox.addEventListener('change', (e) => {
+                            e.stopPropagation(); // Prevent record book item click event
+                            if (checkbox.checked) {
+                                selectedRecordBookIds.add(book.id);
+                            } else {
+                                selectedRecordBookIds.delete(book.id);
+                            }
+                            updateToolbarButtonStates();
+                            // Update select all checkbox state
+                            selectAllCheckboxes.checked = recordBooks.length > 0 && selectedRecordBookIds.size === recordBooks.length;
                         });
+                        bookItem.appendChild(checkbox);
+
 
                         if (displayMode === 'list') {
-                            const titleCol = document.createElement('span');
-                            titleCol.classList.add('record-book-name');
-                            titleCol.textContent = book.name;
-                            bookItem.appendChild(titleCol);
+                            // Name cell for list view, clickable for navigation
+                            const nameCell = document.createElement('div');
+                            nameCell.classList.add('record-book-name-cell');
+                            nameCell.textContent = book.name;
+                            nameCell.addEventListener('click', () => {
+                                selectRecordBook(book.id);
+                            });
+                            bookItem.appendChild(nameCell);
 
-                            const lastUpdatedCol = document.createElement('span');
-                            lastUpdatedCol.classList.add('record-book-last-updated-col');
-                            lastUpdatedCol.textContent = formatDateTime(book.lastUpdated);
-                            bookItem.appendChild(lastUpdatedCol);
+                            // Last updated cell for list view, clickable for navigation
+                            const lastUpdatedCell = document.createElement('div');
+                            lastUpdatedCell.classList.add('record-book-last-updated-cell');
+                            lastUpdatedCell.textContent = formatDateTime(book.lastUpdated);
+                            lastUpdatedCell.addEventListener('click', () => {
+                                selectRecordBook(book.id);
+                            });
+                            bookItem.appendChild(lastUpdatedCell);
 
-                        } else {
+                        } else { // Grid View
                             const nameWrapper = document.createElement('div');
                             nameWrapper.classList.add('record-book-name-wrapper');
 
@@ -1466,9 +1674,18 @@
                             const lastUpdatedMeta = document.createElement('span');
                             lastUpdatedMeta.classList.add('record-book-meta');
                             lastUpdatedMeta.textContent = formatDateTime(book.lastUpdated);
-                            bookItem.appendChild(lastUpdatedMeta);
+                            nameWrapper.appendChild(lastUpdatedMeta); // Append to nameWrapper for grid view
 
-                            bookItem.appendChild(nameWrapper);
+                            bookItem.appendChild(nameWrapper); // Append nameWrapper to bookItem
+                            
+                            // Add direct click listener to grid item for navigation
+                             bookItem.addEventListener('click', (e) => {
+                                // Exclude clicks on the checkbox or options button in grid view
+                                if (e.target.closest('input[type="checkbox"]') || e.target.closest('.options-button')) {
+                                    return;
+                                }
+                                selectRecordBook(book.id);
+                            });
                         }
 
                         const actionsDiv = document.createElement('div');
@@ -1487,6 +1704,7 @@
                         recordBookList.appendChild(bookItem);
                     });
                 }
+                updateToolbarButtonStates(); // Update toolbar buttons after rendering
             }
 
 
@@ -1501,6 +1719,10 @@
                 showView(numberTrackerView, { view: 'tracker', bookId: currentRecordBookId, modalOpen: false }, `記事本: ${currentBook.name}`, animationDirection);
                 currentRecordBookName.textContent = currentBook.name;
                 numbersGrid.innerHTML = '';
+
+                // Clear selected IDs when entering tracker view
+                selectedRecordBookIds.clear();
+                updateToolbarButtonStates();
 
                 if (currentBook.bookType === 'number') {
                     limitedNotesSection.classList.remove('hidden');
@@ -1674,6 +1896,8 @@
 
             function selectRecordBook(id) {
                 currentRecordBookId = id;
+                selectedRecordBookIds.clear(); // Clear selected IDs when navigating to a book
+                updateToolbarButtonStates();
                 renderNumberTrackerView('forward'); // Animate forward when selecting a book
             }
 
@@ -1709,17 +1933,21 @@
                 if(!bookToDelete) return;
 
                 const result = await showCustomModal(
-                    `確認刪除`, // Changed title to be generic
+                    `確認刪除`,
                     {
-                        message: `確定要刪除記事本「${bookToDelete.name}」嗎？此操作無法復原。`, // Moved message to message property
+                        message: `確定要刪除記事本「${bookToDelete.name}」嗎？此操作無法復原。`,
                         confirmButtonText: '確定刪除',
                         cancelButtonText: '取消',
-                        trackHistory: true // Track history for delete modal
+                        trackHistory: true
                     }
                 );
 
                 if (result.confirmed) {
-                    recordBooks = recordBooks.filter(book => book.id !== id);
+                    // Filter out the deleted book
+                    recordBooks = recordBooks.filter(book => !selectedRecordBookIds.has(book.id));
+                    // Remove from selected IDs if it was selected
+                    selectedRecordBookIds.delete(id);
+
                     if (currentRecordBookId === id) {
                         currentRecordBookId = null;
                     }
@@ -1730,6 +1958,46 @@
                     showMessage('刪除操作已取消。');
                 }
             }
+
+            // New: Bulk Delete functionality
+            deleteSelectedBtn.addEventListener('click', async () => {
+                if (selectedRecordBookIds.size === 0) {
+                    showMessage('請選擇至少一個記事本以進行刪除。', true);
+                    return;
+                }
+
+                const booksToDeleteNames = Array.from(selectedRecordBookIds)
+                    .map(id => recordBooks.find(book => book.id === id)?.name)
+                    .filter(name => name); // Filter out undefined names
+
+                const result = await showCustomModal(
+                    `確認大量刪除`,
+                    {
+                        message: `確定要刪除選定的 ${selectedRecordBookIds.size} 個記事本嗎？這包含：\n- ${booksToDeleteNames.join('\n- ')}\n\n此操作無法復原。`,
+                        confirmButtonText: '確定刪除',
+                        cancelButtonText: '取消',
+                        trackHistory: true
+                    }
+                );
+
+                if (result.confirmed) {
+                    // Perform bulk deletion
+                    recordBooks = recordBooks.filter(book => !selectedRecordBookIds.has(book.id));
+
+                    // If the current record book was deleted, reset currentRecordBookId
+                    if (currentRecordBookId && selectedRecordBookIds.has(currentRecordBookId)) {
+                        currentRecordBookId = null;
+                    }
+                    
+                    selectedRecordBookIds.clear(); // Clear selections after deletion
+                    saveRecordBooks();
+                    renderManagementView();
+                    showMessage(`${booksToDeleteNames.length} 個記事本已成功刪除！`);
+                } else {
+                    showMessage('大量刪除操作已取消。');
+                }
+            });
+
 
             resetCurrentBookBtn.addEventListener('click', async () => {
                 const currentBook = recordBooks.find(book => book.id === currentRecordBookId);
@@ -1761,6 +2029,8 @@
 
             backToManagementBtn.addEventListener('click', () => {
                 currentRecordBookId = null;
+                selectedRecordBookIds.clear(); // Clear selected IDs when returning to management
+                updateToolbarButtonStates();
                 // When returning to the management page, go back one step in history
                 history.back(); 
             });
@@ -1773,9 +2043,23 @@
 
             gridViewBtn.addEventListener('click', () => {
                 displayMode = 'grid';
+                selectedRecordBookIds.clear(); // Clear selected IDs when switching to grid view
                 saveRecordBooks();
                 renderManagementView('none'); // No animation for view mode change
             });
+
+            // New: Select All Checkbox functionality in list view header
+            selectAllCheckboxes.addEventListener('change', () => {
+                if (selectAllCheckboxes.checked) {
+                    recordBooks.forEach(book => selectedRecordBookIds.add(book.id));
+                } else {
+                    selectedRecordBookIds.clear();
+                }
+                // Re-render the view to update all checkboxes visually
+                renderManagementView('none'); // 'none' for no animation
+                updateToolbarButtonStates();
+            });
+
 
             sortButton.addEventListener('click', (event) => {
                 sortDropdown.classList.toggle('hidden');
@@ -1802,26 +2086,54 @@
                 }
             });
 
-            exportBtn.addEventListener('click', () => {
-                try {
-                    const dataToExport = localStorage.getItem(storageKey);
-                    if (!dataToExport || JSON.parse(dataToExport).length === 0) {
-                        showMessage('沒有記事本資料可匯出！', true);
-                        return;
+            // Modified Export button to show selection modal
+            exportBtn.addEventListener('click', async () => {
+                if (recordBooks.length === 0) {
+                    showMessage('沒有記事本資料可匯出！', true);
+                    return;
+                }
+
+                const checkboxesData = recordBooks.map(book => ({
+                    label: book.name,
+                    value: book.id,
+                    meta: formatDateTime(book.lastUpdated),
+                    checked: selectedRecordBookIds.has(book.id) // Pre-select based on current selection
+                }));
+
+                const result = await showCustomModal(
+                    "匯出記事本資料",
+                    {
+                        message: '請選擇要匯出的記事本：',
+                        checkboxes: checkboxesData,
+                        confirmButtonText: '匯出選取項目',
+                        cancelButtonText: '取消',
+                        trackHistory: true
                     }
-                    const blob = new Blob([dataToExport], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `記事本備份_${new Date().toISOString().slice(0, 10)}.json`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                    showMessage('記事本資料已成功匯出！');
-                } catch (error) {
-                    console.error('匯出資料時發生錯誤:', error);
-                    showMessage('匯出資料時發生錯誤。', true);
+                );
+
+                if (result.confirmed && result.values.selectedIds.length > 0) {
+                    try {
+                        const selectedBooksToExport = recordBooks.filter(book => result.values.selectedIds.includes(book.id));
+                        const dataToExport = JSON.stringify(selectedBooksToExport, null, 2); // Pretty print JSON
+
+                        const blob = new Blob([dataToExport], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `選取記事本備份_${new Date().toISOString().slice(0, 10)}.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        showMessage('選取記事本資料已成功匯出！');
+                    } catch (error) {
+                        console.error('匯出資料時發生錯誤:', error);
+                        showMessage('匯出資料時發生錯誤。', true);
+                    }
+                } else if (result.confirmed && result.values.selectedIds.length === 0) {
+                    showMessage('未選擇任何記事本進行匯出。', true);
+                } else {
+                    showMessage('匯出操作已取消。');
                 }
             });
 
@@ -1844,7 +2156,7 @@
                             const confirmImport = await showCustomModal(
                                 "匯入記事本資料",
                                 {
-                                    confirmButtonText: '覆蓋現有資料',
+                                    confirmButtonText: '確定',
                                     cancelButtonText: '取消',
                                     inputs: [
                                         {
@@ -1913,12 +2225,16 @@
                     // Handle view transitions based on popstate
                     if (state.view === 'management') {
                         currentRecordBookId = null;
+                        selectedRecordBookIds.clear(); // Clear selections on navigating back to management
+                        updateToolbarButtonStates();
                         // Determine animation direction based on previous view, if available
                         const prevView = document.querySelector('.view.active-visible');
                         const animationDir = prevView && prevView.id === 'numberTrackerView' ? 'backward' : 'none';
                         renderManagementView(animationDir); // Animate backward when returning to management
                     } else if (state.view === 'tracker' && state.bookId) {
                         currentRecordBookId = state.bookId;
+                        selectedRecordBookIds.clear(); // Clear selections on navigating to tracker view
+                        updateToolbarButtonStates();
                         // Determine animation direction based on previous view, if available
                         const prevView = document.querySelector('.view.active-visible');
                         const animationDir = prevView && prevView.id === 'managementView' ? 'forward' : 'none';
@@ -1927,6 +2243,8 @@
                 } else {
                     // Handle initial load or direct navigation without specific state
                     currentRecordBookId = null;
+                    selectedRecordBookIds.clear(); // Clear selections on initial load
+                    updateToolbarButtonStates();
                     renderManagementView('initial'); // No animation for initial load
                 }
             });
