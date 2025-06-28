@@ -470,15 +470,33 @@
             text-align: left;
             margin-bottom: 0;
             transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-            position: relative;
+            position: relative; /* Essential for positioning absolute children */
         }
         .record-book-grid-view .record-book-item:hover {
              transform: translateY(-2px);
              box-shadow: 0 4px 10px rgba(0,0,0,0.12);
         }
+        /* New style for checkbox wrapper in grid view */
+        .record-book-grid-view .checkbox-wrapper {
+            position: absolute;
+            top: 8px; /* Adjusted to fit the border-radius */
+            left: 8px; /* Adjusted to fit the border-radius */
+            z-index: 20; /* Ensure it's above other content */
+            padding: 4px; /* Add some padding to increase touch target */
+            border-radius: 50%; /* Make it rounded for better visual */
+            background-color: rgba(255, 255, 255, 0.7); /* Slightly translucent background */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .record-book-grid-view .checkbox-wrapper input[type="checkbox"] {
+            margin-right: 0; /* Remove default margin from the checkbox itself */
+        }
+
         .record-book-grid-view .record-book-name-wrapper {
             width: 100%;
             margin-bottom: 10px;
+            padding-left: 20px; /* Add padding to account for checkbox position */
         }
         .record-book-grid-view .record-book-name {
             font-size: 1.35rem;
@@ -1074,10 +1092,19 @@
         let sortMode = 'latest';
         let selectedRecordBookIds = new Set(); // New Set to store IDs of selected record books
 
+        /**
+         * 生成一個新的 UUID。
+         * @returns {string} 新生成的 UUID 字串。
+         */
         function generateUUID() {
             return crypto.randomUUID();
         }
 
+        /**
+         * 格式化 ISO 日期字串為易讀的本地日期時間格式。
+         * @param {string} isoDateString - ISO 格式的日期字串。
+         * @returns {string} 格式化的日期時間字串。
+         */
         function formatDateTime(isoDateString) {
             if (!isoDateString) return 'N/A';
             const date = new Date(isoDateString);
@@ -1091,6 +1118,11 @@
             });
         }
 
+        /**
+         * 顯示一個訊息框。
+         * @param {string} message - 要顯示的訊息。
+         * @param {boolean} [isError=false] - 如果為 true，則訊息框顯示為錯誤樣式。
+         */
         function showMessage(message, isError = false) {
             const messageBox = document.getElementById('messageBox');
             messageBox.textContent = message;
@@ -1104,6 +1136,9 @@
             }, 3000);
         }
 
+        /**
+         * 根據當前排序模式對記事本進行排序。
+         */
         function sortRecordBooks() {
             const currentSortText = document.getElementById('currentSortText');
             const sortByLatestBtn = document.getElementById('sortByLatestBtn');
@@ -1166,31 +1201,41 @@
             const sortDropdown = document.getElementById('sortDropdown');
 
 
+            /**
+             * 從本地儲存載入記事本資料、顯示模式和排序模式。
+             * 檢查並升級舊版記事本資料的結構。
+             * 然後根據歷史狀態渲染相應的視圖。
+             */
             function loadRecordBooks() {
                 let needsRecordBookSave = false;
                 const storedData = localStorage.getItem(storageKey);
                 if (storedData) {
                     recordBooks = JSON.parse(storedData);
                     recordBooks.forEach(book => {
+                        // 檢查並為舊版記事本添加 maxNumber 屬性
                         if (book.maxNumber === undefined) {
                             book.maxNumber = defaultMaxNumber;
                             needsRecordBookSave = true;
                         }
+                        // 檢查並為舊版記事本添加 lastUpdated 屬性（並遷移 createdAt）
                         if (book.lastUpdated === undefined) {
                             book.lastUpdated = book.createdAt || new Date().toISOString();
-                            delete book.createdAt;
+                            delete book.createdAt; // 移除舊的 createdAt 屬性
                             needsRecordBookSave = true;
                         }
+                        // 檢查並為舊版記事本添加 notes 屬性
                         if (book.notes === undefined) {
                             book.notes = "";
                             needsRecordBookSave = true;
                         }
+                        // 檢查並為舊版記事本添加 recordText 屬性
                         if (book.recordText === undefined) {
                             book.recordText = "";
                             needsRecordBookSave = true;
                         }
+                        // 檢查並為舊版記事本添加 bookType 屬性
                         if (book.bookType === undefined) {
-                            book.bookType = "number";
+                            book.bookType = "number"; // 預設為數字追蹤類型
                             needsRecordBookSave = true;
                         }
                     });
@@ -1198,38 +1243,45 @@
                     recordBooks = [];
                 }
 
+                // 載入顯示模式
                 const storedDisplayMode = localStorage.getItem(displayModeKey);
                 if (storedDisplayMode) {
                     displayMode = storedDisplayMode;
                 } else {
-                    displayMode = 'list';
+                    displayMode = 'list'; // 預設為列表模式
                 }
 
+                // 載入排序模式
                 const storedSortMode = localStorage.getItem(sortModeKey);
                 if (storedSortMode) {
                     sortMode = storedSortMode;
                 } else {
-                    sortMode = 'latest';
+                    sortMode = 'latest'; // 預設為最新排序
                 }
 
+                // 如果有任何資料升級，則儲存回本地儲存
                 if (needsRecordBookSave) {
                     saveRecordBooks();
                 }
 
-                // Clear selected IDs when loading/reloading record books
+                // 載入或重新載入記事本時清除選定的 ID
                 selectedRecordBookIds.clear();
 
+                // 根據瀏覽器歷史的初始狀態渲染視圖
                 const initialState = history.state;
                 if (initialState && initialState.view === 'tracker' && initialState.bookId) {
                     currentRecordBookId = initialState.bookId;
-                    renderNumberTrackerView('initial'); // Pass 'initial' to prevent animation on first load
+                    renderNumberTrackerView('initial'); // 傳遞 'initial' 以防止首次載入時動畫
                 } else {
-                    // Always replace the initial state to avoid adding an extra history entry on load
+                    // 總是替換初始狀態，以避免載入時添加額外的歷史條目
                     history.replaceState({ view: 'management', modalOpen: false }, '我的記事本', '');
-                    renderManagementView('initial'); // Pass 'initial'
+                    renderManagementView('initial'); // 傳遞 'initial'
                 }
             }
 
+            /**
+             * 將記事本資料、顯示模式和排序模式儲存到本地儲存。
+             */
             function saveRecordBooks() {
                 localStorage.setItem(storageKey, JSON.stringify(recordBooks));
                 localStorage.setItem(displayModeKey, displayMode);
@@ -1241,10 +1293,10 @@
              * @param {string} title 模態框標題。
              * @param {object} options 選項物件。
              * @param {string} [options.message] 要顯示在標題下的訊息。
-             * @param {Array} options.inputs 輸入欄位定義陣列。
-             * @param {Array} options.actions 動作按鈕定義陣列。
-             * @param {Array} options.checkboxes 複選框列表定義陣列 (for export/delete selection).
-             * @param {Array} options.itemsToDelete 待刪除記事本的列表 (for bulk delete confirmation).
+             * @param {Array<object>} options.inputs 輸入欄位定義陣列。
+             * @param {Array<object>} options.actions 動作按鈕定義陣列。
+             * @param {Array<object>} options.checkboxes 複選框列表定義陣列 (for export/delete selection).
+             * @param {Array<object>} options.itemsToDelete 待刪除記事本的列表 (for bulk delete confirmation).
              * @param {string} options.confirmButtonText 確認按鈕文字。
              * @param {string} options.cancelButtonText 取消按鈕文字。
              * @param {boolean} options.trackHistory 是否在瀏覽器歷史中追蹤此模態框的開啟狀態 (使用 pushState)。
@@ -1264,7 +1316,7 @@
                     modalMessage.classList.remove('hidden');
                 }
 
-                // If there are actions, we show action buttons, otherwise, we show confirm/cancel buttons
+                // 如果有動作按鈕，則顯示動作按鈕，否則顯示確認/取消按鈕
                 if (actions.length > 0) {
                     modalConfirmCancelButtons.classList.add('hidden');
                     modalActionButtonsContainer.classList.remove('hidden');
@@ -1297,11 +1349,11 @@
                     modalConfirmBtn.textContent = confirmButtonText;
                     modalCancelBtn.textContent = cancelButtonText;
 
-                    // Render regular inputs if available
+                    // 渲染常規輸入欄位（如果可用）
                     inputs.forEach(inputDef => {
                         const div = document.createElement('div');
                         div.classList.add('mb-4');
-                        // Add a specific class to identify input groups for dynamic hiding/showing
+                        // 添加一個特定的類來標識用於動態隱藏/顯示的輸入組
                         if (inputDef.id === 'maxNum') {
                             div.classList.add('max-num-input-group');
                         }
@@ -1339,11 +1391,11 @@
                         modalInputsContainer.appendChild(div);
                     });
 
-                    // Render checkboxes if available (for export/delete selection)
+                    // 渲染複選框（如果可用，用於匯出/刪除選擇）
                     if (checkboxes.length > 0) {
                         const selectAllContainer = document.createElement('div');
                         selectAllContainer.classList.add('select-all-checkbox-container');
-                        // Corrected styling for the "Select All" checkbox in the modal
+                        // 修正模態框中「全選」複選框的樣式
                         selectAllContainer.innerHTML = `
                             <label class="inline-flex items-center cursor-pointer">
                                 <input type="checkbox" id="modalSelectAllCheckboxes" class="mr-2 transform scale-125"> 全選
@@ -1366,7 +1418,7 @@
                         });
                         modalInputsContainer.appendChild(checkboxListDiv);
 
-                        // Add event listener for select all checkbox in modal
+                        // 為模態框中的全選複選框添加事件監聽器
                         const modalSelectAll = selectAllContainer.querySelector('#modalSelectAllCheckboxes');
                         const modalCheckboxes = checkboxListDiv.querySelectorAll('.modal-checkbox-item');
 
@@ -1374,17 +1426,17 @@
                             modalCheckboxes.forEach(cb => cb.checked = modalSelectAll.checked);
                         });
 
-                        // Update select all based on individual checkboxes
+                        // 根據個別複選框更新全選狀態
                         modalCheckboxes.forEach(cb => {
                             cb.addEventListener('change', () => {
                                 modalSelectAll.checked = Array.from(modalCheckboxes).every(item => item.checked);
                             });
                         });
-                        // Initial state of select all
+                        // 全選的初始狀態
                         modalSelectAll.checked = Array.from(modalCheckboxes).every(item => item.checked);
                     }
                     
-                    // New: Render list of items to delete (for bulk delete confirmation)
+                    // 新增：渲染要刪除的項目列表（用於批量刪除確認）
                     if (itemsToDelete.length > 0) {
                         const deleteListContainer = document.createElement('div');
                         deleteListContainer.classList.add('bulk-delete-list');
@@ -1402,18 +1454,18 @@
                     }
                 }
 
-                // Show modal with animation
-                customModal.classList.remove('hidden', 'hide-modal'); // Ensure it's not display: none and remove hide animation class
-                customModal.classList.add('show-modal'); // Add show animation class
+                // 顯示模態框並帶有動畫
+                customModal.classList.remove('hidden', 'hide-modal'); // 確保它不是 display: none 並移除隱藏動畫類
+                customModal.classList.add('show-modal'); // 添加顯示動畫類
 
-                // History tracking for modal
+                // 模態框的歷史追蹤
                 if (trackHistory) {
                     history.pushState({ view: history.state.view, modalOpen: true }, '');
                 } else {
                     history.replaceState({ view: history.state.view, modalOpen: true }, '');
                 }
 
-                // Focus on the first interactive element
+                // 將焦點設置在第一個互動元素上
                 if (inputs.length > 0) {
                     modalInputsContainer.querySelector('input')?.focus();
                 } else if (actions.length > 0) {
@@ -1422,18 +1474,18 @@
                     modalConfirmBtn.focus();
                 }
 
-                // Handle the visibility of maxNumInputGroup based on bookType radio selection
+                // 根據 bookType 單選按鈕的選擇處理 maxNumInputGroup 的可見性
                 const bookTypeRadios = modalInputsContainer.querySelectorAll('input[name="bookType"]');
-                const maxNumInputGroup = modalInputsContainer.querySelector('.max-num-input-group'); // Select by the new class
+                const maxNumInputGroup = modalInputsContainer.querySelector('.max-num-input-group'); // 根據新類選擇
 
                 const toggleMaxNumInput = () => {
-                    // Only run this logic if bookType radios are actually present
+                    // 僅當實際存在 bookType 單選按鈕時才運行此邏輯
                     if (bookTypeRadios.length > 0) {
                         const selectedRadio = document.querySelector('input[name="bookType"]:checked');
-                        // Ensure selectedRadio is not null before trying to access its value
+                        // 確保 selectedRadio 不為 null 後才能訪問其值
                         if (selectedRadio) {
                             const selectedType = selectedRadio.value;
-                            if (maxNumInputGroup) { // Ensure maxNumInputGroup exists before manipulating
+                            if (maxNumInputGroup) { // 確保 maxNumInputGroup 存在後才能操作
                                 if (selectedType === 'number') {
                                     maxNumInputGroup.classList.remove('hidden');
                                 } else {
@@ -1444,12 +1496,12 @@
                     }
                 };
 
-                // Add event listeners only if elements are present (after modal content is rendered)
+                // 僅在元素存在時（模態框內容渲染後）添加事件監聽器
                 if (bookTypeRadios.length > 0) {
                     bookTypeRadios.forEach(radio => {
                         radio.addEventListener('change', toggleMaxNumInput);
                     });
-                    toggleMaxNumInput(); // Initial call to set correct visibility
+                    toggleMaxNumInput(); // 初次調用以設置正確的可見性
                 }
 
 
@@ -1465,27 +1517,27 @@
             function closeCustomModal() {
                 return new Promise(resolve => {
                     modalErrorMessage.classList.add('hidden');
-                    modalMessage.classList.add('hidden'); // Hide message on close
+                    modalMessage.classList.add('hidden'); // 關閉時隱藏訊息
                     customModal.classList.remove('show-modal');
                     customModal.classList.add('hide-modal');
 
-                    // Listen for the end of the transition
+                    // 監聽過渡結束
                     const onTransitionEnd = () => {
-                        customModal.classList.add('hidden'); // Hide after animation
+                        customModal.classList.add('hidden'); // 動畫結束後隱藏
                         customModal.classList.remove('hide-modal');
                         customModal.removeEventListener('transitionend', onTransitionEnd);
-                        // Programmatically close, replace current history state, ensure modalOpen is false
+                        // 以程式方式關閉，替換當前歷史狀態，確保 modalOpen 為 false
                         history.replaceState({ view: history.state.view, modalOpen: false }, '');
                         resolve();
                     };
                     customModal.addEventListener('transitionend', onTransitionEnd);
 
-                    // Fallback for transitionend not firing (e.g., if element was hidden immediately)
+                    // 過渡結束未觸發的備用方案（例如，如果元素立即被隱藏）
                     setTimeout(() => {
                         if (customModal.classList.contains('hide-modal')) {
                             onTransitionEnd();
                         }
-                    }, 350); // A bit longer than CSS transition duration
+                    }, 350); // 略長於 CSS 過渡持續時間
                 });
             }
 
@@ -1501,7 +1553,7 @@
                 const newNameInput = modalInputsContainer.querySelector('#newName');
                 const modalCheckboxes = modalInputsContainer.querySelectorAll('.modal-checkbox-item'); // Get all checkboxes in the modal
 
-                // If there are checkboxes, collect their values
+                // 如果有複選框，則收集它們的值
                 if (modalCheckboxes.length > 0) {
                     values.selectedIds = Array.from(modalCheckboxes)
                                           .filter(cb => cb.checked)
@@ -1529,7 +1581,7 @@
                 }
 
                 let selectedBookType = 'number';
-                // Only try to get bookType if radios are present
+                // 僅當存在單選按鈕時才嘗試獲取 bookType
                 if (bookTypeRadios.length > 0) {
                     const selectedRadio = document.querySelector('input[name="bookType"]:checked');
                     if (selectedRadio) {
@@ -1546,7 +1598,7 @@
                     }
                     values.maxNum = numValue;
                 } else if (selectedBookType === 'text') {
-                    // For text type, maxNum is not relevant, set to a default/non-number
+                    // 對於文本類型，maxNum 不相關，設置為預設/非數字
                     values.maxNum = 0;
                 }
 
@@ -1555,7 +1607,7 @@
                     modalErrorMessage.textContent = errorMessage;
                     modalErrorMessage.classList.remove('hidden');
                 } else {
-                    // Close modal with animation, then resolve promise
+                    // 關閉模態框並帶有動畫，然後解析 Promise
                     closeCustomModal().then(() => {
                         currentModalResolve({ confirmed: true, values });
                     });
@@ -1563,7 +1615,7 @@
             };
 
             modalCancelBtn.onclick = () => {
-                // Close modal with animation, then resolve promise
+                // 關閉模態框並帶有動畫，然後解析 Promise
                 closeCustomModal().then(() => {
                     currentModalResolve({ confirmed: false });
                 });
@@ -1577,40 +1629,40 @@
              * @param {string} direction 'forward' (進入追蹤器) 或 'backward' (返回管理頁面) 或 'initial' (初始載入，無動畫)。
              */
             function showView(newViewElement, state, title, direction = 'forward') {
-                const allViews = document.querySelectorAll('.view'); // Get all view elements
+                const allViews = document.querySelectorAll('.view'); // 獲取所有視圖元素
 
-                // Toggle FAB button visibility based on the view
+                // 根據視圖切換 FAB 按鈕的可見性
                 if (newViewElement === managementView) {
                     fabAddNewRecordBookBtn.classList.remove('hidden');
                 } else {
                     fabAddNewRecordBookBtn.classList.add('hidden');
                 }
 
-                // First, hide all views immediately to prevent flicker
+                // 首先，立即隱藏所有視圖以防止閃爍
                 allViews.forEach(view => {
                     view.classList.add('hidden');
                     view.classList.remove('active-visible', 'slide-in-right', 'slide-out-left');
                 });
 
-                // Apply animation classes for the new view if not 'initial'
+                // 如果不是 'initial'，則為新視圖應用動畫類
                 if (direction === 'forward') {
-                    newViewElement.classList.add('slide-in-right'); // Start off-screen right
+                    newViewElement.classList.add('slide-in-right'); // 從屏幕右側開始
                 } else if (direction === 'backward') {
-                    newViewElement.classList.add('slide-out-left'); // Start off-screen left (visually from left when sliding right)
+                    newViewElement.classList.add('slide-out-left'); // 從屏幕左側開始（從右側滑動時視覺上從左側）
                 }
 
-                // Show the new view before forcing reflow and starting animation
+                // 在強制回流和開始動畫之前顯示新視圖
                 newViewElement.classList.remove('hidden');
 
-                // Force reflow to ensure animation starts from correct initial state
+                // 強制回流以確保動畫從正確的初始狀態開始
                 void newViewElement.offsetWidth;
 
-                // Apply entry animation to the new view
-                newViewElement.classList.add('active-visible'); // Animate to on-screen position
-                newViewElement.classList.remove('slide-in-right', 'slide-out-left'); // Remove initial position class to start transition
+                // 為新視圖應用進入動畫
+                newViewElement.classList.add('active-visible'); // 動畫到屏幕上的位置
+                newViewElement.classList.remove('slide-in-right', 'slide-out-left'); // 移除初始位置類以開始過渡
 
 
-                // Update history state
+                // 更新歷史狀態
                 if (state.view === 'tracker' && (!history.state || history.state.view !== 'tracker')) {
                      history.pushState(state, title, '');
                 } else {
@@ -1619,10 +1671,13 @@
                 document.title = title;
             }
 
+            /**
+             * 更新工具欄按鈕（匯出、刪除選取項目）的啟用/禁用狀態和可見性。
+             */
             function updateToolbarButtonStates() {
                 const hasSelection = selectedRecordBookIds.size > 0;
 
-                // Delete button logic
+                // 刪除按鈕邏輯
                 deleteSelectedBtn.disabled = !hasSelection;
                 if (hasSelection) {
                     deleteSelectedBtn.classList.remove('hidden-if-no-selection');
@@ -1630,7 +1685,7 @@
                     deleteSelectedBtn.classList.add('hidden-if-no-selection');
                 }
 
-                // Export button logic
+                // 匯出按鈕邏輯
                 if (hasSelection) {
                     exportBtn.classList.remove('hidden-if-no-selection');
                 } else {
@@ -1638,6 +1693,10 @@
                 }
             }
 
+            /**
+             * 渲染管理頁面視圖，包括記事本列表或網格。
+             * @param {string} [animationDirection='forward'] - 動畫方向 ('forward', 'backward', 'none', 'initial')。
+             */
             function renderManagementView(animationDirection = 'forward') { // Default to 'forward' for general rendering
                 showView(managementView, { view: 'management', modalOpen: false }, '我的記事本', animationDirection);
                 recordBookList.innerHTML = '';
@@ -1656,16 +1715,16 @@
                     gridViewBtn.classList.remove('selected');
                     listViewHeader.classList.remove('hidden');
 
-                    // Set initial state of select all checkbox based on current selection
+                    // 根據當前選擇設置全選複選框的初始狀態
                     selectAllCheckboxes.checked = recordBooks.length > 0 && selectedRecordBookIds.size === recordBooks.length;
-                    selectAllCheckboxes.classList.remove('hidden'); // Ensure it's visible in list mode
-                } else {
+                    selectAllCheckboxes.classList.remove('hidden'); // 確保在列表模式下可見
+                } else { // Grid View
                     recordBookList.classList.add('record-book-grid-container');
                     recordBookList.classList.add('record-book-grid-view');
                     gridViewBtn.classList.add('selected');
                     listViewBtn.classList.remove('selected');
                     listViewHeader.classList.add('hidden');
-                    selectAllCheckboxes.classList.add('hidden'); // Hide in grid mode
+                    selectAllCheckboxes.classList.add('hidden'); // 在網格模式下隱藏
                 }
 
 
@@ -1682,51 +1741,72 @@
                         bookItem.classList.add('record-book-item');
                         bookItem.dataset.id = book.id;
 
-                        // Add click listener to the entire record book item for navigation in list view
+                        // 添加點擊監聽器到整個記事本項目，用於列表視圖中的導航
                         bookItem.addEventListener('click', (e) => {
-                            // Prevent navigation if the click originated from the checkbox or options button
-                            if (e.target.closest('.record-book-checkbox') || e.target.closest('.options-button')) {
+                            // 防止點擊來源於複選框或選項按鈕時導航
+                            if (e.target.closest('.record-book-checkbox-wrapper') || e.target.closest('.record-book-checkbox') || e.target.closest('.options-button')) {
                                 return;
                             }
                             selectRecordBook(book.id);
                         });
 
 
-                        // Checkbox for list view (always added, but hidden in grid view via CSS)
-                        const checkbox = document.createElement('input');
-                        checkbox.type = 'checkbox';
-                        // Applied transform scale directly in JS for checkbox in list view header
-                        checkbox.classList.add('record-book-checkbox', 'mr-3', 'transform', 'scale-125', 'cursor-pointer');
-                        checkbox.dataset.id = book.id;
-                        checkbox.checked = selectedRecordBookIds.has(book.id); // Set initial checked state
-                        checkbox.addEventListener('change', (e) => {
-                            e.stopPropagation(); // Prevent record book item click event
-                            if (checkbox.checked) {
-                                selectedRecordBookIds.add(book.id);
-                            } else {
-                                selectedRecordBookIds.delete(book.id);
-                            }
-                            updateToolbarButtonStates();
-                            // Update select all checkbox state
-                            selectAllCheckboxes.checked = recordBooks.length > 0 && selectedRecordBookIds.size === recordBooks.length;
-                        });
-                        bookItem.appendChild(checkbox);
-
-
+                        // 列表視圖的複選框（始終添加，但通過 CSS 在網格視圖中隱藏）
                         if (displayMode === 'list') {
-                            // Name cell for list view
+                            const checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            // 直接在 JS 中為列表視圖中的複選框應用變換比例
+                            checkbox.classList.add('record-book-checkbox', 'mr-3', 'transform', 'scale-125', 'cursor-pointer');
+                            checkbox.dataset.id = book.id;
+                            checkbox.checked = selectedRecordBookIds.has(book.id); // 設置初始選中狀態
+                            checkbox.addEventListener('change', (e) => {
+                                e.stopPropagation(); // 防止記事本項目點擊事件
+                                if (checkbox.checked) {
+                                    selectedRecordBookIds.add(book.id);
+                                } else {
+                                    selectedRecordBookIds.delete(book.id);
+                                }
+                                updateToolbarButtonStates();
+                                // 更新全選複選框狀態
+                                selectAllCheckboxes.checked = recordBooks.length > 0 && selectedRecordBookIds.size === recordBooks.length;
+                            });
+                            bookItem.appendChild(checkbox);
+
+                            // 名稱單元格用於列表視圖
                             const nameCell = document.createElement('div');
                             nameCell.classList.add('record-book-name-cell');
                             nameCell.textContent = book.name;
                             bookItem.appendChild(nameCell);
 
-                            // Last updated cell for list view
+                            // 最後更新單元格用於列表視圖
                             const lastUpdatedCell = document.createElement('div');
                             lastUpdatedCell.classList.add('record-book-last-updated-cell');
                             lastUpdatedCell.textContent = formatDateTime(book.lastUpdated);
                             bookItem.appendChild(lastUpdatedCell);
 
                         } else { // Grid View
+                            // 複選框包裝器，用於在網格模式下使其可點擊且位於頂部
+                            const checkboxWrapper = document.createElement('div');
+                            checkboxWrapper.classList.add('checkbox-wrapper');
+
+                            const checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.classList.add('record-book-checkbox', 'transform', 'scale-125', 'cursor-pointer');
+                            checkbox.dataset.id = book.id;
+                            checkbox.checked = selectedRecordBookIds.has(book.id); // Set initial checked state
+                            checkbox.addEventListener('change', (e) => {
+                                e.stopPropagation(); // Prevent record book item click event
+                                if (checkbox.checked) {
+                                    selectedRecordBookIds.add(book.id);
+                                } else {
+                                    selectedRecordBookIds.delete(book.id);
+                                }
+                                updateToolbarButtonStates();
+                            });
+                            checkboxWrapper.appendChild(checkbox);
+                            bookItem.appendChild(checkboxWrapper);
+
+
                             const nameWrapper = document.createElement('div');
                             nameWrapper.classList.add('record-book-name-wrapper');
 
@@ -1745,7 +1825,7 @@
                             // Add direct click listener to grid item for navigation
                              bookItem.addEventListener('click', (e) => {
                                 // Exclude clicks on the checkbox or options button in grid view
-                                if (e.target.closest('input[type="checkbox"]') || e.target.closest('.options-button')) {
+                                if (e.target.closest('.record-book-checkbox-wrapper') || e.target.closest('input[type="checkbox"]') || e.target.closest('.options-button')) {
                                     return;
                                 }
                                 selectRecordBook(book.id);
@@ -1768,15 +1848,19 @@
                         recordBookList.appendChild(bookItem);
                     });
                 }
-                updateToolbarButtonStates(); // Update toolbar buttons after rendering
+                updateToolbarButtonStates(); // 渲染後更新工具欄按鈕
             }
 
 
+            /**
+             * 渲染數字追蹤器視圖。
+             * @param {string} [animationDirection='forward'] - 動畫方向 ('forward', 'backward', 'none').
+             */
             function renderNumberTrackerView(animationDirection = 'forward') { // Default to 'forward'
                 const currentBook = recordBooks.find(book => book.id === currentRecordBookId);
                 if (!currentBook) {
                     console.error("No record book selected or found.");
-                    renderManagementView('backward'); // If no book, go back to management
+                    renderManagementView('backward'); // 如果沒有書籍，則返回管理頁面
                     return;
                 }
 
@@ -1784,7 +1868,7 @@
                 currentRecordBookName.textContent = currentBook.name;
                 numbersGrid.innerHTML = '';
 
-                // Clear selected IDs when entering tracker view
+                // 進入追蹤器視圖時清除選定的 ID
                 selectedRecordBookIds.clear();
                 updateToolbarButtonStates();
 
@@ -1797,7 +1881,7 @@
                     notesInput.setAttribute('maxlength', notesCharLimit);
                     notesCharCount.textContent = `${notesInput.value.length}/${notesCharLimit}`;
 
-                    for (let i = 1; i <= currentBook.maxNumber; i++) { // Fixed loop condition
+                    for (let i = 1; i <= currentBook.maxNumber; i++) { // 固定循環條件
                         const isChecked = currentBook.checkedNumbers[i] || false;
 
                         const gridItem = document.createElement('div');
@@ -1845,7 +1929,13 @@
                 };
             }
 
-            // Function to update the state of a number in the current book
+            /**
+             * 更新當前記事本中數字的狀態。
+             * @param {string} bookId - 記事本的 ID。
+             * @param {number} number - 要更新的數字。
+             * @param {boolean} isChecked - 數字的新狀態（已勾選或未勾選）。
+             * @param {HTMLElement} gridItem - 對應的網格項目 DOM 元素。
+             */
             function updateNumberState(bookId, number, isChecked, gridItem) {
                 const book = recordBooks.find(b => b.id === bookId);
                 if (book) {
@@ -1861,6 +1951,10 @@
             }
 
 
+            /**
+             * 顯示記事本操作模態框（重新命名或刪除）。
+             * @param {string} bookId - 要操作的記事本的 ID。
+             */
             async function showRecordBookActionsModal(bookId) {
                 const book = recordBooks.find(b => b.id === bookId);
                 if (!book) return;
@@ -1887,6 +1981,7 @@
                 }
             }
 
+            // 添加新記事本按鈕點擊事件監聽器
             fabAddNewRecordBookBtn.addEventListener('click', async () => {
                 const result = await showCustomModal(
                     "新增記事本",
@@ -1945,26 +2040,34 @@
                         newBook.maxNumber = newMaxNumber;
                         newBook.checkedNumbers = {};
                     } else {
-                        newBook.maxNumber = 0; // Not relevant for text type
-                        newBook.checkedNumbers = {}; // Not relevant for text type
+                        newBook.maxNumber = 0; // 對於文本類型不相關
+                        newBook.checkedNumbers = {}; // 對於文本類型不相關
                     }
 
                     recordBooks.push(newBook);
                     saveRecordBooks();
-                    renderManagementView(); // Rerender management view to show new book
+                    renderManagementView(); // 重新渲染管理視圖以顯示新記事本
                     showMessage('記事本已成功新增！');
                 } else {
                     showMessage('新增記事本已取消。');
                 }
             });
 
+            /**
+             * 選擇一個記事本並導航到其追蹤器視圖。
+             * @param {string} id - 要選擇的記事本的 ID。
+             */
             function selectRecordBook(id) {
                 currentRecordBookId = id;
-                selectedRecordBookIds.clear(); // Clear selected IDs when navigating to a book
+                selectedRecordBookIds.clear(); // 導航到書籍時清除選定的 ID
                 updateToolbarButtonStates();
-                renderNumberTrackerView('forward'); // Animate forward when selecting a book
+                renderNumberTrackerView('forward'); // 選擇書籍時向前動畫
             }
 
+            /**
+             * 重新命名記事本。
+             * @param {string} id - 要重新命名的記事本的 ID。
+             */
             async function renameRecordBook(id) {
                 const bookToRename = recordBooks.find(book => book.id === id);
                 if (bookToRename) {
@@ -1976,7 +2079,7 @@
                             ],
                             confirmButtonText: '儲存',
                             cancelButtonText: '取消',
-                            trackHistory: true // Track history for rename modal
+                            trackHistory: true // 追蹤重新命名模態框的歷史
                         }
                     );
 
@@ -1992,6 +2095,10 @@
                 }
             }
 
+            /**
+             * 刪除單個記事本。
+             * @param {string} id - 要刪除的記事本的 ID。
+             */
             async function deleteRecordBook(id) {
                 const bookToDelete = recordBooks.find(book => book.id === id);
                 if(!bookToDelete) return;
@@ -2007,9 +2114,9 @@
                 );
 
                 if (result.confirmed) {
-                    // Filter out the deleted book
-                    recordBooks = recordBooks.filter(book => !selectedRecordBookIds.has(book.id));
-                    // Remove from selected IDs if it was selected
+                    // 過濾掉已刪除的書籍
+                    recordBooks = recordBooks.filter(book => book.id !== id);
+                    // 如果它被選中，則從選定的 ID 中移除
                     selectedRecordBookIds.delete(id);
 
                     if (currentRecordBookId === id) {
@@ -2023,7 +2130,7 @@
                 }
             }
 
-            // New: Bulk Delete functionality
+            // 新增：批量刪除功能
             deleteSelectedBtn.addEventListener('click', async () => {
                 if (selectedRecordBookIds.size === 0) {
                     showMessage('請選擇至少一個記事本以進行刪除。', true);
@@ -2032,13 +2139,13 @@
 
                 const booksToDelete = Array.from(selectedRecordBookIds)
                     .map(id => recordBooks.find(book => book.id === id))
-                    .filter(book => book); // Filter out undefined books
+                    .filter(book => book); // 過濾掉未定義的書籍
 
                 const result = await showCustomModal(
                     `確認大量刪除`,
                     {
                         message: `確定要刪除選定的 ${selectedRecordBookIds.size} 個記事本嗎？此操作無法復原。`,
-                        itemsToDelete: booksToDelete, // Pass the list of books to delete
+                        itemsToDelete: booksToDelete, // 傳遞要刪除的書籍列表
                         confirmButtonText: '確定刪除',
                         cancelButtonText: '取消',
                         trackHistory: true
@@ -2046,15 +2153,15 @@
                 );
 
                 if (result.confirmed) {
-                    // Perform bulk deletion
+                    // 執行批量刪除
                     recordBooks = recordBooks.filter(book => !selectedRecordBookIds.has(book.id));
 
-                    // If the current record book was deleted, reset currentRecordBookId
+                    // 如果當前記事本被刪除，則重置 currentRecordBookId
                     if (currentRecordBookId && selectedRecordBookIds.has(currentRecordBookId)) {
                         currentRecordBookId = null;
                     }
 
-                    selectedRecordBookIds.clear(); // Clear selections after deletion
+                    selectedRecordBookIds.clear(); // 刪除後清除選擇
                     saveRecordBooks();
                     renderManagementView();
                     showMessage(`${booksToDelete.length} 個記事本已成功刪除！`);
@@ -2064,6 +2171,7 @@
             });
 
 
+            // 重設當前記事本按鈕點擊事件監聽器
             resetCurrentBookBtn.addEventListener('click', async () => {
                 const currentBook = recordBooks.find(book => book.id === currentRecordBookId);
                  if (currentBook) {
@@ -2072,7 +2180,7 @@
                         {
                             confirmButtonText: '確定重設',
                             cancelButtonText: '取消',
-                            trackHistory: true // Track history for reset modal
+                            trackHistory: true // 追蹤重設模態框的歷史
                         }
                     );
                      if (result.confirmed) {
@@ -2084,7 +2192,7 @@
                         currentBook.notes = "";
                         currentBook.lastUpdated = new Date().toISOString();
                         saveRecordBooks();
-                        renderNumberTrackerView('none'); // No animation for reset
+                        renderNumberTrackerView('none'); // 重設無動畫
                         showMessage('記事本已成功重設！');
                     } else {
                         showMessage('重設操作已取消。');
@@ -2092,34 +2200,37 @@
                 }
             });
 
+            // 返回管理頁面按鈕點擊事件監聽器
             backToManagementBtn.addEventListener('click', () => {
                 currentRecordBookId = null;
-                selectedRecordBookIds.clear(); // Clear selected IDs when returning to management
+                selectedRecordBookIds.clear(); // 返回管理頁面時清除選擇
                 updateToolbarButtonStates();
-                // When returning to the management page, go back one step in history
+                // 返回管理頁面時，回退一步歷史記錄
                 history.back();
             });
 
+            // 列表視圖按鈕點擊事件監聽器
             listViewBtn.addEventListener('click', () => {
                 displayMode = 'list';
                 saveRecordBooks();
-                renderManagementView('none'); // No animation for view mode change
+                renderManagementView('none'); // 視圖模式切換無動畫
             });
 
+            // 網格視圖按鈕點擊事件監聽器
             gridViewBtn.addEventListener('click', () => {
                 displayMode = 'grid';
-                selectedRecordBookIds.clear(); // Clear selected IDs when switching to grid view
+                selectedRecordBookIds.clear(); // 切換到網格視圖時清除選定的 ID
                 saveRecordBooks();
-                renderManagementView('none'); // No animation for view mode change
+                renderManagementView('none'); // 視圖模式切換無動畫
             });
 
-            // New: Select All Checkbox functionality in list view header
+            // 新增：列表視圖標題中的全選複選框功能
             selectAllCheckboxes.addEventListener('change', () => {
-                // Select all checkboxes that are part of the recordBookList and are visible
+                // 選取所有屬於 recordBookList 且可見的複選框
                 const checkboxes = recordBookList.querySelectorAll('.record-book-checkbox:not(.hidden)');
                 checkboxes.forEach(cb => {
                     cb.checked = selectAllCheckboxes.checked;
-                    // Manually update the selectedRecordBookIds set directly
+                    // 直接手動更新 selectedRecordBookIds 集合
                     if (cb.checked) {
                         selectedRecordBookIds.add(cb.dataset.id);
                     } else {
@@ -2130,32 +2241,36 @@
             });
 
 
+            // 排序按鈕點擊事件監聽器
             sortButton.addEventListener('click', (event) => {
                 sortDropdown.classList.toggle('hidden');
                 event.stopPropagation();
             });
 
+            // 按最新排序按鈕點擊事件監聽器
             sortByLatestBtn.addEventListener('click', () => {
                 sortMode = 'latest';
                 sortDropdown.classList.add('hidden');
                 saveRecordBooks();
-                renderManagementView('none'); // No animation for sort change
+                renderManagementView('none'); // 排序更改無動畫
             });
 
+            // 按標題排序按鈕點擊事件監聽器
             sortByTitleBtn.addEventListener('click', () => {
                 sortMode = 'title';
                 sortDropdown.classList.add('hidden');
                 saveRecordBooks();
-                renderManagementView('none'); // No animation for sort change
+                renderManagementView('none'); // 排序更改無動畫
             });
 
+            // 點擊文檔其他地方關閉排序下拉菜單
             document.addEventListener('click', (event) => {
                 if (!sortDropdown.contains(event.target) && !sortButton.contains(event.target)) {
                     sortDropdown.classList.add('hidden');
                 }
             });
 
-            // Modified Export button to show selection modal
+            // 修改匯出按鈕以顯示選擇模態框
             exportBtn.addEventListener('click', async () => {
                 if (recordBooks.length === 0) {
                     showMessage('沒有記事本資料可匯出！', true);
@@ -2166,7 +2281,7 @@
                     label: book.name,
                     value: book.id,
                     meta: formatDateTime(book.lastUpdated),
-                    checked: selectedRecordBookIds.has(book.id) // Pre-select based on current selection
+                    checked: selectedRecordBookIds.has(book.id) // 根據當前選擇預選
                 }));
 
                 const result = await showCustomModal(
@@ -2183,7 +2298,7 @@
                 if (result.confirmed && result.values.selectedIds.length > 0) {
                     try {
                         const selectedBooksToExport = recordBooks.filter(book => result.values.selectedIds.includes(book.id));
-                        const dataToExport = JSON.stringify(selectedBooksToExport, null, 2); // Pretty print JSON
+                        const dataToExport = JSON.stringify(selectedBooksToExport, null, 2); // 美化 JSON 輸出
 
                         const blob = new Blob([dataToExport], { type: 'application/json' });
                         const url = URL.createObjectURL(blob);
@@ -2206,6 +2321,7 @@
                 }
             });
 
+            // 匯入按鈕點擊事件監聽器
             importBtn.addEventListener('click', () => {
                 const input = document.createElement('input');
                 input.type = 'file';
@@ -2238,7 +2354,7 @@
                                             ]
                                         }
                                     ],
-                                    trackHistory: true // Track history for import modal
+                                    trackHistory: true // 追蹤匯入模態框的歷史
                                 }
                             );
 
@@ -2268,56 +2384,58 @@
                 input.click();
             });
 
-            // Added event listener to close modal when clicking outside its content
+            // 添加事件監聽器以在點擊模態框內容外部時關閉模態框
             customModal.addEventListener('click', (event) => {
-                // If the click target is the modal overlay itself (not a child element within the modal content)
+                // 如果點擊目標是模態框疊加層本身（而不是模態框內容中的子元素）
                 if (event.target === customModal) {
                     closeCustomModal();
                 }
             });
 
+            // 處理瀏覽器歷史狀態變更（例如，使用後退/前進按鈕）
             window.addEventListener('popstate', (event) => {
                 const state = event.state;
                 if (state) {
                     if (state.modalOpen) {
-                        // If popstate leads to modal open state, show the modal (with animation)
+                        // 如果 popstate 導致模態框打開狀態，則顯示模態框（帶有動畫）
                         customModal.classList.remove('hidden', 'hide-modal');
                         customModal.classList.add('show-modal');
                     } else {
-                        // If popstate leads to modal close state, and modal is currently open, close it (with animation)
+                        // 如果 popstate 導致模態框關閉狀態，並且模態框當前已打開，則關閉它（帶有動畫）
                         if (customModal.classList.contains('show-modal')) {
-                            // Call closeCustomModal which handles animation and history state replacement
+                            // 調用 closeCustomModal 處理動畫和歷史狀態替換
                             closeCustomModal();
                         }
                     }
 
-                    // Handle view transitions based on popstate
+                    // 根據 popstate 處理視圖過渡
                     if (state.view === 'management') {
                         currentRecordBookId = null;
-                        selectedRecordBookIds.clear(); // Clear selections on navigating back to management
+                        selectedRecordBookIds.clear(); // 導航回管理頁面時清除選擇
                         updateToolbarButtonStates();
-                        // Determine animation direction based on previous view, if available
+                        // 根據以前的視圖確定動畫方向（如果可用）
                         const prevView = document.querySelector('.view.active-visible');
                         const animationDir = prevView && prevView.id === 'numberTrackerView' ? 'backward' : 'none';
-                        renderManagementView(animationDir); // Animate backward when returning to management
+                        renderManagementView(animationDir); // 返回管理頁面時向後動畫
                     } else if (state.view === 'tracker' && state.bookId) {
                         currentRecordBookId = state.bookId;
-                        selectedRecordBookIds.clear(); // Clear selections on navigating to tracker view
+                        selectedRecordBookIds.clear(); // 導航到追蹤器視圖時清除選擇
                         updateToolbarButtonStates();
-                        // Determine animation direction based on previous view, if available
+                        // 根據以前的視圖確定動畫方向（如果可用）
                         const prevView = document.querySelector('.view.active-visible');
                         const animationDir = prevView && prevView.id === 'managementView' ? 'forward' : 'none';
-                        renderNumberTrackerView(animationDir); // Animate forward when going to tracker view via history
+                        renderNumberTrackerView(animationDir); // 通過歷史記錄進入追蹤器視圖時向前動畫
                     }
                 } else {
-                    // Handle initial load or direct navigation without specific state
+                    // 處理初始載入或沒有特定狀態的直接導航
                     currentRecordBookId = null;
-                    selectedRecordBookIds.clear(); // Clear selections on initial load
+                    selectedRecordBookIds.clear(); // 初始載入時清除選擇
                     updateToolbarButtonStates();
-                    renderManagementView('initial'); // No animation for initial load
+                    renderManagementView('initial'); // 初始載入無動畫
                 }
             });
 
+            // 載入記事本資料並初始化應用程式
             loadRecordBooks();
         });
     </script>
