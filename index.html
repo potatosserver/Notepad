@@ -451,7 +451,6 @@
             /* Adjusted grid-template-columns to accommodate checkbox */
             display: grid;
             grid-template-columns: auto 3fr 2fr auto;
-            align-items: center; /* Align items in the grid row */
             gap: 10px;
             padding: 10px 16px;
             font-weight: 600;
@@ -461,23 +460,6 @@
             background-color: var(--md-surface-variant);
             border-top-left-radius: 8px;
             border-top-right-radius: 8px;
-        }
-
-        /* Specific styles for header text alignment */
-        .list-view-header .header-text-cell {
-            display: flex; /* Use flex to align text content */
-            align-items: center; /* Vertically center text within the cell */
-            font-size: 1rem; /* Match record-book-name-cell font size for alignment */
-            padding: 0; /* Remove default span padding, controlled by grid item padding */
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            /* Removed min-height here, relying on parent grid for vertical centering */
-        }
-        /* Style for the header checkbox */
-        .list-view-header #selectAllCheckboxes {
-            transform: scale(1.2); /* Make it same size as individual checkboxes */
-            /* Removed margin-right: 3px; now using Tailwind's mr-3 directly in HTML */
         }
 
         .record-book-grid-view .record-book-item {
@@ -746,24 +728,38 @@
             .container {
                 padding: 15px;
             }
+            /* Adjusted header controls for smaller screens */
             .header-controls {
-                flex-direction: column;
-                align-items: flex-start;
+                flex-direction: row; /* Keep as row for the first line */
+                justify-content: space-between; /* Space out view mode and sort */
+                align-items: center;
+                flex-wrap: wrap; /* Allow wrapping if content is too wide */
             }
-            .header-right-controls {
-                margin-top: 15px;
-                width: 100%;
-                justify-content: space-between;
+            .header-right-controls { /* This class doesn't exist in the provided HTML */
+                margin-top: 0; /* Reset margin */
+                width: auto; /* Reset width */
+                justify-content: flex-end; /* Reset justify */
             }
             .toolbar { /* Added for toolbar responsiveness */
-                flex-direction: column;
-                align-items: stretch;
+                flex-direction: row; /* Keep as row */
+                align-items: center;
                 gap: 10px;
                 margin-top: 15px;
+                flex-wrap: nowrap; /* Prevent wrapping for the toolbar buttons */
+                overflow-x: auto; /* Enable horizontal scrolling if needed */
+                justify-content: flex-start; /* Align to start */
+                -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+                padding-bottom: 5px; /* Add some padding for scrollbar visibility */
+            }
+            .toolbar > div {
+                flex-shrink: 0; /* Prevent children from shrinking */
+                display: flex;
+                gap: 10px;
             }
             .toolbar .button-base { /* Make toolbar buttons full width */
-                width: 100%;
+                width: auto; /* Let buttons size naturally */
                 justify-content: center;
+                white-space: nowrap; /* Prevent button text from wrapping */
             }
             .record-book-grid-container {
                 grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -888,8 +884,10 @@
             <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">我的記事本</h1>
             <p class="text-center text-gray-600 text-lg mb-8"></p>
 
+            <!-- Modified header-controls for better responsiveness -->
             <div class="flex justify-end items-center mb-4 header-controls space-x-3">
-                <div class="view-mode-group">
+                <!-- View Mode Group (First line) -->
+                <div class="view-mode-group flex-shrink-0">
                     <button id="listViewBtn" class="view-mode-button">
                         <span class="material-symbols-outlined">view_list</span>
                     </button>
@@ -898,7 +896,8 @@
                     </button>
                 </div>
 
-                <div class="relative">
+                <!-- Sort Button (First line) -->
+                <div class="relative flex-shrink-0">
                     <button id="sortButton" class="button-base button-outlined">
                         <span class="material-symbols-outlined">sort</span>
                         <span id="currentSortText">最新</span>
@@ -910,9 +909,10 @@
                 </div>
             </div>
 
-            <!-- New Toolbar -->
+            <!-- New Toolbar - Control field (Second line) -->
             <div id="managementToolbar" class="flex justify-between items-center mb-6 toolbar">
-                <div class="flex space-x-3">
+                <!-- Import and Export buttons -->
+                <div class="flex space-x-3 flex-shrink-0">
                     <button id="importBtn" class="button-base button-outlined">
                         <span class="material-symbols-outlined">upload_file</span>
                         匯入
@@ -923,7 +923,8 @@
                         匯出
                     </button>
                 </div>
-                <div>
+                <!-- Delete Selected button -->
+                <div class="flex-shrink-0">
                     <!-- Delete Selected button now gets 'hidden-if-no-selection' -->
                     <button id="deleteSelectedBtn" class="button-base button-filled-secondary hidden-if-no-selection" disabled>
                         <span class="material-symbols-outlined">delete</span>
@@ -935,9 +936,9 @@
 
             <div id="recordBookListContainer" class="mb-6">
                 <div id="listViewHeader" class="list-view-header hidden">
-                    <input type="checkbox" id="selectAllCheckboxes" class="cursor-pointer mr-3">
-                    <span class="font-bold header-text-cell">標題</span>
-                    <span class="font-bold header-text-cell">最後更新時間</span>
+                    <input type="checkbox" id="selectAllCheckboxes" class="cursor-pointer">
+                    <span class="font-bold">標題</span>
+                    <span class="font-bold">最後更新時間</span>
                     <span></span>
                 </div>
                 <div id="recordBookList" class="record-book-list-container">
@@ -1944,7 +1945,7 @@
 
                 if (result.confirmed) {
                     // Filter out the deleted book
-                    recordBooks = recordBooks.filter(book => !selectedRecordBookIds.has(book.id));
+                    recordBooks = recordBooks.filter(book => book.id !== id);
                     // Remove from selected IDs if it was selected
                     selectedRecordBookIds.delete(id);
 
@@ -2050,14 +2051,13 @@
 
             // New: Select All Checkbox functionality in list view header
             selectAllCheckboxes.addEventListener('change', () => {
-                if (selectAllCheckboxes.checked) {
-                    recordBooks.forEach(book => selectedRecordBookIds.add(book.id));
-                } else {
-                    selectedRecordBookIds.clear();
-                }
-                // Re-render the view to update all checkboxes visually
-                renderManagementView('none'); // 'none' for no animation
-                updateToolbarButtonStates();
+                const checkboxes = document.querySelectorAll('.record-book-checkbox');
+                checkboxes.forEach(cb => {
+                    cb.checked = selectAllCheckboxes.checked;
+                    // Manually trigger change event for each checkbox to update selectedRecordBookIds
+                    const event = new Event('change');
+                    cb.dispatchEvent(event);
+                });
             });
 
 
