@@ -62,7 +62,7 @@
         }
         .grid-container {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); /* Adjusted for smaller size */
             gap: 16px;
         }
         .grid-item {
@@ -72,7 +72,7 @@
             justify-content: center;
             background-color: #e0e0e0;
             border-radius: 8px;
-            padding: 16px; /* Adjusted padding for square appearance */
+            padding: 10px; /* Adjusted padding for square appearance */
             width: 100%; /* Make width fill the grid column */
             aspect-ratio: 1 / 1; /* Force a square aspect ratio */
             transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
@@ -88,7 +88,7 @@
             background-color: #d0d0d0;
         }
         .number {
-            font-size: 1.5rem;
+            font-size: 1.2rem; /* Adjusted for smaller size */
             font-weight: 600;
             color: #333333;
         }
@@ -412,7 +412,7 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            cursor: pointer; /* Make it clickable */
+            /* Remove individual click listener here */
         }
         .record-book-list-view .record-book-last-updated-cell { /* New class for list view last updated column */
             font-size: 0.9rem;
@@ -420,7 +420,7 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            cursor: pointer; /* Make it clickable */
+            /* Remove individual click listener here */
         }
         .record-book-list-view .record-book-name-wrapper, /* These are for grid view, hide in list view */
         .record-book-list-view .record-book-name,
@@ -810,14 +810,14 @@
                 padding: 10px;
             }
             .grid-container {
-                grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+                grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); /* Adjusted for smaller size */
                 gap: 12px;
             }
             .grid-item {
-                padding: 12px; /* Adjusted padding for smaller screens */
+                padding: 8px; /* Adjusted padding for smaller screens */
             }
             .number {
-                font-size: 1.3rem;
+                font-size: 1rem; /* Adjusted for smaller size */
             }
             .record-book-item {
                 flex-direction: column;
@@ -882,7 +882,8 @@
 </head>
 <body>
     <div class="container">
-        <div id="managementView" class="view"> <!-- Added .view class -->
+        <!-- Initially hide both views -->
+        <div id="managementView" class="view hidden">
             <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">我的記事本</h1>
             <p class="text-center text-gray-600 text-lg mb-8"></p>
 
@@ -951,7 +952,8 @@
             </div>
         </div>
 
-        <div id="numberTrackerView" class="view hidden"> <!-- Added .view class -->
+        <!-- Initially hide both views -->
+        <div id="numberTrackerView" class="view hidden">
             <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 number-tracker-header">
                 <button id="backToManagementBtn" class="button-base button-filled-primary w-full whitespace-nowrap justify-center md:w-auto md:justify-start md:order-1">
                     <span class="material-symbols-outlined">arrow_back</span>
@@ -1509,42 +1511,23 @@
              * @param {string} direction 'forward' (進入追蹤器) 或 'backward' (返回管理頁面) 或 'initial' (初始載入，無動畫)。
              */
             function showView(newViewElement, state, title, direction = 'forward') {
-                const currentViewElement = document.querySelector('.view.active-visible'); // Get currently active view
+                const allViews = document.querySelectorAll('.view'); // Get all view elements
 
-                // If there's an active view and it's not the new view and we're animating
-                if (currentViewElement && currentViewElement !== newViewElement && direction !== 'initial') {
-                    currentViewElement.classList.remove('active-visible');
-                    if (direction === 'forward') {
-                        currentViewElement.classList.add('slide-out-left');
-                    } else if (direction === 'backward') {
-                        currentViewElement.classList.add('slide-in-right'); // Re-use slide-in-right for reverse transition
-                    }
-                    
-                    // Listen for transition end on the exiting view
-                    currentViewElement.addEventListener('transitionend', function _listener() {
-                        currentViewElement.classList.add('hidden');
-                        currentViewElement.classList.remove('slide-out-left', 'slide-in-right');
-                        currentViewElement.removeEventListener('transitionend', _listener);
-                    }, { once: true }); // Use once: true to automatically remove listener
-                } else if (currentViewElement && currentViewElement === newViewElement) {
-                    // If switching to the same view, just ensure it's visible and active
-                    newViewElement.classList.remove('hidden', 'slide-in-right', 'slide-out-left');
-                    newViewElement.classList.add('active-visible');
-                    // No animation needed, directly update history state if different
-                    if (JSON.stringify(history.state) !== JSON.stringify(state)) {
-                        history.replaceState(state, title, '');
-                    }
-                    document.title = title;
-                    return; 
-                }
+                // First, hide all views immediately to prevent flicker
+                allViews.forEach(view => {
+                    view.classList.add('hidden');
+                    view.classList.remove('active-visible', 'slide-in-right', 'slide-out-left');
+                });
 
-                // Prepare new view for entry animation
-                newViewElement.classList.remove('hidden', 'active-visible'); // Ensure it's not hidden and remove old active class
+                // Apply animation classes for the new view if not 'initial'
                 if (direction === 'forward') {
                     newViewElement.classList.add('slide-in-right'); // Start off-screen right
                 } else if (direction === 'backward') {
                     newViewElement.classList.add('slide-out-left'); // Start off-screen left (visually from left when sliding right)
                 }
+
+                // Show the new view before forcing reflow and starting animation
+                newViewElement.classList.remove('hidden');
 
                 // Force reflow to ensure animation starts from correct initial state
                 void newViewElement.offsetWidth;
@@ -1553,8 +1536,8 @@
                 newViewElement.classList.add('active-visible'); // Animate to on-screen position
                 newViewElement.classList.remove('slide-in-right', 'slide-out-left'); // Remove initial position class to start transition
 
+
                 // Update history state
-                // Push state if going from management to tracker, or replacing if internal view change
                 if (state.view === 'tracker' && (!history.state || history.state.view !== 'tracker')) {
                      history.pushState(state, title, '');
                 } else {
@@ -1626,6 +1609,16 @@
                         bookItem.classList.add('record-book-item');
                         bookItem.dataset.id = book.id;
 
+                        // Add click listener to the entire record book item for navigation in list view
+                        bookItem.addEventListener('click', (e) => {
+                            // Prevent navigation if the click originated from the checkbox or options button
+                            if (e.target.closest('.record-book-checkbox') || e.target.closest('.options-button')) {
+                                return;
+                            }
+                            selectRecordBook(book.id);
+                        });
+
+
                         // Checkbox for list view (always added, but hidden in grid view via CSS)
                         const checkbox = document.createElement('input');
                         checkbox.type = 'checkbox';
@@ -1647,22 +1640,16 @@
 
 
                         if (displayMode === 'list') {
-                            // Name cell for list view, clickable for navigation
+                            // Name cell for list view
                             const nameCell = document.createElement('div');
                             nameCell.classList.add('record-book-name-cell');
                             nameCell.textContent = book.name;
-                            nameCell.addEventListener('click', () => {
-                                selectRecordBook(book.id);
-                            });
                             bookItem.appendChild(nameCell);
 
-                            // Last updated cell for list view, clickable for navigation
+                            // Last updated cell for list view
                             const lastUpdatedCell = document.createElement('div');
                             lastUpdatedCell.classList.add('record-book-last-updated-cell');
                             lastUpdatedCell.textContent = formatDateTime(book.lastUpdated);
-                            lastUpdatedCell.addEventListener('click', () => {
-                                selectRecordBook(book.id);
-                            });
                             bookItem.appendChild(lastUpdatedCell);
 
                         } else { // Grid View
@@ -1947,7 +1934,7 @@
 
                 if (result.confirmed) {
                     // Filter out the deleted book
-                    recordBooks = recordBooks.filter(book => book.id !== id);
+                    recordBooks = recordBooks.filter(book => !selectedRecordBookIds.has(book.id));
                     // Remove from selected IDs if it was selected
                     selectedRecordBookIds.delete(id);
 
