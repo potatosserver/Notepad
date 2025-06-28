@@ -72,7 +72,9 @@
             justify-content: center;
             background-color: #e0e0e0;
             border-radius: 8px;
-            padding: 18px 8px;
+            padding: 16px; /* Adjusted padding for square appearance */
+            width: 100%; /* Make width fill the grid column */
+            aspect-ratio: 1 / 1; /* Force a square aspect ratio */
             transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
             cursor: pointer;
             user-select: none;
@@ -812,7 +814,7 @@
                 gap: 12px;
             }
             .grid-item {
-                padding: 15px 6px;
+                padding: 12px; /* Adjusted padding for smaller screens */
             }
             .number {
                 font-size: 1.3rem;
