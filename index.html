@@ -149,7 +149,7 @@
         }
         .button-filled-secondary:hover {
             background-color: #E2C7C7;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4 cultivators 8px rgba(0, 0, 0, 0.2);
             transform: translateY(-1px);
         }
         .button-filled-secondary:active {
@@ -898,6 +898,7 @@
     <div id="customModal" class="fixed inset-0 custom-modal-overlay z-50 hidden">
         <div class="custom-modal-content p-8 max-w-sm w-full relative">
             <h2 id="modalTitle" class="text-2xl font-bold mb-4 text-gray-800"></h2>
+            <p id="modalMessage" class="text-gray-700 text-base mb-4 hidden"></p> <!-- Added for confirmation messages -->
             <p id="modalErrorMessage" class="text-red-500 text-sm mb-4 hidden"></p>
             <div id="modalInputsContainer">
             </div>
@@ -997,6 +998,7 @@
 
             const customModal = document.getElementById('customModal');
             const modalTitle = document.getElementById('modalTitle');
+            const modalMessage = document.getElementById('modalMessage'); // Get the new message element
             const modalInputsContainer = document.getElementById('modalInputsContainer');
             const modalActionButtonsContainer = document.getElementById('modalActionButtonsContainer');
             const modalConfirmCancelButtons = document.getElementById('modalConfirmCancelButtons');
@@ -1083,6 +1085,7 @@
              * 顯示自訂模態框。
              * @param {string} title 模態框標題。
              * @param {object} options 選項物件。
+             * @param {string} [options.message] 要顯示在標題下的訊息。
              * @param {Array} options.inputs 輸入欄位定義陣列。
              * @param {Array} options.actions 動作按鈕定義陣列。
              * @param {string} options.confirmButtonText 確認按鈕文字。
@@ -1091,13 +1094,20 @@
              * @returns {Promise<object>} 模態框關閉時的結果。
              */
             function showCustomModal(title, options = {}) {
-                const { inputs = [], actions = [], confirmButtonText = '確認', cancelButtonText = '取消', trackHistory = false } = options;
+                const { inputs = [], actions = [], confirmButtonText = '確認', cancelButtonText = '取消', trackHistory = false, message = '' } = options;
 
                 modalTitle.textContent = title;
                 modalInputsContainer.innerHTML = '';
                 modalActionButtonsContainer.innerHTML = '';
                 modalErrorMessage.classList.add('hidden');
+                modalMessage.classList.add('hidden'); // Hide message by default
 
+                if (message) {
+                    modalMessage.textContent = message;
+                    modalMessage.classList.remove('hidden');
+                }
+
+                // If there are actions, we show action buttons, otherwise, we show confirm/cancel buttons
                 if (actions.length > 0) {
                     modalConfirmCancelButtons.classList.add('hidden');
                     modalActionButtonsContainer.classList.remove('hidden');
@@ -1164,7 +1174,7 @@
                             input.placeholder = inputDef.placeholder || '';
                             input.classList.add('w-full', 'p-3', 'border', 'border-gray-300', 'rounded-md', 'focus:outline-none', 'focus:ring-2', 'focus:ring-blue-500');
                             if (inputDef.min !== undefined) input.min = inputDef.min;
-                            if (inputDef.max !== undefined) input.max = inputDef.max;
+                            if (inputDef.max !== undefined) input.max = input.max;
                             input.dataset.label = inputDef.label;
                             div.appendChild(input);
                         }
@@ -1184,6 +1194,7 @@
                     history.replaceState({ view: history.state.view, modalOpen: true }, '');
                 }
 
+                // Focus on the first interactive element
                 if (inputs.length > 0) {
                     modalInputsContainer.querySelector('input')?.focus();
                 } else if (actions.length > 0) {
@@ -1197,12 +1208,19 @@
                 const maxNumInputGroup = modalInputsContainer.querySelector('.max-num-input-group'); // Select by the new class
 
                 const toggleMaxNumInput = () => {
-                    const selectedType = document.querySelector('input[name="bookType"]:checked').value;
-                    if (maxNumInputGroup) { // Ensure maxNumInputGroup exists before manipulating
-                        if (selectedType === 'number') {
-                            maxNumInputGroup.classList.remove('hidden');
-                        } else {
-                            maxNumInputGroup.classList.add('hidden');
+                    // Only run this logic if bookType radios are actually present
+                    if (bookTypeRadios.length > 0) {
+                        const selectedRadio = document.querySelector('input[name="bookType"]:checked');
+                        // Ensure selectedRadio is not null before trying to access its value
+                        if (selectedRadio) {
+                            const selectedType = selectedRadio.value;
+                            if (maxNumInputGroup) { // Ensure maxNumInputGroup exists before manipulating
+                                if (selectedType === 'number') {
+                                    maxNumInputGroup.classList.remove('hidden');
+                                } else {
+                                    maxNumInputGroup.classList.add('hidden');
+                                }
+                            }
                         }
                     }
                 };
@@ -1212,8 +1230,8 @@
                     bookTypeRadios.forEach(radio => {
                         radio.addEventListener('change', toggleMaxNumInput);
                     });
+                    toggleMaxNumInput(); // Initial call to set correct visibility
                 }
-                toggleMaxNumInput(); // Initial call to set correct visibility
 
 
                 return new Promise(resolve => {
@@ -1228,6 +1246,7 @@
             function closeCustomModal() {
                 return new Promise(resolve => {
                     modalErrorMessage.classList.add('hidden');
+                    modalMessage.classList.add('hidden'); // Hide message on close
                     customModal.classList.remove('show-modal');
                     customModal.classList.add('hide-modal');
 
@@ -1279,10 +1298,11 @@
                 }
 
                 let selectedBookType = 'number';
-                for (const radio of bookTypeRadios) {
-                    if (radio.checked) {
-                        selectedBookType = radio.value;
-                        break;
+                // Only try to get bookType if radios are present
+                if (bookTypeRadios.length > 0) {
+                    const selectedRadio = document.querySelector('input[name="bookType"]:checked');
+                    if (selectedRadio) {
+                        selectedBookType = selectedRadio.value;
                     }
                 }
                 values.bookType = selectedBookType;
@@ -1560,8 +1580,9 @@
                 if (!book) return;
 
                 const result = await showCustomModal(
-                    `操作記事本: "${book.name}"`,
+                    `操作記事本`,
                     {
+                        message: `請選擇要對記事本「${book.name}」執行的操作。`,
                         actions: [
                             { text: '重新命名', value: 'rename', class: 'rename' },
                             { text: '刪除', value: 'delete', class: 'delete' }
@@ -1666,7 +1687,8 @@
                                 { id: 'newName', label: '新名稱:', type: 'text', defaultValue: bookToRename.name, placeholder: '輸入新名稱' }
                             ],
                             confirmButtonText: '儲存',
-                            cancelButtonText: '取消'
+                            cancelButtonText: '取消',
+                            trackHistory: true // Track history for rename modal
                         }
                     );
 
@@ -1687,10 +1709,12 @@
                 if(!bookToDelete) return;
 
                 const result = await showCustomModal(
-                    `確定要刪除記事本「${bookToDelete.name}」嗎？此操作無法復原。`,
+                    `確認刪除`, // Changed title to be generic
                     {
+                        message: `確定要刪除記事本「${bookToDelete.name}」嗎？此操作無法復原。`, // Moved message to message property
                         confirmButtonText: '確定刪除',
                         cancelButtonText: '取消',
+                        trackHistory: true // Track history for delete modal
                     }
                 );
 
@@ -1715,6 +1739,7 @@
                         {
                             confirmButtonText: '確定重設',
                             cancelButtonText: '取消',
+                            trackHistory: true // Track history for reset modal
                         }
                     );
                      if (result.confirmed) {
@@ -1831,7 +1856,8 @@
                                                 { label: '與現有記事本合併 (新資料會加入)', value: 'merge' }
                                             ]
                                         }
-                                    ]
+                                    ],
+                                    trackHistory: true // Track history for import modal
                                 }
                             );
 
