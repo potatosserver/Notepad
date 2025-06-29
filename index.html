@@ -168,6 +168,11 @@
             color: var(--md-primary);
             border: 1px solid var(--md-outline);
             box-shadow: none;
+            /* 調整 button-outlined 的高度 */
+            height: 40px; /* 將高度設定為與 view-mode-button 相同 */
+            box-sizing: border-box; /* 確保 padding 和 border 包含在高度內 */
+            display: flex;
+            align-items: center;
         }
         .button-outlined:hover {
             background-color: rgba(var(--md-primary-container-rgb), 0.08);
@@ -578,6 +583,9 @@
             border: 1px solid var(--md-outline);
             border-radius: 20px;
             overflow: hidden;
+            /* 調整 view-mode-group 的高度 */
+            height: 40px; /* 將高度設定為與 sortButton 相同 */
+            box-sizing: border-box; /* 確保 padding 和 border 包含在高度內 */
         }
         .view-mode-button {
             min-width: 56px;
