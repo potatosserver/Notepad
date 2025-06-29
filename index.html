@@ -796,6 +796,63 @@
             display: none !important; /* Use !important to override flex/inline-flex */
         }
 
+        /* --- Rich Text Editor Styles --- */
+        .editor-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 8px 8px 0 0;
+            background-color: #f7f7f7;
+        }
+        .toolbar-button {
+            background: none;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+        .toolbar-button:hover {
+            background-color: #e0e0e0;
+        }
+        .toolbar-button.active {
+            background-color: var(--md-primary-container);
+            color: var(--md-on-primary-container);
+            border-color: var(--md-primary);
+        }
+        #recordTextInput {
+            min-height: 250px;
+            height: auto;
+            overflow-y: auto;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+        }
+        .color-picker-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .color-picker-wrapper input[type="color"] {
+            position: absolute;
+            opacity: 0;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+        }
+        .font-size-select {
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--md-outline);
+            background-color: white;
+        }
+        /* --- END: Rich Text Editor Styles --- */
+
 
         @media (max-width: 768px) {
             .container {
@@ -820,7 +877,6 @@
                 margin-top: 15px;
                 flex-wrap: nowrap; /* Prevent wrapping for the toolbar buttons */
                 overflow-x: auto; /* Enable horizontal scrolling if needed */
-                justify-content: flex-start; /* Align to start */
                 -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
                 padding-bottom: 5px; /* Add some padding for scrollbar visibility */
             }
@@ -1051,11 +1107,53 @@
                 </div>
             </div>
 
+            <!-- MODIFIED: Rich Text Editor with new features and order -->
             <div id="unlimitedRecordTextSection" class="mb-6 bg-gray-100 p-4 rounded-lg hidden">
                 <label for="recordTextInput" class="block text-gray-700 text-sm font-bold mb-2">記事本內容:</label>
-                <textarea id="recordTextInput" rows="10"
-                          class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
-                          placeholder="在此輸入記事本內容... (無字數限制)"></textarea>
+                <!-- Toolbar for rich text editor -->
+                <div class="editor-toolbar">
+                    <!-- Font Size (Moved to front) -->
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined">format_size</span>
+                        <select id="fontSizeSelect" class="font-size-select">
+                            <option value="1">小</option>
+                            <option value="3" selected>中</option>
+                            <option value="5">大</option>
+                            <option value="7">特大</option>
+                        </select>
+                    </div>
+                     <!-- Font Style -->
+                    <button id="boldBtn" class="toolbar-button" data-command="bold">
+                        <span class="material-symbols-outlined">format_bold</span>
+                    </button>
+                    <button id="italicBtn" class="toolbar-button" data-command="italic">
+                        <span class="material-symbols-outlined">format_italic</span>
+                    </button>
+                    <button id="underlineBtn" class="toolbar-button" data-command="underline">
+                        <span class="material-symbols-outlined">format_underlined</span>
+                    </button>
+                    <!-- Color Picker -->
+                    <label class="color-picker-wrapper toolbar-button">
+                        <span class="material-symbols-outlined">format_color_text</span>
+                        <input type="color" id="fontColorPicker" value="#000000">
+                    </label>
+                    <!-- NEW: Lists -->
+                    <button id="bulletListBtn" class="toolbar-button" data-command="insertUnorderedList">
+                        <span class="material-symbols-outlined">format_list_bulleted</span>
+                    </button>
+                    <button id="numberedListBtn" class="toolbar-button" data-command="insertOrderedList">
+                        <span class="material-symbols-outlined">format_list_numbered</span>
+                    </button>
+                    <!-- NEW: Hyperlink -->
+                    <button id="linkBtn" class="toolbar-button">
+                        <span class="material-symbols-outlined">link</span>
+                    </button>
+                </div>
+                <!-- REPLACED: textarea with contenteditable div -->
+                <div id="recordTextInput"
+                     contenteditable="true"
+                     class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+                     placeholder="在此輸入記事本內容... (無字數限制)"></div>
             </div>
 
             <div id="numbersGrid" class="grid-container mb-6">
@@ -1183,13 +1281,12 @@
 
             const limitedNotesSection = document.getElementById('limitedNotesSection');
             const unlimitedRecordTextSection = document.getElementById('unlimitedRecordTextSection');
-            const recordTextInput = document.getElementById('recordTextInput');
+            const recordTextInput = document.getElementById('recordTextInput'); // NOW a DIV
 
             const importBtn = document.getElementById('importBtn');
             const exportBtn = document.getElementById('exportBtn');
             const deleteSelectedBtn = document.getElementById('deleteSelectedBtn'); // New delete selected button
             const selectAllCheckboxes = document.getElementById('selectAllCheckboxes'); // New select all checkbox
-
 
             const customModal = document.getElementById('customModal');
             const modalTitle = document.getElementById('modalTitle');
@@ -1208,6 +1305,11 @@
             const sortButton = document.getElementById('sortButton');
             const sortDropdown = document.getElementById('sortDropdown');
 
+            // --- Rich Text Editor Elements ---
+            const editorToolbar = document.querySelector('.editor-toolbar');
+            const fontSizeSelect = document.getElementById('fontSizeSelect');
+            const fontColorPicker = document.getElementById('fontColorPicker');
+            const linkBtn = document.getElementById('linkBtn');
 
             /**
              * 從本地儲存載入記事本資料、顯示模式和排序模式。
@@ -1700,6 +1802,21 @@
                     exportBtn.classList.add('hidden-if-no-selection');
                 }
             }
+            
+            /**
+             * --- MODIFIED: 更新富文本編輯器工具欄按鈕的狀態 ---
+             */
+            function updateEditorToolbarState() {
+                const commands = ['bold', 'italic', 'underline', 'insertUnorderedList', 'insertOrderedList'];
+                commands.forEach(command => {
+                    const button = editorToolbar.querySelector(`[data-command="${command}"]`);
+                    if (button && document.queryCommandState(command)) {
+                        button.classList.add('active');
+                    } else if (button) {
+                        button.classList.remove('active');
+                    }
+                });
+            }
 
             /**
              * 渲染管理頁面視圖，包括記事本列表或網格。
@@ -1916,8 +2033,9 @@
                     limitedNotesSection.classList.add('hidden');
                     numbersGrid.classList.add('hidden');
                     unlimitedRecordTextSection.classList.remove('hidden');
-
-                    recordTextInput.value = currentBook.recordText || '';
+                    
+                    // MODIFIED: Use innerHTML for contenteditable div
+                    recordTextInput.innerHTML = currentBook.recordText || '';
                 }
 
                 notesInput.oninput = () => {
@@ -1930,8 +2048,9 @@
                     notesCharCount.textContent = `${notesInput.value.length}/${notesCharLimit}`;
                 };
 
+                // MODIFIED: Use innerHTML and 'input' event for contenteditable div
                 recordTextInput.oninput = () => {
-                    currentBook.recordText = recordTextInput.value;
+                    currentBook.recordText = recordTextInput.innerHTML;
                     currentBook.lastUpdated = new Date().toISOString();
                     saveRecordBooks();
                 };
@@ -2048,6 +2167,8 @@
                         newBook.maxNumber = newMaxNumber;
                         newBook.checkedNumbers = {};
                     } else {
+                        // For text type, give some default content to show editor features
+                        newBook.recordText = "<div>這是您的新<b>記事本</b>！</div><div><br></div><div>您可以在這裡<font color=\"#6750a4\"><i><u>發揮創意</u></i></font>。</div>";
                         newBook.maxNumber = 0; // 對於文本類型不相關
                         newBook.checkedNumbers = {}; // 對於文本類型不相關
                     }
@@ -2184,8 +2305,9 @@
                 const currentBook = recordBooks.find(book => book.id === currentRecordBookId);
                  if (currentBook) {
                     const result = await showCustomModal(
-                        `確定要重設記事本 "${currentBook.name}" 嗎？${currentBook.bookType === 'number' ? '所有打勾紀錄將被清除。' : '所有內容將被清除。'}`,
+                        `確定要重設記事本 "${currentBook.name}" 嗎？`,
                         {
+                            message: `${currentBook.bookType === 'number' ? '所有打勾紀錄將被清除。' : '所有內容將被清除。'} 此操作無法復原。`,
                             confirmButtonText: '確定重設',
                             cancelButtonText: '取消',
                             trackHistory: true // 追蹤重設模態框的歷史
@@ -2391,6 +2513,59 @@
                 };
                 input.click();
             });
+            
+            // --- MODIFIED: Rich Text Editor Event Listeners ---
+            editorToolbar.addEventListener('click', (e) => {
+                const button = e.target.closest('button');
+                if (!button) return; // Exit if the click was not on a button
+                
+                e.preventDefault();
+
+                if (button.dataset.command) {
+                    document.execCommand(button.dataset.command, false, null);
+                }
+                
+                recordTextInput.focus();
+                updateEditorToolbarState();
+            });
+            
+            // Special handler for the link button
+            linkBtn.addEventListener('click', (e) => {
+                 e.preventDefault();
+                 const selection = window.getSelection();
+                 if (selection.isCollapsed) {
+                     showMessage('請先選取要建立連結的文字。', true);
+                     return;
+                 }
+
+                 const url = prompt('請輸入連結網址:', 'https://');
+                 if (url) {
+                    // Restore selection before creating link
+                    recordTextInput.focus();
+                    document.execCommand('createLink', false, url);
+                 }
+            });
+
+            fontSizeSelect.addEventListener('change', () => {
+                document.execCommand('fontSize', false, fontSizeSelect.value);
+                recordTextInput.focus();
+            });
+
+            fontColorPicker.addEventListener('input', () => {
+                document.execCommand('foreColor', false, fontColorPicker.value);
+                recordTextInput.focus();
+            });
+
+            // Update toolbar on selection change
+            document.addEventListener('selectionchange', () => {
+                if (document.activeElement === recordTextInput) {
+                    updateEditorToolbarState();
+                }
+            });
+            recordTextInput.addEventListener('focus', updateEditorToolbarState);
+            recordTextInput.addEventListener('click', updateEditorToolbarState);
+            recordTextInput.addEventListener('keyup', updateEditorToolbarState);
+
 
             // 添加事件監聽器以在點擊模態框內容外部時關閉模態框
             customModal.addEventListener('click', (event) => {
