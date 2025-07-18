@@ -23,8 +23,9 @@
 ## 使用方式
 
 1. 請前往 [potatosserver.github.io/Notepad](https://potatosserver.github.io/Notepad/)即可使用本服務。
-2. 在首頁透過鍵盤輸入路線查詢
-3. 點擊路線進行公車進站時間查詢
+2. 在右下角新增記事本
+3. 選擇記事本格式
+4. 紀錄內容
 
 ## 版權與聲明
 
