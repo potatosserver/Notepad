@@ -833,6 +833,27 @@
             border-top: none;
             border-radius: 0 0 8px 8px;
         }
+
+        /* --- START: FIX FOR LISTS IN EDITOR --- */
+        #recordTextInput ul, #recordTextInput ol {
+            display: block;
+            list-style-position: inside;
+            padding-left: 25px;
+            margin: 1em 0;
+        }
+        #recordTextInput ul {
+            list-style-type: disc;
+        }
+        #recordTextInput ol {
+            list-style-type: decimal;
+        }
+        #recordTextInput li {
+            display: list-item;
+            padding-left: 5px;
+            margin-bottom: 0.5em;
+        }
+        /* --- END: FIX FOR LISTS IN EDITOR --- */
+
         .color-picker-wrapper {
             position: relative;
             display: flex;
@@ -2119,8 +2140,9 @@
                                 type: 'radio',
                                 name: 'bookType',
                                 options: [
-                                    { label: '數字追蹤', value: 'number', checked: true },
-                                    { label: '純文字記事', value: 'text' }
+                                    // 預設選擇純文字記事
+                                    { label: '純文字記事', value: 'text', checked: true },
+                                    { label: '數字追蹤', value: 'number' }
                                 ]
                             },
                             {
@@ -2428,7 +2450,7 @@
                 if (result.confirmed && result.values.selectedIds.length > 0) {
                     try {
                         const selectedBooksToExport = recordBooks.filter(book => result.values.selectedIds.includes(book.id));
-                        const dataToExport = JSON.stringify(selectedBooksToExport, null, 2); // 美化 JSON 輸出
+                        const dataToExport = JSON.stringify(selectedBooksToExport, null, 2); // 美化 JSON 輸出 
 
                         const blob = new Blob([dataToExport], { type: 'application/json' });
                         const url = URL.createObjectURL(blob);
