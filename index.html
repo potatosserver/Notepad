@@ -8,6 +8,12 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        /* --- START: Added Rule to Prevent Horizontal Scrolling --- */
+        html {
+            overflow-x: hidden;
+        }
+        /* --- END: Added Rule --- */
+
         :root {
             --md-primary: #6750A4;
             --md-on-primary: #FFFFFF;
@@ -82,7 +88,7 @@
         .grid-item.checked {
             background-color: var(--md-tertiary-container);
             color: var(--md-on-tertiary-container);
-            transform: scale(1.02);
+            /* transform: scale(1.02); -- Removed to prevent page scroll on mobile */
         }
         .grid-item:hover:not(.checked) {
             background-color: #d0d0d0;
