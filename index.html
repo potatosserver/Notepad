@@ -93,6 +93,29 @@
         .grid-item:hover:not(.checked) {
             background-color: #d0d0d0;
         }
+        /* --- START: New Disabled Number Style --- */
+        .grid-item.disabled {
+            background-color: #f0f0f0; /* Lighter, faded color */
+            color: #b0b0b0;
+            cursor: not-allowed;
+            position: relative;
+            overflow: hidden;
+        }
+        .grid-item.disabled .number {
+            color: #b0b0b0;
+        }
+        .grid-item.disabled::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: -10%;
+            width: 120%;
+            height: 2px;
+            background-color: #9E9E9E;
+            transform: rotate(-45deg);
+            transform-origin: center center;
+        }
+        /* --- END: New Disabled Number Style --- */
         .number {
             font-size: 1.2rem; /* Adjusted for smaller size */
             font-weight: 600;
@@ -1375,6 +1398,11 @@
                             book.bookType = "number"; // 預設為數字追蹤類型
                             needsRecordBookSave = true;
                         }
+                        // NEW: 檢查並為舊版記事本添加 disabledNumbers 屬性
+                        if (book.disabledNumbers === undefined) {
+                            book.disabledNumbers = {};
+                            needsRecordBookSave = true;
+                        }
                     });
                 } else {
                     recordBooks = [];
@@ -2033,12 +2061,15 @@
                     notesInput.setAttribute('maxlength', notesCharLimit);
                     notesCharCount.textContent = `${notesInput.value.length}/${notesCharLimit}`;
 
-                    for (let i = 1; i <= currentBook.maxNumber; i++) { // 固定循環條件
+                    for (let i = 1; i <= currentBook.maxNumber; i++) {
                         const isChecked = currentBook.checkedNumbers[i] || false;
+                        const isDisabled = currentBook.disabledNumbers[i] || false;
 
                         const gridItem = document.createElement('div');
                         gridItem.classList.add('grid-item');
-                        if (isChecked) {
+                        if (isDisabled) {
+                            gridItem.classList.add('disabled');
+                        } else if (isChecked) {
                             gridItem.classList.add('checked');
                         }
                         gridItem.dataset.number = i;
@@ -2048,10 +2079,53 @@
                         numberSpan.textContent = i;
                         gridItem.appendChild(numberSpan);
 
-                        gridItem.addEventListener('click', () => {
+                        let pressTimer = null;
+                        let longPressTriggered = false;
+
+                        const onPointerDown = (e) => {
+                            if (e.type === 'mousedown' && e.button !== 0) return;
+                            longPressTriggered = false;
+                            pressTimer = setTimeout(() => {
+                                longPressTriggered = true;
+                                const currentNumber = parseInt(gridItem.dataset.number);
+                                const newDisabledState = !currentBook.disabledNumbers[currentNumber];
+                                updateNumberDisabledState(currentBook.id, currentNumber, newDisabledState, gridItem);
+                            }, 500);
+                        };
+
+                        const onPointerUpOrLeave = () => {
+                            clearTimeout(pressTimer);
+                        };
+                        
+                        const onPointerMove = () => {
+                            clearTimeout(pressTimer);
+                        };
+
+                        const onClick = (e) => {
+                            if (longPressTriggered) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                return;
+                            }
+                            if (gridItem.classList.contains('disabled')) return;
                             const currentNumber = parseInt(gridItem.dataset.number);
                             const newCheckedState = !currentBook.checkedNumbers[currentNumber];
                             updateNumberState(currentBook.id, currentNumber, newCheckedState, gridItem);
+                        };
+
+                        gridItem.addEventListener('click', onClick);
+                        gridItem.addEventListener('mousedown', onPointerDown);
+                        gridItem.addEventListener('touchstart', onPointerDown, { passive: true });
+                        gridItem.addEventListener('mouseup', onPointerUpOrLeave);
+                        gridItem.addEventListener('mouseleave', onPointerUpOrLeave);
+                        gridItem.addEventListener('touchend', onPointerUpOrLeave);
+                        gridItem.addEventListener('touchmove', onPointerMove);
+
+                        gridItem.addEventListener('contextmenu', (e) => {
+                            e.preventDefault();
+                            const currentNumber = parseInt(gridItem.dataset.number);
+                            const newDisabledState = !currentBook.disabledNumbers[currentNumber];
+                            updateNumberDisabledState(currentBook.id, currentNumber, newDisabledState, gridItem);
                         });
 
                         numbersGrid.appendChild(gridItem);
@@ -2061,7 +2135,6 @@
                     numbersGrid.classList.add('hidden');
                     unlimitedRecordTextSection.classList.remove('hidden');
                     
-                    // MODIFIED: Use innerHTML for contenteditable div
                     recordTextInput.innerHTML = currentBook.recordText || '';
                 }
 
@@ -2075,7 +2148,6 @@
                     notesCharCount.textContent = `${notesInput.value.length}/${notesCharLimit}`;
                 };
 
-                // MODIFIED: Use innerHTML and 'input' event for contenteditable div
                 recordTextInput.oninput = () => {
                     currentBook.recordText = recordTextInput.innerHTML;
                     currentBook.lastUpdated = new Date().toISOString();
@@ -2100,6 +2172,35 @@
                         gridItem.classList.add('checked');
                     } else {
                         gridItem.classList.remove('checked');
+                    }
+                }
+            }
+
+            /**
+             * 更新數字的禁用狀態。
+             * @param {string} bookId - 記事本的 ID。
+             * @param {number} number - 要更新的數字。
+             * @param {boolean} isDisabled - 數字的新禁用狀態。
+             * @param {HTMLElement} gridItem - 對應的網格項目 DOM 元素。
+             */
+            function updateNumberDisabledState(bookId, number, isDisabled, gridItem) {
+                const book = recordBooks.find(b => b.id === bookId);
+                if (book) {
+                    book.disabledNumbers[number] = isDisabled;
+
+                    // 如果一個數字被禁用，它必須同時被取消勾選
+                    if (isDisabled && book.checkedNumbers[number]) {
+                        book.checkedNumbers[number] = false;
+                        gridItem.classList.remove('checked');
+                    }
+
+                    book.lastUpdated = new Date().toISOString();
+                    saveRecordBooks();
+
+                    if (isDisabled) {
+                        gridItem.classList.add('disabled');
+                    } else {
+                        gridItem.classList.remove('disabled');
                     }
                 }
             }
@@ -2194,11 +2295,13 @@
                     if (newBookType === 'number') {
                         newBook.maxNumber = newMaxNumber;
                         newBook.checkedNumbers = {};
+                        newBook.disabledNumbers = {}; // NEW: Initialize disabled numbers
                     } else {
                         // For text type, give some default content to show editor features
                         newBook.recordText = "<div>這是您的新<b>記事本</b>！</div><div><br></div><div>您可以在這裡<font color=\"#6750a4\"><i><u>發揮創意</u></i></font>。</div>";
                         newBook.maxNumber = 0; // 對於文本類型不相關
                         newBook.checkedNumbers = {}; // 對於文本類型不相關
+                        newBook.disabledNumbers = {}; // 對於文本類型不相關
                     }
 
                     recordBooks.push(newBook);
@@ -2335,7 +2438,7 @@
                     const result = await showCustomModal(
                         `確定要重設記事本 "${currentBook.name}" 嗎？`,
                         {
-                            message: `${currentBook.bookType === 'number' ? '所有打勾紀錄將被清除。' : '所有內容將被清除。'} 此操作無法復原。`,
+                            message: `${currentBook.bookType === 'number' ? '所有打勾與禁用紀錄將被清除。' : '所有內容將被清除。'} 此操作無法復原。`,
                             confirmButtonText: '確定重設',
                             cancelButtonText: '取消',
                             trackHistory: true // 追蹤重設模態框的歷史
@@ -2344,6 +2447,7 @@
                      if (result.confirmed) {
                         if (currentBook.bookType === 'number') {
                             currentBook.checkedNumbers = {};
+                            currentBook.disabledNumbers = {}; // NEW: Also reset disabled numbers
                         } else if (currentBook.bookType === 'text') {
                             currentBook.recordText = "";
                         }
