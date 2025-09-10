@@ -2079,29 +2079,33 @@
                         numberSpan.textContent = i;
                         gridItem.appendChild(numberSpan);
 
+                        // --- START: MODIFIED EVENT HANDLING LOGIC FOR LONG PRESS ---
                         let pressTimer = null;
                         let longPressTriggered = false;
 
+                        const handleDisableAction = () => {
+                            const currentNumber = parseInt(gridItem.dataset.number);
+                            const newDisabledState = !currentBook.disabledNumbers[currentNumber];
+                            updateNumberDisabledState(currentBook.id, currentNumber, newDisabledState, gridItem);
+                        };
+
                         const onPointerDown = (e) => {
-                            if (e.type === 'mousedown' && e.button !== 0) return;
-                            longPressTriggered = false;
+                            // 為了避免觸控裝置上同時觸發 touch 和 mouse 事件，我們只處理第一個。
+                            // 但一個更簡單且可靠的方法是透過邏輯來處理，而不是試圖取消事件。
+                            longPressTriggered = false; // 為新的互動重置旗標。
                             pressTimer = setTimeout(() => {
-                                longPressTriggered = true;
-                                const currentNumber = parseInt(gridItem.dataset.number);
-                                const newDisabledState = !currentBook.disabledNumbers[currentNumber];
-                                updateNumberDisabledState(currentBook.id, currentNumber, newDisabledState, gridItem);
+                                longPressTriggered = true; // 標記此互動為長按。
+                                handleDisableAction();
                             }, 500);
                         };
 
                         const onPointerUpOrLeave = () => {
                             clearTimeout(pressTimer);
-                        };
-                        
-                        const onPointerMove = () => {
-                            clearTimeout(pressTimer);
+                            // 不在此處重置 longPressTriggered，因為它需要持續到後續的 click/contextmenu 事件。
                         };
 
                         const onClick = (e) => {
+                            // 如果互動被處理為長按，則忽略其後續的點擊事件。
                             if (longPressTriggered) {
                                 e.preventDefault();
                                 e.stopPropagation();
@@ -2113,20 +2117,27 @@
                             updateNumberState(currentBook.id, currentNumber, newCheckedState, gridItem);
                         };
 
+                        gridItem.addEventListener('contextmenu', (e) => {
+                            e.preventDefault();
+                            // 此事件在行動裝置上的長按後觸發。
+                            // 如果我們的計時器已經運行，longPressTriggered 將為 true。
+                            // 在這種情況下，我們不做任何事情以防止重複切換。
+                            if (longPressTriggered) {
+                                return;
+                            }
+                            // 如果是正常的滑鼠右鍵點擊，計時器將不會觸發。
+                            clearTimeout(pressTimer); // 取消任何待處理的計時器。
+                            handleDisableAction();
+                        });
+
                         gridItem.addEventListener('click', onClick);
                         gridItem.addEventListener('mousedown', onPointerDown);
                         gridItem.addEventListener('touchstart', onPointerDown, { passive: true });
                         gridItem.addEventListener('mouseup', onPointerUpOrLeave);
                         gridItem.addEventListener('mouseleave', onPointerUpOrLeave);
                         gridItem.addEventListener('touchend', onPointerUpOrLeave);
-                        gridItem.addEventListener('touchmove', onPointerMove);
-
-                        gridItem.addEventListener('contextmenu', (e) => {
-                            e.preventDefault();
-                            const currentNumber = parseInt(gridItem.dataset.number);
-                            const newDisabledState = !currentBook.disabledNumbers[currentNumber];
-                            updateNumberDisabledState(currentBook.id, currentNumber, newDisabledState, gridItem);
-                        });
+                        gridItem.addEventListener('touchmove', onPointerUpOrLeave); // 使用 up/leave 來取消移動
+                        // --- END: MODIFIED EVENT HANDLING LOGIC ---
 
                         numbersGrid.appendChild(gridItem);
                     }
