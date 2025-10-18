@@ -4,14 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- META TAG FOR GOOGLE SIGN-IN -->
-    <meta name="google-signin-client_id" content="541525685075-c7081uf4p28o7gp17ssa2udvriat6qdl.apps.googleusercontent.com">
     <title>記事本</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="manifest" href="manifest.json">
-
     <style>
         /* --- START: Added Rule to Prevent Horizontal Scrolling --- */
         html {
@@ -1144,15 +1140,6 @@
                         匯出
                     </button>
                 </div>
-                <!-- START: Cloud Sync Buttons -->
-                <div class="flex items-center space-x-3 flex-shrink-0" id="cloud-sync-container">
-                     <button id="cloudActionsBtn" class="button-base button-outlined hidden">
-                        <span class="material-symbols-outlined">cloud_sync</span>
-                        <span id="cloudUser">雲端同步</span>
-                    </button>
-                    <div id="googleSignInButtonWrapper"></div>
-                </div>
-                <!-- END: Cloud Sync Buttons -->
                 <!-- Delete Selected button -->
                 <div class="flex-shrink-0">
                     <!-- Delete Selected button now gets 'hidden-if-no-selection' -->
@@ -1299,8 +1286,6 @@
 
     <div id="messageBox" class="message-box"></div>
     
-    <!-- SCRIPT FOR GOOGLE SIGN-IN -->
-    <script src="https://apis.google.com/js/platform.js?onload=onGoogleScriptLoad" async defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script>
         const defaultMaxNumber = 40;
@@ -1308,13 +1293,6 @@
         const storageKey = 'multiNumberTrackerState';
         const displayModeKey = 'multiNumberTrackerDisplayMode';
         const sortModeKey = 'multiNumberTrackerSortMode';
-
-        // START: Cloud Sync Configuration
-        const GOOGLE_CLIENT_ID = "541525685075-c7081uf4p28o7gp17ssa2udvriat6qdl.apps.googleusercontent.com";
-        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyI6LVnx-_CGLqpNbdfPpJU1CxfWc-amK91WjItANb3urG7r0YkEmKSCJUlDFd2MP0aRg/exec";
-        let googleIdToken = null;
-        let isPinVerifiedInSession = false;
-        // END: Cloud Sync Configuration
 
         let recordBooks = [];
         let currentRecordBookId = null;
@@ -1449,12 +1427,6 @@
             const toggleLockBtn = document.getElementById('toggleLockBtn');
             const viewHistoryBtn = document.getElementById('viewHistoryBtn');
             const shareAsImageBtn = document.getElementById('shareAsImageBtn');
-            
-            // Cloud Sync Buttons
-            const cloudActionsBtn = document.getElementById('cloudActionsBtn');
-            const googleSignInButtonWrapper = document.getElementById('googleSignInButtonWrapper');
-            const cloudUserSpan = document.getElementById('cloudUser');
-
 
             const editorToolbar = document.querySelector('.editor-toolbar');
             const fontSizeSelect = document.getElementById('fontSizeSelect');
@@ -1629,7 +1601,7 @@
                     history.replaceState({ view: history.state.view, modalOpen: true }, '');
                 }
 
-                if (inputs.length > 0) modalInputsContainer.querySelector('input, textarea')?.focus();
+                if (inputs.length > 0) modalInputsContainer.querySelector('input')?.focus();
                 else if (actions.length > 0) modalActionButtonsContainer.querySelector('button')?.focus();
                 else modalConfirmBtn.focus();
 
@@ -1689,8 +1661,6 @@
                 const bookTypeRadios = modalInputsContainer.querySelectorAll('input[name="bookType"]');
                 const newNameInput = modalInputsContainer.querySelector('#newName');
                 const modalCheckboxes = modalInputsContainer.querySelectorAll('.modal-checkbox-item');
-                const pinInput = modalInputsContainer.querySelector('#pinInput');
-                const pinConfirmInput = modalInputsContainer.querySelector('#pinConfirmInput');
 
                 if (modalCheckboxes.length > 0) {
                     values.selectedIds = Array.from(modalCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
@@ -1712,18 +1682,6 @@
                     isValid = false;
                 } else if (newNameInput) {
                     values.newName = newNameInput.value.trim();
-                }
-
-                if (pinInput) {
-                    if (!/^\d{6}$/.test(pinInput.value)) {
-                        errorMessage = 'PIN 碼必須是 6 位數字。';
-                        isValid = false;
-                    } else if (pinConfirmInput && pinInput.value !== pinConfirmInput.value) {
-                        errorMessage = '兩次輸入的 PIN 碼不一致。';
-                        isValid = false;
-                    } else {
-                        values.pin = pinInput.value;
-                    }
                 }
 
                 let selectedBookType = 'number';
@@ -2447,238 +2405,10 @@
                     document.body.removeChild(captureElement);
                 }
             });
-            
-            
-            // START: Cloud Sync Functions
-            async function callCloudApi(action, params = {}) {
-                if (!googleIdToken) {
-                    showMessage('請先登入 Google 帳號。', true);
-                    return null;
-                }
-                
-                showMessage('正在連線至雲端...');
-                
-                try {
-                    const response = await fetch(APPS_SCRIPT_URL, {
-                        method: 'POST',
-                        mode: 'cors',
-                        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // GAS needs text/plain for doPost
-                        body: JSON.stringify({ idToken: googleIdToken, action, params })
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error(`HTTP 錯誤! 狀態: ${response.status}`);
-                    }
-                    
-                    const result = await response.json();
-
-                    if (result.status === 'error') {
-                        throw new Error(result.message || '雲端 API 回應錯誤。');
-                    }
-                    
-                    return result.data;
-
-                } catch (error) {
-                    console.error(`執行雲端操作 '${action}' 失敗:`, error);
-                    showMessage(`雲端操作失敗: ${error.message}`, true);
-                    return null;
-                }
-            }
-
-            async function promptForPin(isSettingPin = false) {
-                const title = isSettingPin ? "設定新的 PIN 碼" : "驗證 PIN 碼";
-                const message = isSettingPin ? "請設定一組新的 6 位數 PIN 碼用於保護您的雲端資料。" : "為保護您的資料，請輸入您的 6 位數 PIN 碼。";
-                const inputs = [{ id: 'pinInput', label: '6位數 PIN 碼:', type: 'password', placeholder: '••••••' }];
-                if (isSettingPin) {
-                    inputs.push({ id: 'pinConfirmInput', label: '確認 PIN 碼:', type: 'password', placeholder: '••••••' });
-                }
-
-                const result = await showCustomModal(title, {
-                    message: message,
-                    inputs: inputs,
-                    confirmButtonText: '確認',
-                    cancelButtonText: '取消',
-                    trackHistory: true
-                });
-
-                if (!result.confirmed) {
-                    showMessage('操作已取消。');
-                    return null;
-                }
-                return result.values.pin;
-            }
-
-            async function handleSetPin() {
-                const newPin = await promptForPin(true);
-                if (newPin) {
-                    const result = await callCloudApi('setPin', { pin: newPin });
-                    if (result) {
-                        showMessage('PIN 碼已成功設定/更新！');
-                        isPinVerifiedInSession = true;
-                    }
-                }
-            }
-
-            async function verifyPinIfNeeded() {
-                if (isPinVerifiedInSession) return true;
-
-                const pin = await promptForPin(false);
-                if (!pin) return false;
-
-                const result = await callCloudApi('verifyPin', { pin: pin });
-                if (result && result.verified) {
-                    isPinVerifiedInSession = true;
-                    showMessage('PIN 碼驗證成功。');
-                    return true;
-                } else {
-                    showMessage('PIN 碼錯誤或驗證失敗。', true);
-                    return false;
-                }
-            }
-
-            async function handleCloudBackup() {
-                const pinVerified = await verifyPinIfNeeded();
-                if (!pinVerified) return;
-
-                const confirmBackup = await showCustomModal("確認備份", {
-                    message: `您確定要將目前的 ${recordBooks.length} 個記事本備份至雲端嗎？這將會覆蓋雲端上一次的備份。`,
-                    confirmButtonText: '確定備份',
-                    cancelButtonText: '取消',
-                    trackHistory: true
-                });
-
-                if (confirmBackup.confirmed) {
-                    const dataToBackup = JSON.stringify(recordBooks);
-                    const result = await callCloudApi('backupData', { notebookData: dataToBackup });
-                    if (result) {
-                        showMessage(`資料備份成功！上次更新時間：${formatDateTime(result.lastUpdated)}`);
-                    }
-                } else {
-                    showMessage('備份操作已取消。');
-                }
-            }
-
-            async function handleCloudRestore() {
-                const pinVerified = await verifyPinIfNeeded();
-                if (!pinVerified) return;
-
-                const cloudData = await callCloudApi('restoreData');
-                if (!cloudData) return;
-
-                if (!cloudData.hasData || cloudData.notebookData.length === 0) {
-                    showMessage('雲端上目前沒有可還原的資料。');
-                    return;
-                }
-
-                const confirmRestore = await showCustomModal("確認還原", {
-                    message: `在雲端找到 ${cloudData.notebookData.length} 個記事本 (上次備份時間: ${formatDateTime(cloudData.lastUpdated)})。\n\n**警告：** 還原將會完全覆蓋您目前裝置上的所有記事本資料，此操作無法復原。`,
-                    confirmButtonText: '確定還原',
-                    cancelButtonText: '取消',
-                    trackHistory: true
-                });
-
-                if (confirmRestore.confirmed) {
-                    recordBooks = cloudData.notebookData;
-                    saveRecordBooks();
-                    renderManagementView();
-                    showMessage('資料已成功從雲端還原！');
-                } else {
-                    showMessage('還原操作已取消。');
-                }
-            }
-
-            function onGoogleSignIn(googleUser) {
-                const profile = googleUser.getBasicProfile();
-                googleIdToken = googleUser.getAuthResponse().id_token;
-                isPinVerifiedInSession = false;
-
-                cloudUserSpan.textContent = profile.getName() || '已登入';
-                googleSignInButtonWrapper.classList.add('hidden');
-                cloudActionsBtn.classList.remove('hidden');
-                showMessage(`歡迎，${profile.getName()}！`);
-            }
-
-            function handleSignOut() {
-                const auth2 = gapi.auth2.getAuthInstance();
-                auth2.signOut().then(() => {
-                    googleIdToken = null;
-                    isPinVerifiedInSession = false;
-                    cloudActionsBtn.classList.add('hidden');
-                    googleSignInButtonWrapper.classList.remove('hidden');
-                    showMessage('您已成功登出。');
-                });
-            }
-
-            cloudActionsBtn.addEventListener('click', async () => {
-                const result = await showCustomModal('雲端同步選項', {
-                    actions: [
-                        { text: '備份至雲端', value: 'backup', class: 'rename' },
-                        { text: '從雲端還原', value: 'restore', class: 'rename' },
-                        { text: '設定/更改 PIN 碼', value: 'setPin', class: 'cancel' },
-                        { text: '登出', value: 'logout', class: 'delete' }
-                    ],
-                    cancelButtonText: '關閉',
-                    trackHistory: true
-                });
-
-                if (result.confirmed) {
-                    switch (result.action) {
-                        case 'backup': await handleCloudBackup(); break;
-                        case 'restore': await handleCloudRestore(); break;
-                        case 'setPin': await handleSetPin(); break;
-                        case 'logout': handleSignOut(); break;
-                    }
-                }
-            });
-            // END: Cloud Sync Functions
 
 
             loadRecordBooks();
         });
-
-        // This function is in the global scope to be accessible by the Google API script
-        function onGoogleScriptLoad() {
-            gapi.load('auth2', function() {
-                const auth2 = gapi.auth2.init({
-                    client_id: GOOGLE_CLIENT_ID,
-                    scope: 'profile email'
-                });
-
-                gapi.signin2.render('googleSignInButtonWrapper', {
-                    scope: 'profile email',
-                    width: 150,
-                    height: 40,
-                    longtitle: false,
-                    theme: 'dark',
-                    onsuccess: onGoogleSignIn,
-                    onfailure: (error) => {
-                        console.error('Google 登入失敗', JSON.stringify(error, undefined, 2));
-                        showMessage('Google 登入失敗。', true);
-                    }
-                });
-
-                // Check if user was already signed in
-                auth2.then(() => {
-                    if (auth2.isSignedIn.get()) {
-                        const googleUser = auth2.currentUser.get();
-                        onGoogleSignIn(googleUser);
-                    }
-                });
-            });
-        }
-    </script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(registration => {
-                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                    })
-                    .catch(err => {
-                        console.log('ServiceWorker registration failed: ', err);
-                    });
-            });
-        }
     </script>
 </body>
 </html>
