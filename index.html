@@ -1004,7 +1004,7 @@
     </div>
 
     <div class="container">
-        <div id="managementView" class="view">
+        <div id="managementView" class="view active-visible">
             <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">我的記事本</h1>
             <p class="text-center text-gray-600 text-lg mb-8"></p>
 
@@ -1218,1078 +1218,917 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script>
-        // The Google GSI library requires this callback to be on the window object,
-        // so we define a placeholder here and assign it within DOMContentLoaded.
-        let handleCredentialResponse;
+        // --- GLOBAL CONFIGURATION & STATE ---
+        const defaultMaxNumber = 40;
+        const notesCharLimit = 50;
+        const storageKey = 'multiNumberTrackerState';
+        const displayModeKey = 'multiNumberTrackerDisplayMode';
+        const sortModeKey = 'multiNumberTrackerSortMode';
+        const CLOUD_API_URL = "https://script.google.com/macros/s/AKfycbyI6LVnx-_CGLqpNbdfPpJU1CxfWc-amK91WjItANb3urG7r0YkEmKSCJUlDFd2MP0aRg/exec";
+        
+        let googleIdToken = null;
+        let googleUserProfile = null;
+        let recordBooks = [];
+        let currentRecordBookId = null;
+        let displayMode = 'list';
+        let sortMode = 'latest';
+        let selectedRecordBookIds = new Set();
+        let currentModalResolve;
 
+        // --- DECOUPLED GOOGLE SIGN-IN CALLBACK ---
+        window.handleCredentialResponse = (response) => {
+            const app = window.myApp;
+            if (app && app.handleGoogleLogin) {
+                app.handleGoogleLogin(response);
+            }
+        };
+
+        // --- APPLICATION INITIALIZATION ---
         document.addEventListener('DOMContentLoaded', () => {
-            // --- START: CONFIGURATION & APP STATE ---
-            const defaultMaxNumber = 40;
-            const notesCharLimit = 50;
-            const storageKey = 'multiNumberTrackerState';
-            const displayModeKey = 'multiNumberTrackerDisplayMode';
-            const sortModeKey = 'multiNumberTrackerSortMode';
-
-            const CLOUD_API_URL = "https://script.google.com/macros/s/AKfycbyI6LVnx-_CGLqpNbdfPpJU1CxfWc-amK91WjItANb3urG7r0YkEmKSCJUlDFd2MP0aRg/exec";
             
-            let googleIdToken = null;
-            let googleUserProfile = null;
-            let recordBooks = [];
-            let currentRecordBookId = null;
-            let displayMode = 'list';
-            let sortMode = 'latest';
-            let selectedRecordBookIds = new Set();
-            let currentModalResolve;
-            // --- END: CONFIGURATION & APP STATE ---
+            const app = {
+                // --- DOM Element References ---
+                elements: {},
 
+                // --- App Initialization ---
+                init() {
+                    this.cacheDOMElements();
+                    this.attachEventListeners();
+                    this.loadRecordBooks();
+                    window.myApp = this; // Expose the app object globally for the callback
+                },
 
-            // --- START: ELEMENT SELECTORS ---
-            const managementView = document.getElementById('managementView');
-            const numberTrackerView = document.getElementById('numberTrackerView');
-            const fabAddNewRecordBookBtn = document.getElementById('fabAddNewRecordBookBtn');
-            const listViewHeader = document.getElementById('listViewHeader');
-            const recordBookList = document.getElementById('recordBookList');
-            const noRecordBooksMessage = document.getElementById('noRecordBooksMessage');
-            const backToManagementBtn = document.getElementById('backToManagementBtn');
-            const currentRecordBookName = document.getElementById('currentRecordBookName');
-            const resetCurrentBookBtn = document.getElementById('resetCurrentBookBtn');
-            const numbersGrid = document.getElementById('numbersGrid');
-            const notesInput = document.getElementById('notesInput');
-            const notesCharCount = document.getElementById('notesCharCount');
-            const limitedNotesSection = document.getElementById('limitedNotesSection');
-            const unlimitedRecordTextSection = document.getElementById('unlimitedRecordTextSection');
-            const recordTextInput = document.getElementById('recordTextInput');
-            const importBtn = document.getElementById('importBtn');
-            const exportBtn = document.getElementById('exportBtn');
-            const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
-            const selectAllCheckboxes = document.getElementById('selectAllCheckboxes');
-            const customModal = document.getElementById('customModal');
-            const modalTitle = document.getElementById('modalTitle');
-            const modalMessage = document.getElementById('modalMessage');
-            const modalInputsContainer = document.getElementById('modalInputsContainer');
-            const modalActionButtonsContainer = document.getElementById('modalActionButtonsContainer');
-            const modalConfirmCancelButtons = document.getElementById('modalConfirmCancelButtons');
-            const modalCancelBtn = document.getElementById('modalCancelBtn');
-            const modalConfirmBtn = document.getElementById('modalConfirmBtn');
-            const modalErrorMessage = document.getElementById('modalErrorMessage');
-            const listViewBtn = document.getElementById('listViewBtn');
-            const gridViewBtn = document.getElementById('gridViewBtn');
-            const sortButton = document.getElementById('sortButton');
-            const sortDropdown = document.getElementById('sortDropdown');
-            const sortByLatestBtn = document.getElementById('sortByLatestBtn');
-            const sortByTitleBtn = document.getElementById('sortByTitleBtn');
-            const toggleLockBtn = document.getElementById('toggleLockBtn');
-            const viewHistoryBtn = document.getElementById('viewHistoryBtn');
-            const shareAsImageBtn = document.getElementById('shareAsImageBtn');
-            const editorToolbar = document.querySelector('.editor-toolbar');
-            const fontSizeSelect = document.getElementById('fontSizeSelect');
-            const fontColorPicker = document.getElementById('fontColorPicker');
-            const linkBtn = document.getElementById('linkBtn');
-            const cloudSyncModal = document.getElementById('cloudSyncModal');
-            const cloudSyncBtn = document.getElementById('cloudSyncBtn');
-            const cloudSyncCancelBtn = document.getElementById('cloudSyncCancelBtn');
-            const cloudSignOutBtn = document.getElementById('cloudSignOutBtn');
-            const cloudBackupBtn = document.getElementById('cloudBackupBtn');
-            const cloudRestoreBtn = document.getElementById('cloudRestoreBtn');
-            // --- END: ELEMENT SELECTORS ---
+                cacheDOMElements() {
+                    this.elements = {
+                        managementView: document.getElementById('managementView'),
+                        numberTrackerView: document.getElementById('numberTrackerView'),
+                        fabAddNewRecordBookBtn: document.getElementById('fabAddNewRecordBookBtn'),
+                        listViewHeader: document.getElementById('listViewHeader'),
+                        recordBookList: document.getElementById('recordBookList'),
+                        noRecordBooksMessage: document.getElementById('noRecordBooksMessage'),
+                        backToManagementBtn: document.getElementById('backToManagementBtn'),
+                        currentRecordBookName: document.getElementById('currentRecordBookName'),
+                        resetCurrentBookBtn: document.getElementById('resetCurrentBookBtn'),
+                        numbersGrid: document.getElementById('numbersGrid'),
+                        notesInput: document.getElementById('notesInput'),
+                        notesCharCount: document.getElementById('notesCharCount'),
+                        limitedNotesSection: document.getElementById('limitedNotesSection'),
+                        unlimitedRecordTextSection: document.getElementById('unlimitedRecordTextSection'),
+                        recordTextInput: document.getElementById('recordTextInput'),
+                        importBtn: document.getElementById('importBtn'),
+                        exportBtn: document.getElementById('exportBtn'),
+                        deleteSelectedBtn: document.getElementById('deleteSelectedBtn'),
+                        selectAllCheckboxes: document.getElementById('selectAllCheckboxes'),
+                        listViewBtn: document.getElementById('listViewBtn'),
+                        gridViewBtn: document.getElementById('gridViewBtn'),
+                        sortButton: document.getElementById('sortButton'),
+                        sortDropdown: document.getElementById('sortDropdown'),
+                        sortByLatestBtn: document.getElementById('sortByLatestBtn'),
+                        sortByTitleBtn: document.getElementById('sortByTitleBtn'),
+                        toggleLockBtn: document.getElementById('toggleLockBtn'),
+                        viewHistoryBtn: document.getElementById('viewHistoryBtn'),
+                        shareAsImageBtn: document.getElementById('shareAsImageBtn'),
+                        editorToolbar: document.querySelector('.editor-toolbar'),
+                        fontSizeSelect: document.getElementById('fontSizeSelect'),
+                        fontColorPicker: document.getElementById('fontColorPicker'),
+                        linkBtn: document.getElementById('linkBtn'),
+                        
+                        // Modals
+                        customModal: document.getElementById('customModal'),
+                        modalTitle: document.getElementById('modalTitle'),
+                        modalMessage: document.getElementById('modalMessage'),
+                        modalInputsContainer: document.getElementById('modalInputsContainer'),
+                        modalActionButtonsContainer: document.getElementById('modalActionButtonsContainer'),
+                        modalConfirmCancelButtons: document.getElementById('modalConfirmCancelButtons'),
+                        modalCancelBtn: document.getElementById('modalCancelBtn'),
+                        modalConfirmBtn: document.getElementById('modalConfirmBtn'),
+                        modalErrorMessage: document.getElementById('modalErrorMessage'),
+                        
+                        cloudSyncModal: document.getElementById('cloudSyncModal'),
+                        cloudSyncBtn: document.getElementById('cloudSyncBtn'),
+                        cloudSyncCancelBtn: document.getElementById('cloudSyncCancelBtn'),
+                        cloudSignOutBtn: document.getElementById('cloudSignOutBtn'),
+                        cloudBackupBtn: document.getElementById('cloudBackupBtn'),
+                        cloudRestoreBtn: document.getElementById('cloudRestoreBtn'),
+                        lastBackupTime: document.getElementById('lastBackupTime'),
+                        cloudSyncLoginView: document.getElementById('cloudSyncLoginView'),
+                        cloudSyncActionsView: document.getElementById('cloudSyncActionsView'),
+                        cloudSyncUserPic: document.getElementById('cloudSyncUserPic'),
+                        cloudSyncUserName: document.getElementById('cloudSyncUserName'),
+                        cloudSyncUserEmail: document.getElementById('cloudSyncUserEmail'),
+                    };
+                },
 
-
-            // --- START: UTILITY FUNCTIONS ---
-            function debounce(func, wait) {
-                let timeout;
-                return function executedFunction(...args) {
-                    const later = () => {
+                // --- UTILITY FUNCTIONS ---
+                debounce(func, wait) {
+                    let timeout;
+                    return (...args) => {
+                        const later = () => {
+                            clearTimeout(timeout);
+                            func.apply(this, args);
+                        };
                         clearTimeout(timeout);
-                        func(...args);
+                        timeout = setTimeout(later, wait);
                     };
-                    clearTimeout(timeout);
-                    timeout = setTimeout(later, wait);
-                };
-            }
+                },
+                generateUUID: () => crypto.randomUUID(),
+                formatDateTime(isoDateString) {
+                    if (!isoDateString) return 'N/A';
+                    const date = new Date(isoDateString);
+                    return date.toLocaleString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+                },
+                showMessage(message, isError = false) {
+                    const messageBox = document.getElementById('messageBox');
+                    messageBox.textContent = message;
+                    messageBox.className = 'message-box'; // Reset classes
+                    if (isError) messageBox.classList.add('error');
+                    messageBox.classList.add('show');
+                    setTimeout(() => messageBox.classList.remove('show'), 3000);
+                },
 
-            function generateUUID() {
-                return crypto.randomUUID();
-            }
+                // --- MODAL HANDLING ---
+                showCustomModal(title, options = {}) {
+                    const { inputs = [], actions = [], checkboxes = [], itemsToDelete = [], confirmButtonText = '確認', cancelButtonText = '取消', trackHistory = false, message = '', htmlContent = null } = options;
+                    const el = this.elements;
 
-            function formatDateTime(isoDateString) {
-                if (!isoDateString) return 'N/A';
-                const date = new Date(isoDateString);
-                return date.toLocaleString('zh-TW', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false
-                });
-            }
+                    el.modalTitle.textContent = title;
+                    el.modalInputsContainer.innerHTML = '';
+                    el.modalActionButtonsContainer.innerHTML = '';
+                    el.modalErrorMessage.classList.add('hidden');
+                    el.modalMessage.classList.add('hidden');
 
-            function showMessage(message, isError = false) {
-                const messageBox = document.getElementById('messageBox');
-                messageBox.textContent = message;
-                messageBox.classList.remove('error');
-                if (isError) {
-                    messageBox.classList.add('error');
-                }
-                messageBox.classList.add('show');
-                setTimeout(() => {
-                    messageBox.classList.remove('show');
-                }, 3000);
-            }
-            // --- END: UTILITY FUNCTIONS ---
-
-
-            // --- START: MODAL HANDLING ---
-            function showCustomModal(title, options = {}) {
-                const { inputs = [], actions = [], checkboxes = [], itemsToDelete = [], confirmButtonText = '確認', cancelButtonText = '取消', trackHistory = false, message = '', htmlContent = null } = options;
-
-                modalTitle.textContent = title;
-                modalInputsContainer.innerHTML = '';
-                modalActionButtonsContainer.innerHTML = '';
-                modalErrorMessage.classList.add('hidden');
-                modalMessage.classList.add('hidden');
-
-                if (message) {
-                    modalMessage.textContent = message;
-                    modalMessage.classList.remove('hidden');
-                }
-                
-                if (htmlContent) {
-                    modalInputsContainer.innerHTML = htmlContent;
-                    modalActionButtonsContainer.classList.add('hidden');
-                    modalConfirmCancelButtons.classList.remove('hidden');
-                    modalConfirmBtn.classList.add('hidden');
-                    modalCancelBtn.textContent = '關閉';
-                } else if (actions.length > 0) {
-                    modalConfirmCancelButtons.classList.add('hidden');
-                    modalActionButtonsContainer.classList.remove('hidden');
-                    actions.forEach(actionDef => {
-                        const button = document.createElement('button');
-                        button.classList.add('modal-action-button', actionDef.class);
-                        button.textContent = actionDef.text;
-                        button.onclick = () => closeCustomModal().then(() => currentModalResolve({ confirmed: true, action: actionDef.value }));
-                        modalActionButtonsContainer.appendChild(button);
-                    });
-                    const cancelButton = document.createElement('button');
-                    cancelButton.classList.add('modal-action-button', 'cancel');
-                    cancelButton.textContent = cancelButtonText;
-                    cancelButton.onclick = () => closeCustomModal().then(() => currentModalResolve({ confirmed: false }));
-                    modalActionButtonsContainer.appendChild(cancelButton);
-                } else {
-                    modalConfirmCancelButtons.classList.remove('hidden');
-                    modalActionButtonsContainer.classList.add('hidden');
-                    modalConfirmBtn.textContent = confirmButtonText;
-                    modalCancelBtn.textContent = cancelButtonText;
-                    modalConfirmBtn.classList.remove('hidden');
-
-                    inputs.forEach(inputDef => {
-                        const div = document.createElement('div');
-                        div.classList.add('mb-4');
-                        if (inputDef.id === 'maxNum') div.classList.add('max-num-input-group');
-
-                        const label = document.createElement('label');
-                        label.classList.add('block', 'text-gray-700', 'text-sm', 'font-bold', 'mb-2');
-                        label.textContent = inputDef.label;
-                        div.appendChild(label);
-
-                        if (inputDef.type === 'radio') {
-                            const radioGroupDiv = document.createElement('div');
-                            radioGroupDiv.classList.add('flex', 'space-x-4', 'radio-group');
-                            inputDef.options.forEach(option => {
-                                const radioLabel = document.createElement('label');
-                                radioLabel.innerHTML = `<input type="radio" name="${inputDef.name}" value="${option.value}" ${option.checked ? 'checked' : ''} class="mr-2"> ${option.label}`;
-                                radioGroupDiv.appendChild(radioLabel);
-                            });
-                            div.appendChild(radioGroupDiv);
-                        } else {
-                            const input = document.createElement('input');
-                            input.type = inputDef.type;
-                            input.id = inputDef.id;
-                            input.value = inputDef.defaultValue || '';
-                            input.placeholder = inputDef.placeholder || '';
-                            input.classList.add('w-full', 'p-3', 'border', 'border-gray-300', 'rounded-md', 'focus:outline-none', 'focus:ring-2', 'focus:ring-blue-500');
-                            if (inputDef.min !== undefined) input.min = inputDef.min;
-                            if (inputDef.max !== undefined) input.max = inputDef.max;
-                            input.dataset.label = inputDef.label;
-                            div.appendChild(input);
-                        }
-                        modalInputsContainer.appendChild(div);
-                    });
+                    if (message) {
+                        el.modalMessage.textContent = message;
+                        el.modalMessage.classList.remove('hidden');
+                    }
                     
-                    if (checkboxes.length > 0) {
-                        const selectAllContainer = document.createElement('div');
-                        selectAllContainer.classList.add('select-all-checkbox-container');
-                        selectAllContainer.innerHTML = `<label class="inline-flex items-center cursor-pointer"><input type="checkbox" id="modalSelectAllCheckboxes" class="mr-2 transform scale-125"> 全選</label>`;
-                        modalInputsContainer.appendChild(selectAllContainer);
+                    if (htmlContent) {
+                        el.modalInputsContainer.innerHTML = htmlContent;
+                        el.modalActionButtonsContainer.classList.add('hidden');
+                        el.modalConfirmCancelButtons.classList.remove('hidden');
+                        el.modalConfirmBtn.classList.add('hidden');
+                        el.modalCancelBtn.textContent = '關閉';
+                    } else if (actions.length > 0) {
+                        el.modalConfirmCancelButtons.classList.add('hidden');
+                        el.modalActionButtonsContainer.classList.remove('hidden');
+                        actions.forEach(actionDef => {
+                            const button = document.createElement('button');
+                            button.className = `modal-action-button ${actionDef.class}`;
+                            button.textContent = actionDef.text;
+                            button.onclick = () => this.closeCustomModal().then(() => currentModalResolve({ confirmed: true, action: actionDef.value }));
+                            el.modalActionButtonsContainer.appendChild(button);
+                        });
+                        const cancelButton = document.createElement('button');
+                        cancelButton.className = 'modal-action-button cancel';
+                        cancelButton.textContent = cancelButtonText;
+                        cancelButton.onclick = () => this.closeCustomModal().then(() => currentModalResolve({ confirmed: false }));
+                        el.modalActionButtonsContainer.appendChild(cancelButton);
+                    } else {
+                        el.modalConfirmCancelButtons.classList.remove('hidden');
+                        el.modalActionButtonsContainer.classList.add('hidden');
+                        el.modalConfirmBtn.textContent = confirmButtonText;
+                        el.modalCancelBtn.textContent = cancelButtonText;
+                        el.modalConfirmBtn.classList.remove('hidden');
 
-                        const checkboxListDiv = document.createElement('div');
-                        checkboxListDiv.classList.add('modal-checkbox-list');
-                        checkboxes.forEach(checkboxDef => {
+                        inputs.forEach(inputDef => {
+                            const div = document.createElement('div');
+                            div.className = 'mb-4';
+                            if (inputDef.id === 'maxNum') div.classList.add('max-num-input-group');
+                            
                             const label = document.createElement('label');
-                            label.innerHTML = `<input type="checkbox" class="modal-checkbox-item" value="${checkboxDef.value}" ${checkboxDef.checked ? 'checked' : ''}><span class="book-name">${checkboxDef.label}</span><span class="book-date ml-auto">${checkboxDef.meta}</span>`;
-                            checkboxListDiv.appendChild(label);
-                        });
-                        modalInputsContainer.appendChild(checkboxListDiv);
+                            label.className = 'block text-gray-700 text-sm font-bold mb-2';
+                            label.textContent = inputDef.label;
+                            div.appendChild(label);
 
-                        const modalSelectAll = selectAllContainer.querySelector('#modalSelectAllCheckboxes');
-                        const modalCheckboxes = checkboxListDiv.querySelectorAll('.modal-checkbox-item');
-                        modalSelectAll.addEventListener('change', () => modalCheckboxes.forEach(cb => cb.checked = modalSelectAll.checked));
-                        modalCheckboxes.forEach(cb => cb.addEventListener('change', () => modalSelectAll.checked = Array.from(modalCheckboxes).every(item => item.checked)));
-                        modalSelectAll.checked = Array.from(modalCheckboxes).every(item => item.checked);
-                    }
+                            if (inputDef.type === 'radio') {
+                                const radioGroupDiv = document.createElement('div');
+                                radioGroupDiv.className = 'flex space-x-4 radio-group';
+                                inputDef.options.forEach(option => {
+                                    const radioLabel = document.createElement('label');
+                                    radioLabel.innerHTML = `<input type="radio" name="${inputDef.name}" value="${option.value}" ${option.checked ? 'checked' : ''} class="mr-2"> ${option.label}`;
+                                    radioGroupDiv.appendChild(radioLabel);
+                                });
+                                div.appendChild(radioGroupDiv);
+                            } else {
+                                const input = document.createElement('input');
+                                input.type = inputDef.type;
+                                input.id = inputDef.id;
+                                input.value = inputDef.defaultValue || '';
+                                input.placeholder = inputDef.placeholder || '';
+                                input.className = 'w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500';
+                                if (inputDef.min !== undefined) input.min = inputDef.min;
+                                if (inputDef.max !== undefined) input.max = inputDef.max;
+                                div.appendChild(input);
+                            }
+                            el.modalInputsContainer.appendChild(div);
+                        });
+
+                         if (checkboxes.length > 0) {
+                            const selectAllContainer = document.createElement('div');
+                            selectAllContainer.className = 'select-all-checkbox-container';
+                            selectAllContainer.innerHTML = `<label class="inline-flex items-center cursor-pointer"><input type="checkbox" id="modalSelectAllCheckboxes" class="mr-2 transform scale-125"> 全選</label>`;
+                            el.modalInputsContainer.appendChild(selectAllContainer);
+
+                            const checkboxListDiv = document.createElement('div');
+                            checkboxListDiv.className = 'modal-checkbox-list';
+                            checkboxes.forEach(checkboxDef => {
+                                const label = document.createElement('label');
+                                label.innerHTML = `<input type="checkbox" class="modal-checkbox-item" value="${checkboxDef.value}" ${checkboxDef.checked ? 'checked' : ''}><span class="book-name">${checkboxDef.label}</span><span class="book-date ml-auto">${checkboxDef.meta}</span>`;
+                                checkboxListDiv.appendChild(label);
+                            });
+                            el.modalInputsContainer.appendChild(checkboxListDiv);
+
+                            const modalSelectAll = selectAllContainer.querySelector('#modalSelectAllCheckboxes');
+                            const modalCheckboxes = checkboxListDiv.querySelectorAll('.modal-checkbox-item');
+                            modalSelectAll.addEventListener('change', () => modalCheckboxes.forEach(cb => cb.checked = modalSelectAll.checked));
+                            modalCheckboxes.forEach(cb => cb.addEventListener('change', () => modalSelectAll.checked = Array.from(modalCheckboxes).every(item => item.checked)));
+                            modalSelectAll.checked = Array.from(modalCheckboxes).every(item => item.checked);
+                        }
                     
-                    if (itemsToDelete.length > 0) {
-                        const deleteListContainer = document.createElement('div');
-                        deleteListContainer.classList.add('bulk-delete-list');
-                        itemsToDelete.forEach(item => {
-                            const itemDiv = document.createElement('div');
-                            itemDiv.classList.add('bulk-delete-list-item');
-                            itemDiv.innerHTML = `<span class="bulk-delete-item-name">${item.name}</span><span class="bulk-delete-item-date">${formatDateTime(item.lastUpdated)}</span>`;
-                            deleteListContainer.appendChild(itemDiv);
-                        });
-                        modalInputsContainer.appendChild(deleteListContainer);
+                        if (itemsToDelete.length > 0) {
+                            const deleteListContainer = document.createElement('div');
+                            deleteListContainer.className = 'bulk-delete-list';
+                            itemsToDelete.forEach(item => {
+                                const itemDiv = document.createElement('div');
+                                itemDiv.className = 'bulk-delete-list-item';
+                                itemDiv.innerHTML = `<span class="bulk-delete-item-name">${item.name}</span><span class="bulk-delete-item-date">${this.formatDateTime(item.lastUpdated)}</span>`;
+                                deleteListContainer.appendChild(itemDiv);
+                            });
+                            el.modalInputsContainer.appendChild(deleteListContainer);
+                        }
                     }
-                }
 
-                customModal.classList.remove('hidden', 'hide-modal');
-                customModal.classList.add('show-modal');
+                    el.customModal.classList.remove('hidden', 'hide-modal');
+                    el.customModal.classList.add('show-modal');
 
-                if (trackHistory) {
-                    history.pushState({ view: history.state.view, modalOpen: true }, '');
-                }
+                    if (trackHistory) history.pushState({ view: history.state.view, modalOpen: true }, '');
 
-                if (inputs.length > 0) modalInputsContainer.querySelector('input, textarea, select')?.focus();
-                else if (actions.length > 0) modalActionButtonsContainer.querySelector('button')?.focus();
-                else modalConfirmBtn.focus();
-
-                const bookTypeRadios = modalInputsContainer.querySelectorAll('input[name="bookType"]');
-                const maxNumInputGroup = modalInputsContainer.querySelector('.max-num-input-group');
-                const toggleMaxNumInput = () => {
+                    if (inputs.length > 0) el.modalInputsContainer.querySelector('input, textarea, select')?.focus();
+                    else if (actions.length > 0) el.modalActionButtonsContainer.querySelector('button')?.focus();
+                    else el.modalConfirmBtn.focus();
+                    
+                    const bookTypeRadios = el.modalInputsContainer.querySelectorAll('input[name="bookType"]');
                     if (bookTypeRadios.length > 0) {
-                        const selectedRadio = document.querySelector('input[name="bookType"]:checked');
-                        if (selectedRadio && maxNumInputGroup) {
-                            maxNumInputGroup.style.display = selectedRadio.value === 'number' ? 'block' : 'none';
+                        const toggleMaxNumInput = () => {
+                            const maxNumInputGroup = el.modalInputsContainer.querySelector('.max-num-input-group');
+                            const selectedRadio = el.modalInputsContainer.querySelector('input[name="bookType"]:checked');
+                            if (maxNumInputGroup) maxNumInputGroup.style.display = selectedRadio?.value === 'number' ? 'block' : 'none';
+                        };
+                        bookTypeRadios.forEach(radio => radio.addEventListener('change', toggleMaxNumInput));
+                        toggleMaxNumInput();
+                    }
+
+                    return new Promise(resolve => { currentModalResolve = resolve; });
+                },
+
+                closeCustomModal() {
+                    return new Promise(resolve => {
+                        const el = this.elements;
+                        el.modalErrorMessage.classList.add('hidden');
+                        el.modalMessage.classList.add('hidden');
+                        el.customModal.classList.remove('show-modal');
+                        el.customModal.classList.add('hide-modal');
+
+                        const onTransitionEnd = (event) => {
+                            if (event.target !== el.customModal) return;
+                            el.customModal.classList.add('hidden');
+                            el.customModal.removeEventListener('transitionend', onTransitionEnd);
+                            if(history.state && history.state.modalOpen) history.back();
+                            resolve();
+                        };
+                        el.customModal.addEventListener('transitionend', onTransitionEnd);
+                        setTimeout(() => { if (!el.customModal.classList.contains('hidden')) onTransitionEnd({ target: el.customModal }); }, 350);
+                    });
+                },
+
+                // --- CLOUD SYNC LOGIC ---
+                handleGoogleLogin(response) {
+                    googleIdToken = response.credential;
+                    try {
+                        let base64Url = googleIdToken.split('.')[1];
+                        let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                        let jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+                        googleUserProfile = JSON.parse(jsonPayload);
+                    } catch(e) {
+                        googleUserProfile = null;
+                        console.error("Error decoding JWT", e);
+                    }
+
+                    if(googleUserProfile) {
+                        this.showMessage(`已成功登入為 ${googleUserProfile.name}`);
+                        this.updateCloudSyncModalUI();
+                    } else {
+                        this.showMessage('登入失敗，無法解析憑證。', true);
+                    }
+                },
+                handleSignOut() {
+                    google.accounts.id.disableAutoSelect();
+                    googleIdToken = null;
+                    googleUserProfile = null;
+                    this.showMessage('您已成功登出。');
+                    this.updateCloudSyncModalUI();
+                },
+                async callCloudApi(action, params = {}) {
+                    if (!googleIdToken) throw new Error("使用者未登入，無法執行雲端操作。");
+                    try {
+                        const response = await fetch(CLOUD_API_URL, {
+                            method: 'POST', mode: 'cors', cache: 'no-cache',
+                            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                            body: JSON.stringify({ idToken: googleIdToken, action, params }),
+                            redirect: 'follow'
+                        });
+                        if (!response.ok) throw new Error(`網路回應錯誤: ${response.status} ${response.statusText}`);
+                        const result = await response.json();
+                        if (result.status === 'error') throw new Error(result.message || 'API 返回一個未知錯誤。');
+                        return result;
+                    } catch (error) {
+                        console.error(`API 呼叫失敗 (action: ${action}):`, error);
+                        throw error;
+                    }
+                },
+                updateCloudSyncModalUI() {
+                    const el = this.elements;
+                    if (googleUserProfile) {
+                        el.cloudSyncLoginView.classList.add('hidden');
+                        el.cloudSyncActionsView.classList.remove('hidden');
+                        el.cloudSyncUserPic.src = googleUserProfile.picture || '';
+                        el.cloudSyncUserName.textContent = googleUserProfile.name || 'N/A';
+                        el.cloudSyncUserEmail.textContent = googleUserProfile.email || 'N/A';
+                        
+                        el.lastBackupTime.textContent = '正在查詢...';
+                        this.callCloudApi('restoreData')
+                            .then(result => {
+                                const data = result.data;
+                                el.lastBackupTime.textContent = data.hasData && data.lastUpdated ? this.formatDateTime(data.lastUpdated) : '尚無備份';
+                            })
+                            .catch(err => { el.lastBackupTime.textContent = '查詢失敗'; });
+                    } else {
+                        el.cloudSyncLoginView.classList.remove('hidden');
+                        el.cloudSyncActionsView.classList.add('hidden');
+                    }
+                },
+                async handleCloudBackup() {
+                    try {
+                        this.showMessage('正在檢查雲端狀態...');
+                        const result = await this.callCloudApi('restoreData');
+                        const cloudInfo = result.data;
+                        
+                        if (!cloudInfo || !cloudInfo.hasData) {
+                            const pinResult = await this.showCustomModal("設定雲端同步 PIN 碼", {
+                                message: "首次備份，請設定一組 6 位數字的 PIN 碼以保護您的資料安全。",
+                                inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
+                                confirmButtonText: '設定並備份', trackHistory: true
+                            });
+                            
+                            if (!pinResult.confirmed || !pinResult.values.pin || !/^\d{6}$/.test(pinResult.values.pin)) {
+                                return this.showMessage('PIN 碼設定已取消或格式錯誤。', true);
+                            }
+                            this.showMessage('正在設定 PIN 碼...');
+                            await this.callCloudApi('setPin', { pin: pinResult.values.pin });
+                        } else {
+                            const pinResult = await this.showCustomModal("輸入 PIN 碼", {
+                                message: "請輸入您的 6 位數字 PIN 碼以進行備份。",
+                                inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
+                                confirmButtonText: '驗證並備份', trackHistory: true
+                            });
+                            if (!pinResult.confirmed || !pinResult.values.pin) return this.showMessage('備份已取消。');
+                            this.showMessage('正在驗證 PIN 碼...');
+                            const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
+                            if (!verificationResult.data.verified) return this.showMessage('PIN 碼錯誤，備份失敗。', true);
+                        }
+                        this.showMessage('PIN 碼驗證成功，正在備份資料...');
+                        const backupResult = await this.callCloudApi('backupData', { notebookData: recordBooks });
+                        this.elements.lastBackupTime.textContent = this.formatDateTime(backupResult.data.lastUpdated);
+                        this.showMessage('記事本已成功備份至雲端！');
+                        this.elements.cloudSyncModal.querySelector('#cloudSyncCancelBtn').click();
+                    } catch (error) {
+                        this.showMessage(`備份過程中發生錯誤: ${error.message}`, true);
+                    }
+                },
+                async handleCloudRestore() {
+                    const confirmRestore = await this.showCustomModal("確認還原", {
+                        message: "從雲端還原將會覆蓋您目前所有的本機資料。此操作無法復原，確定要繼續嗎？",
+                        confirmButtonText: "確定還原", trackHistory: true
+                    });
+                    if (!confirmRestore.confirmed) return this.showMessage('還原操作已取消。');
+                    try {
+                        const pinResult = await this.showCustomModal("輸入 PIN 碼", {
+                            message: "請輸入您的 6 位數字 PIN 碼以還原資料。",
+                            inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
+                            confirmButtonText: '驗證並還原', trackHistory: true
+                        });
+                        if (!pinResult.confirmed || !pinResult.values.pin) return this.showMessage('還原已取消。');
+                        this.showMessage('正在驗證 PIN 碼...');
+                        const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
+                        if (!verificationResult.data.verified) return this.showMessage('PIN 碼錯誤，還原失敗。', true);
+                        this.showMessage('PIN 碼驗證成功，正在從雲端還原資料...');
+                        const restoreResult = await this.callCloudApi('restoreData');
+                        const restoredData = restoreResult.data;
+                        if (restoredData.hasData && restoredData.notebookData) {
+                            recordBooks = restoredData.notebookData;
+                            this.saveRecordBooks();
+                            this.renderManagementView();
+                            this.showMessage('資料已成功從雲端還原！');
+                            this.elements.cloudSyncModal.querySelector('#cloudSyncCancelBtn').click();
+                        } else {
+                            this.showMessage('雲端沒有可還原的資料。', true);
+                        }
+                    } catch (error) {
+                        this.showMessage(`還原過程中發生錯誤: ${error.message}`, true);
+                    }
+                },
+                
+                // --- CORE APP LOGIC & STATE MANAGEMENT ---
+                loadRecordBooks() {
+                    let needsSave = false;
+                    const stored = localStorage.getItem(storageKey);
+                    if (stored) {
+                        try {
+                            recordBooks = JSON.parse(stored);
+                            if (!Array.isArray(recordBooks)) recordBooks = [];
+                            recordBooks.forEach(b => {
+                                if (b.maxNumber === undefined) { b.maxNumber = defaultMaxNumber; needsSave = true; }
+                                if (b.lastUpdated === undefined) { b.lastUpdated = new Date().toISOString(); needsSave = true; }
+                                if (b.notes === undefined) { b.notes = ""; needsSave = true; }
+                                if (b.recordText === undefined) { b.recordText = ""; needsSave = true; }
+                                if (b.bookType === undefined) { b.bookType = "number"; needsSave = true; }
+                                if (b.disabledNumbers === undefined) { b.disabledNumbers = {}; needsSave = true; }
+                                if (b.history === undefined) { b.history = []; needsSave = true; }
+                                if (b.checkedNumbers === undefined) { b.checkedNumbers = {}; needsSave = true; }
+                            });
+                        } catch (e) { recordBooks = []; }
+                    } else { recordBooks = []; }
+                    displayMode = localStorage.getItem(displayModeKey) || 'list';
+                    sortMode = localStorage.getItem(sortModeKey) || 'latest';
+                    if (needsSave) this.saveRecordBooks();
+                    selectedRecordBookIds.clear();
+                    const state = history.state;
+                    if (state && state.view === 'tracker' && state.bookId) {
+                        currentRecordBookId = state.bookId;
+                        this.renderNumberTrackerView('initial');
+                    } else {
+                        history.replaceState({ view: 'management', modalOpen: false }, '我的記事本', '');
+                        this.renderManagementView('initial');
+                    }
+                },
+                saveRecordBooks() {
+                    try {
+                        localStorage.setItem(storageKey, JSON.stringify(recordBooks));
+                        localStorage.setItem(displayModeKey, displayMode);
+                        localStorage.setItem(sortModeKey, sortMode);
+                    } catch (e) {
+                        this.showMessage("儲存本機資料失敗！", true);
+                    }
+                },
+                sortRecordBooks() {
+                    const el = this.elements;
+                    if (sortMode === 'latest') {
+                        recordBooks.sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime());
+                        el.sortButton.querySelector('#currentSortText').textContent = '最新';
+                        el.sortByLatestBtn.classList.add('selected-sort-option');
+                        el.sortByTitleBtn.classList.remove('selected-sort-option');
+                    } else if (sortMode === 'title') {
+                        recordBooks.sort((a, b) => a.name.localeCompare(b.name, 'zh-TW'));
+                        el.sortButton.querySelector('#currentSortText').textContent = '標題';
+                        el.sortByTitleBtn.classList.add('selected-sort-option');
+                        el.sortByLatestBtn.classList.remove('selected-sort-option');
+                    }
+                },
+                logHistory(bookId, description) {
+                    const book = recordBooks.find(b => b.id === bookId);
+                    if (book && book.history) {
+                        book.history.unshift({ timestamp: new Date().toISOString(), description });
+                        if (book.history.length > 200) book.history.pop();
+                    }
+                },
+                
+                // --- VIEW RENDERING & UI UPDATES ---
+                showView(newView, state, title) {
+                    const el = this.elements;
+                    document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+                    newView.classList.remove('hidden');
+                    el.fabAddNewRecordBookBtn.classList.toggle('hidden', newView !== el.managementView);
+                    if (state.view === 'tracker' && (!history.state || history.state.view !== 'tracker')) {
+                        history.pushState(state, title, '');
+                    } else {
+                        history.replaceState(state, title, '');
+                    }
+                    document.title = title;
+                },
+                updateToolbarButtonStates() {
+                    const hasSelection = selectedRecordBookIds.size > 0;
+                    this.elements.deleteSelectedBtn.disabled = !hasSelection;
+                    this.elements.deleteSelectedBtn.classList.toggle('hidden-if-no-selection', !hasSelection);
+                    this.elements.exportBtn.classList.toggle('hidden-if-no-selection', !hasSelection);
+                },
+                updateEditorToolbarState() {
+                    const el = this.elements;
+                    if(!el.editorToolbar || !el.recordTextInput.isContentEditable) return;
+                    const commands = ['bold', 'italic', 'underline', 'insertUnorderedList', 'insertOrderedList'];
+                    commands.forEach(command => {
+                        const button = el.editorToolbar.querySelector(`[data-command="${command}"]`);
+                        if (button) {
+                            try { button.classList.toggle('active', document.queryCommandState(command)); } catch(e) {}
+                        }
+                    });
+                },
+                renderManagementView() {
+                    this.showView(this.elements.managementView, { view: 'management' }, '我的記事本');
+                    this.sortRecordBooks();
+                    const el = this.elements;
+                    el.recordBookList.innerHTML = '';
+                    const isListView = displayMode === 'list';
+                    el.recordBookList.className = isListView ? 'record-book-list-container record-book-list-view' : 'record-book-grid-container record-book-grid-view';
+                    el.listViewBtn.classList.toggle('selected', isListView);
+                    el.gridViewBtn.classList.toggle('selected', !isListView);
+                    el.listViewHeader.classList.toggle('hidden', !isListView || recordBooks.length === 0);
+                    el.selectAllCheckboxes.classList.toggle('hidden', !isListView || recordBooks.length === 0);
+                    if (isListView) el.selectAllCheckboxes.checked = recordBooks.length > 0 && selectedRecordBookIds.size === recordBooks.length;
+                    el.noRecordBooksMessage.classList.toggle('hidden', recordBooks.length > 0);
+
+                    if (recordBooks.length > 0) {
+                        recordBooks.forEach(book => {
+                            const bookItem = document.createElement('div');
+                            bookItem.className = 'record-book-item';
+                            bookItem.dataset.id = book.id;
+                            bookItem.onclick = (e) => {
+                                if (!e.target.closest('.record-book-checkbox-wrapper, input[type="checkbox"], .options-button')) {
+                                    currentRecordBookId = book.id;
+                                    this.renderNumberTrackerView();
+                                }
+                            };
+                            const checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.className = 'record-book-checkbox transform scale-125 cursor-pointer';
+                            checkbox.dataset.id = book.id;
+                            checkbox.checked = selectedRecordBookIds.has(book.id);
+                            checkbox.onchange = (e) => {
+                                e.stopPropagation();
+                                selectedRecordBookIds.has(book.id) ? selectedRecordBookIds.delete(book.id) : selectedRecordBookIds.add(book.id);
+                                this.updateToolbarButtonStates();
+                                if (isListView) el.selectAllCheckboxes.checked = recordBooks.length > 0 && selectedRecordBookIds.size === recordBooks.length;
+                            };
+                            const actionsDiv = document.createElement('div');
+                            actionsDiv.className = 'record-book-actions';
+                            const optionsBtn = document.createElement('button');
+                            optionsBtn.className = 'options-button action-icon-button';
+                            optionsBtn.innerHTML = '<span class="material-symbols-outlined">more_vert</span>';
+                            optionsBtn.onclick = (e) => { e.stopPropagation(); this.showRecordBookActionsModal(book.id); };
+                            actionsDiv.appendChild(optionsBtn);
+
+                            if (isListView) {
+                                checkbox.classList.add('mr-3');
+                                bookItem.innerHTML = `<div></div><div class="record-book-name-cell"></div><div class="record-book-last-updated-cell"></div>`;
+                                bookItem.firstChild.appendChild(checkbox);
+                                bookItem.children[1].textContent = book.name;
+                                bookItem.children[2].textContent = this.formatDateTime(book.lastUpdated);
+                            } else {
+                                const checkboxWrapper = document.createElement('div');
+                                checkboxWrapper.className = 'checkbox-wrapper';
+                                checkboxWrapper.appendChild(checkbox);
+                                bookItem.appendChild(checkboxWrapper);
+                                const nameWrapper = document.createElement('div');
+                                nameWrapper.className = 'record-book-name-wrapper';
+                                nameWrapper.innerHTML = `<span class="record-book-name"></span><span class="record-book-meta"></span>`;
+                                nameWrapper.firstChild.textContent = book.name;
+                                nameWrapper.lastChild.textContent = `更新於: ${this.formatDateTime(book.lastUpdated)}`;
+                                bookItem.appendChild(nameWrapper);
+                            }
+                            bookItem.appendChild(actionsDiv);
+                            el.recordBookList.appendChild(bookItem);
+                        });
+                    }
+                    this.updateToolbarButtonStates();
+                },
+
+                renderNumberTrackerView() {
+                    const currentBook = recordBooks.find(b => b.id === currentRecordBookId);
+                    if (!currentBook) return this.renderManagementView();
+
+                    this.showView(this.elements.numberTrackerView, { view: 'tracker', bookId: currentRecordBookId }, `記事本: ${currentBook.name}`);
+                    const el = this.elements;
+                    el.currentRecordBookName.textContent = currentBook.name;
+                    el.numbersGrid.innerHTML = '';
+                    el.numberTrackerView.classList.add('locked');
+                    el.toggleLockBtn.querySelector('.material-symbols-outlined').textContent = 'lock';
+
+                    if (currentBook.bookType === 'number') {
+                        el.limitedNotesSection.classList.remove('hidden');
+                        el.numbersGrid.classList.remove('hidden');
+                        el.unlimitedRecordTextSection.classList.add('hidden');
+                        el.notesInput.value = currentBook.notes || '';
+                        el.notesCharCount.textContent = `${el.notesInput.value.length}/${notesCharLimit}`;
+                        for (let i = 1; i <= currentBook.maxNumber; i++) {
+                            const gridItem = document.createElement('div');
+                            gridItem.className = 'grid-item';
+                            if (currentBook.disabledNumbers[i]) gridItem.classList.add('disabled');
+                            else if (currentBook.checkedNumbers[i]) gridItem.classList.add('checked');
+                            gridItem.dataset.number = i;
+                            gridItem.innerHTML = `<span class="number">${i}</span>`;
+                            let pressTimer = null, longPressTriggered = false;
+                            const handleDisable = () => {
+                                const num = parseInt(gridItem.dataset.number, 10);
+                                const state = !currentBook.disabledNumbers[num];
+                                currentBook.disabledNumbers[num] = state;
+                                if (state) currentBook.checkedNumbers[num] = false;
+                                currentBook.lastUpdated = new Date().toISOString();
+                                gridItem.classList.toggle('disabled', state);
+                                if (state) gridItem.classList.remove('checked');
+                                this.logHistory(currentBook.id, `${state ? '禁用' : '啟用'}了數字 ${num}`);
+                                this.saveRecordBooks();
+                            };
+                            const handleCheck = () => {
+                                if (gridItem.classList.contains('disabled')) return;
+                                const num = parseInt(gridItem.dataset.number, 10);
+                                const state = !currentBook.checkedNumbers[num];
+                                currentBook.checkedNumbers[num] = state;
+                                currentBook.lastUpdated = new Date().toISOString();
+                                gridItem.classList.toggle('checked', state);
+                                this.logHistory(currentBook.id, `${state ? '勾選' : '取消勾選'}了數字 ${num}`);
+                                this.saveRecordBooks();
+                            };
+                            const onPointerDown = () => { longPressTriggered = false; pressTimer = setTimeout(() => { longPressTriggered = true; handleDisable(); }, 500); };
+                            const onPointerUpOrLeave = () => clearTimeout(pressTimer);
+                            gridItem.addEventListener('contextmenu', e => { e.preventDefault(); clearTimeout(pressTimer); handleDisable(); });
+                            gridItem.addEventListener('click', () => { if (!longPressTriggered) handleCheck(); });
+                            ['mousedown', 'touchstart'].forEach(evt => gridItem.addEventListener(evt, onPointerDown, { passive: true }));
+                            ['mouseup', 'mouseleave', 'touchend', 'touchmove'].forEach(evt => gridItem.addEventListener(evt, onPointerUpOrLeave));
+                            el.numbersGrid.appendChild(gridItem);
+                        }
+                    } else { // Text book
+                        el.limitedNotesSection.classList.add('hidden');
+                        el.numbersGrid.classList.add('hidden');
+                        el.unlimitedRecordTextSection.classList.remove('hidden');
+                        el.recordTextInput.innerHTML = currentBook.recordText || '';
+                    }
+                },
+                
+                // --- EVENT LISTENERS & HANDLERS ---
+                attachEventListeners() {
+                    const el = this.elements;
+                    // Management View
+                    el.fabAddNewRecordBookBtn.onclick = () => this.addNewRecordBook();
+                    el.importBtn.onclick = () => this.importData();
+                    el.exportBtn.onclick = () => this.exportData();
+                    el.deleteSelectedBtn.onclick = () => this.deleteSelectedBooks();
+                    el.cloudSyncBtn.onclick = () => { el.cloudSyncModal.classList.add('show-modal'); el.cloudSyncModal.classList.remove('hidden'); this.updateCloudSyncModalUI(); };
+                    el.listViewBtn.onclick = () => { displayMode = 'list'; this.saveRecordBooks(); this.renderManagementView(); };
+                    el.gridViewBtn.onclick = () => { displayMode = 'grid'; this.saveRecordBooks(); this.renderManagementView(); };
+                    el.selectAllCheckboxes.onchange = () => {
+                        const checkboxes = el.recordBookList.querySelectorAll('.record-book-checkbox');
+                        checkboxes.forEach(cb => {
+                            cb.checked = el.selectAllCheckboxes.checked;
+                            if (cb.checked) selectedRecordBookIds.add(cb.dataset.id); else selectedRecordBookIds.delete(cb.dataset.id);
+                        });
+                        this.updateToolbarButtonStates();
+                    };
+                    el.sortButton.onclick = (e) => { e.stopPropagation(); el.sortDropdown.classList.toggle('hidden'); };
+                    el.sortByLatestBtn.onclick = () => { sortMode = 'latest'; el.sortDropdown.classList.add('hidden'); this.saveRecordBooks(); this.renderManagementView(); };
+                    el.sortByTitleBtn.onclick = () => { sortMode = 'title'; el.sortDropdown.classList.add('hidden'); this.saveRecordBooks(); this.renderManagementView(); };
+                    
+                    // Tracker View
+                    el.backToManagementBtn.onclick = () => history.back();
+                    el.resetCurrentBookBtn.onclick = () => this.resetCurrentBook();
+                    el.toggleLockBtn.onclick = () => {
+                        const isLocked = el.numberTrackerView.classList.toggle('locked');
+                        el.toggleLockBtn.querySelector('.material-symbols-outlined').textContent = isLocked ? 'lock' : 'lock_open';
+                        this.showMessage(isLocked ? '記事本已鎖定' : '記事本已解鎖');
+                    };
+                    el.viewHistoryBtn.onclick = () => this.viewHistory();
+                    el.shareAsImageBtn.onclick = () => this.shareAsImage();
+                    el.notesInput.oninput = this.debounce(() => {
+                        const book = recordBooks.find(b => b.id === currentRecordBookId);
+                        if(book) {
+                            book.notes = el.notesInput.value;
+                            book.lastUpdated = new Date().toISOString();
+                            this.logHistory(book.id, '編輯了簡短備註');
+                            this.saveRecordBooks();
+                        }
+                    }, 500);
+                     el.recordTextInput.oninput = this.debounce(() => {
+                        const book = recordBooks.find(b => b.id === currentRecordBookId);
+                        if(book) {
+                            book.recordText = el.recordTextInput.innerHTML;
+                            book.lastUpdated = new Date().toISOString();
+                            this.logHistory(book.id, '編輯了記事本內容');
+                            this.saveRecordBooks();
+                        }
+                    }, 500);
+
+                    // Rich Text Editor
+                    el.editorToolbar.onclick = (e) => {
+                        const button = e.target.closest('button');
+                        if (button && button.dataset.command) {
+                            e.preventDefault();
+                            document.execCommand(button.dataset.command, false, null);
+                            el.recordTextInput.focus();
+                            this.updateEditorToolbarState();
+                        }
+                    };
+                    el.linkBtn.onclick = (e) => {
+                        e.preventDefault();
+                        const selection = window.getSelection();
+                        if (!selection || selection.isCollapsed) return this.showMessage('請先選取要建立連結的文字。', true);
+                        const url = prompt('請輸入連結網址:', 'https://');
+                        if (url) { el.recordTextInput.focus(); document.execCommand('createLink', false, url); }
+                    };
+                    el.fontSizeSelect.onchange = () => { document.execCommand('fontSize', false, el.fontSizeSelect.value); el.recordTextInput.focus(); };
+                    el.fontColorPicker.oninput = () => { document.execCommand('foreColor', false, el.fontColorPicker.value); el.recordTextInput.focus(); };
+                    
+                    // Global / System
+                    document.addEventListener('click', (e) => { if (!el.sortButton.contains(e.target)) el.sortDropdown.classList.add('hidden'); });
+                    window.onpopstate = (e) => {
+                        if(el.customModal.classList.contains('show-modal')) this.closeCustomModal();
+                        if(el.cloudSyncModal.classList.contains('show-modal')) el.cloudSyncModal.querySelector('#cloudSyncCancelBtn').click();
+                        const state = e.state || { view: 'management' };
+                        if (state.view === 'management') { currentRecordBookId = null; this.renderManagementView(); }
+                        else if (state.view === 'tracker' && state.bookId) { currentRecordBookId = state.bookId; this.renderNumberTrackerView(); }
+                    };
+                    ['focus', 'click', 'keyup'].forEach(evt => el.recordTextInput.addEventListener(evt, () => this.updateEditorToolbarState()));
+                    document.addEventListener('selectionchange', () => { if (document.activeElement === el.recordTextInput) this.updateEditorToolbarState(); });
+
+                    // Modal Buttons
+                    el.modalConfirmBtn.onclick = () => {
+                        const values = {}; let isValid = true, errorMessage = '';
+                        el.modalInputsContainer.querySelectorAll('input, textarea, select').forEach(input => {
+                            if (input.type === 'radio') { if (input.checked) values[input.name] = input.value; } 
+                            else if (input.id) values[input.id] = input.value;
+                        });
+                        const pinInput = el.modalInputsContainer.querySelector('#pin');
+                        if (pinInput && !/^\d{6}$/.test(pinInput.value)) { errorMessage = 'PIN 碼必須是 6 位數字。'; isValid = false; }
+                        if (!isValid) { el.modalErrorMessage.textContent = errorMessage; el.modalErrorMessage.classList.remove('hidden'); } 
+                        else { this.closeCustomModal().then(() => currentModalResolve({ confirmed: true, values })); }
+                    };
+                    el.modalCancelBtn.onclick = () => this.closeCustomModal().then(() => currentModalResolve({ confirmed: false }));
+                    el.customModal.onclick = (e) => { if (e.target === el.customModal) this.closeCustomModal().then(() => currentModalResolve({ confirmed: false })); };
+
+                    // Cloud Sync Modal Buttons
+                    el.cloudSyncCancelBtn.onclick = () => { el.cloudSyncModal.classList.add('hide-modal'); setTimeout(() => el.cloudSyncModal.classList.add('hidden'), 300); };
+                    el.cloudSyncModal.onclick = (e) => { if (e.target === el.cloudSyncModal) el.cloudSyncCancelBtn.click(); };
+                    el.cloudSignOutBtn.onclick = () => this.handleSignOut();
+                    el.cloudBackupBtn.onclick = () => this.handleCloudBackup();
+                    el.cloudRestoreBtn.onclick = () => this.handleCloudRestore();
+                },
+
+                async addNewRecordBook() {
+                    const result = await this.showCustomModal("新增記事本", {
+                        inputs: [
+                            { label: '記事本類型:', type: 'radio', name: 'bookType', options: [{ label: '純文字記事', value: 'text' }, { label: '數字追蹤', value: 'number', checked: true }] },
+                            { id: 'bookName', label: '記事本名稱:', type: 'text', defaultValue: `記事本 ${recordBooks.length + 1}` },
+                            { id: 'maxNum', label: '最大數字設定 (1-100):', type: 'number', defaultValue: defaultMaxNumber, min: '1', max: '100' }
+                        ],
+                        confirmButtonText: '新增', trackHistory: true
+                    });
+                    if (result.confirmed) {
+                        const newBook = { id: this.generateUUID(), name: result.values.bookName.trim() || `未命名 ${recordBooks.length + 1}`, lastUpdated: new Date().toISOString(), notes: "", recordText: "", bookType: result.values.bookType, history: [], checkedNumbers: {}, disabledNumbers: {} };
+                        if (newBook.bookType === 'number') newBook.maxNumber = parseInt(result.values.maxNum, 10) || defaultMaxNumber;
+                        else { newBook.recordText = "<div>開始編輯...</div>"; newBook.maxNumber = 0; }
+                        recordBooks.push(newBook);
+                        this.saveRecordBooks(); this.renderManagementView(); this.showMessage('記事本已成功新增！');
+                    }
+                },
+                
+                async showRecordBookActionsModal(bookId) {
+                    const book = recordBooks.find(b => b.id === bookId);
+                    if (!book) return;
+                    const result = await this.showCustomModal(`操作記事本`, {
+                        message: `請選擇要對記事本「${book.name}」執行的操作。`,
+                        actions: [{ text: '重新命名', value: 'rename', class: 'rename' }, { text: '刪除', value: 'delete', class: 'delete' }],
+                        trackHistory: true
+                    });
+                    if (result.confirmed) {
+                        if (result.action === 'rename') this.renameRecordBook(bookId, book.name);
+                        else if (result.action === 'delete') this.deleteRecordBook(bookId, book.name);
+                    }
+                },
+                async renameRecordBook(id, oldName) {
+                    const result = await this.showCustomModal("重新命名記事本", {
+                        inputs: [{ id: 'newName', label: '新名稱:', type: 'text', defaultValue: oldName }],
+                        confirmButtonText: '儲存', trackHistory: true
+                    });
+                    if (result.confirmed && result.values.newName.trim()) {
+                        const book = recordBooks.find(b => b.id === id);
+                        if (book) {
+                            book.name = result.values.newName.trim();
+                            book.lastUpdated = new Date().toISOString();
+                            this.saveRecordBooks(); this.renderManagementView(); this.showMessage('記事本已成功重新命名！');
                         }
                     }
-                };
-                if (bookTypeRadios.length > 0) {
-                    bookTypeRadios.forEach(radio => radio.addEventListener('change', toggleMaxNumInput));
-                    toggleMaxNumInput();
-                }
-
-                return new Promise(resolve => {
-                    currentModalResolve = resolve;
-                });
-            }
-
-            function closeCustomModal() {
-                return new Promise(resolve => {
-                    modalErrorMessage.classList.add('hidden');
-                    modalMessage.classList.add('hidden');
-                    customModal.classList.remove('show-modal');
-                    customModal.classList.add('hide-modal');
-
-                    const onTransitionEnd = (event) => {
-                        if (event.target !== customModal) return;
-                        customModal.classList.add('hidden');
-                        customModal.classList.remove('hide-modal');
-                        customModal.removeEventListener('transitionend', onTransitionEnd);
-                        if(history.state && history.state.modalOpen) {
-                           history.back();
-                        }
-                        resolve();
+                },
+                async deleteRecordBook(id, name) {
+                    const result = await this.showCustomModal(`確認刪除`, {
+                        message: `確定要刪除記事本「${name}」嗎？此操作無法復原。`,
+                        confirmButtonText: '確定刪除', trackHistory: true
+                    });
+                    if (result.confirmed) {
+                        recordBooks = recordBooks.filter(b => b.id !== id);
+                        selectedRecordBookIds.delete(id);
+                        this.saveRecordBooks(); this.renderManagementView(); this.showMessage('記事本已成功刪除！');
+                    }
+                },
+                async deleteSelectedBooks() {
+                    if (selectedRecordBookIds.size === 0) return;
+                    const booksToDelete = recordBooks.filter(b => selectedRecordBookIds.has(b.id));
+                    const result = await this.showCustomModal(`確認大量刪除`, {
+                        message: `確定要刪除選定的 ${selectedRecordBookIds.size} 個記事本嗎？`,
+                        itemsToDelete: booksToDelete, confirmButtonText: '確定刪除', trackHistory: true
+                    });
+                    if (result.confirmed) {
+                        const ids = new Set(selectedRecordBookIds);
+                        recordBooks = recordBooks.filter(b => !ids.has(b.id));
+                        selectedRecordBookIds.clear();
+                        this.saveRecordBooks(); this.renderManagementView(); this.showMessage(`${booksToDelete.length} 個記事本已成功刪除！`);
+                    }
+                },
+                async resetCurrentBook() {
+                    const book = recordBooks.find(b => b.id === currentRecordBookId);
+                    if(!book) return;
+                    const result = await this.showCustomModal(`確定要重設記事本 "${book.name}" 嗎？`, {
+                        message: `${book.bookType === 'number' ? '所有打勾與禁用紀錄將被清除。' : '所有內容將被清除。'} 此操作無法復原。`,
+                        confirmButtonText: '確定重設', trackHistory: true
+                    });
+                     if (result.confirmed) {
+                        if (book.bookType === 'number') { book.checkedNumbers = {}; book.disabledNumbers = {}; }
+                        else { book.recordText = ""; }
+                        book.notes = ""; book.lastUpdated = new Date().toISOString(); this.logHistory(book.id, '重設了整個記事本');
+                        this.saveRecordBooks(); this.renderNumberTrackerView(); this.showMessage('記事本已成功重設！');
+                    }
+                },
+                async viewHistory() {
+                    const book = recordBooks.find(b => b.id === currentRecordBookId);
+                    if (!book || !book.history || book.history.length === 0) return this.showMessage('此記事本沒有任何操作紀錄。');
+                    const historyHtml = `<div class="history-log-container">${book.history.map(entry => `
+                        <div class="history-log-item">
+                            <span class="history-log-time">${this.formatDateTime(entry.timestamp)}</span>
+                            <span class="history-log-desc">${entry.description}</span>
+                        </div>`).join('')}</div>`;
+                    this.showCustomModal('操作歷史紀錄', { htmlContent: historyHtml, trackHistory: true });
+                },
+                async shareAsImage() {
+                    const book = recordBooks.find(b => b.id === currentRecordBookId);
+                    if (!book) return;
+                    this.showMessage('正在產生圖片...');
+                    const elToClone = book.bookType === 'number' ? this.elements.numbersGrid : this.elements.unlimitedRecordTextSection;
+                    const captureElement = document.createElement('div');
+                    captureElement.style.cssText = 'position: absolute; left: -9999px; background-color: #ffffff; padding: 24px; border-radius: 16px; display: inline-block;';
+                    captureElement.innerHTML = `<h1 style="text-align: center; margin-bottom: 24px;">${book.name}</h1>`;
+                    const contentClone = elToClone.cloneNode(true);
+                    if (book.bookType === 'text') {
+                       contentClone.style.display = 'block';
+                       contentClone.querySelector('label')?.remove();
+                       contentClone.querySelector('.editor-toolbar')?.remove();
+                    }
+                    captureElement.appendChild(contentClone);
+                    document.body.appendChild(captureElement);
+                    try {
+                        const canvas = await html2canvas(captureElement, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+                        const link = document.createElement('a');
+                        link.download = `${book.name.replace(/ /g, '_')}_分享.png`;
+                        link.href = canvas.toDataURL("image/png");
+                        link.click();
+                        this.showMessage('圖片已成功產生並開始下載！');
+                    } catch (err) { this.showMessage('產生圖片時發生錯誤。', true); }
+                    finally { document.body.removeChild(captureElement); }
+                },
+                async importData() {
+                    const input = document.createElement('input');
+                    input.type = 'file'; input.accept = '.json';
+                    input.onchange = async (e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        try {
+                            const content = await file.text();
+                            const data = JSON.parse(content);
+                            if (!Array.isArray(data) || !data.every(item => item.id && item.name)) return this.showMessage('匯入的檔案格式不正確。', true);
+                            const result = await this.showCustomModal("匯入記事本資料", {
+                                inputs: [{ label: '您想如何處理現有的記事本資料？', type: 'radio', name: 'import_mode', options: [{ label: '覆蓋所有', value: 'overwrite' }, { label: '合併資料', value: 'merge', checked: true }] }],
+                                confirmButtonText: '確定', trackHistory: true
+                            });
+                            if (result.confirmed) {
+                                if (result.values.import_mode === 'overwrite') { recordBooks = data; this.showMessage('記事本資料已成功覆蓋！'); }
+                                else { const ids = new Set(recordBooks.map(b => b.id)); recordBooks.push(...data.filter(b => !ids.has(b.id))); this.showMessage('記事本資料已成功合併！'); }
+                                this.saveRecordBooks(); this.renderManagementView();
+                            }
+                        } catch (err) { this.showMessage('匯入失敗，請確認檔案格式。', true); }
                     };
-                    customModal.addEventListener('transitionend', onTransitionEnd);
-
-                    setTimeout(() => {
-                        if (!customModal.classList.contains('hidden')) {
-                           onTransitionEnd({ target: customModal });
-                        }
-                    }, 350);
-                });
-            }
-
-            function openCloudSyncModal() {
-                cloudSyncModal.classList.remove('hidden', 'hide-modal');
-                cloudSyncModal.classList.add('show-modal');
-                updateCloudSyncModalUI();
-            }
-
-            function closeCloudSyncModal() {
-                 cloudSyncModal.classList.remove('show-modal');
-                 cloudSyncModal.classList.add('hide-modal');
-                 setTimeout(() => {
-                    cloudSyncModal.classList.add('hidden');
-                    cloudSyncModal.classList.remove('hide-modal');
-                 }, 300);
-            }
-            // --- END: MODAL HANDLING ---
-
-            
-            // --- START: CLOUD SYNC LOGIC ---
-            function decodeJwtResponse(token) {
-                try {
-                    let base64Url = token.split('.')[1];
-                    let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                    let jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-                        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-                    }).join(''));
-                    return JSON.parse(jsonPayload);
-                } catch (e) {
-                    console.error("Error decoding JWT", e);
-                    return null;
-                }
-            }
-
-            // This function is assigned to the window object for the GSI library to call.
-            handleCredentialResponse = (response) => {
-                googleIdToken = response.credential;
-                googleUserProfile = decodeJwtResponse(googleIdToken);
-
-                if(googleUserProfile) {
-                    console.log("Logged in as:", googleUserProfile.name);
-                    showMessage(`已成功登入為 ${googleUserProfile.name}`);
-                    updateCloudSyncModalUI();
-                } else {
-                    showMessage('登入失敗，無法解析憑證。', true);
+                    input.click();
+                },
+                async exportData() {
+                    if (selectedRecordBookIds.size === 0) return this.showMessage('請先選擇要匯出的記事本。', true);
+                    const books = recordBooks.filter(b => selectedRecordBookIds.has(b.id));
+                    const data = JSON.stringify(books, null, 2);
+                    const blob = new Blob([data], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `記事本備份_${new Date().toISOString().slice(0, 10)}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    this.showMessage('選取記事本資料已成功匯出！');
                 }
             };
 
-            function handleSignOut() {
-                google.accounts.id.disableAutoSelect();
-                googleIdToken = null;
-                googleUserProfile = null;
-                showMessage('您已成功登出。');
-                updateCloudSyncModalUI();
-            }
-
-            async function callCloudApi(action, params = {}) {
-                if (!googleIdToken) {
-                    throw new Error("使用者未登入，無法執行雲端操作。");
-                }
-                try {
-                    const response = await fetch(CLOUD_API_URL, {
-                        method: 'POST',
-                        mode: 'cors',
-                        cache: 'no-cache',
-                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                        body: JSON.stringify({
-                            idToken: googleIdToken,
-                            action: action,
-                            params: params
-                        }),
-                        redirect: 'follow'
-                    });
-                    if (!response.ok) {
-                        throw new Error(`網路回應錯誤: ${response.status} ${response.statusText}`);
-                    }
-                    const result = await response.json();
-                    if (result.status === 'error') {
-                        throw new Error(result.message || 'API 返回一個未知錯誤。');
-                    }
-                    return result;
-                } catch (error) {
-                    console.error(`API 呼叫失敗 (action: ${action}):`, error);
-                    throw error;
-                }
-            }
-
-            function updateCloudSyncModalUI() {
-                const loginView = document.getElementById('cloudSyncLoginView');
-                const actionsView = document.getElementById('cloudSyncActionsView');
-                if (googleUserProfile) {
-                    loginView.classList.add('hidden');
-                    actionsView.classList.remove('hidden');
-                    document.getElementById('cloudSyncUserPic').src = googleUserProfile.picture || '';
-                    document.getElementById('cloudSyncUserName').textContent = googleUserProfile.name || 'N/A';
-                    document.getElementById('cloudSyncUserEmail').textContent = googleUserProfile.email || 'N/A';
-                    document.getElementById('lastBackupTime').textContent = '正在查詢...';
-                    callCloudApi('restoreData')
-                        .then(result => {
-                             const data = result.data;
-                             document.getElementById('lastBackupTime').textContent = data.hasData && data.lastUpdated ? formatDateTime(data.lastUpdated) : '尚無備份';
-                        })
-                        .catch(() => {
-                             document.getElementById('lastBackupTime').textContent = '查詢失敗';
-                        });
-                } else {
-                    loginView.classList.remove('hidden');
-                    actionsView.classList.add('hidden');
-                }
-            }
-            
-            async function handleCloudBackup() {
-                try {
-                    showMessage('正在檢查雲端狀態...');
-                    const result = await callCloudApi('restoreData');
-                    const cloudInfo = result.data;
-                    
-                    if (!cloudInfo || !cloudInfo.hasData) {
-                        const pinResult = await showCustomModal("設定雲端同步 PIN 碼", {
-                            message: "首次備份，請設定一組 6 位數字的 PIN 碼以保護您的資料安全。",
-                            inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
-                            confirmButtonText: '設定並備份', trackHistory: true
-                        });
-                        
-                        if (!pinResult.confirmed || !pinResult.values.pin || !/^\d{6}$/.test(pinResult.values.pin)) {
-                            showMessage('PIN 碼設定已取消或格式錯誤。', true); return;
-                        }
-                        
-                        showMessage('正在設定 PIN 碼...');
-                        await callCloudApi('setPin', { pin: pinResult.values.pin });
-                    } else {
-                        const pinResult = await showCustomModal("輸入 PIN 碼", {
-                            message: "請輸入您的 6 位數字 PIN 碼以進行備份。",
-                            inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
-                            confirmButtonText: '驗證並備份', trackHistory: true
-                        });
-
-                        if (!pinResult.confirmed || !pinResult.values.pin) { showMessage('備份已取消。'); return; }
-
-                        showMessage('正在驗證 PIN 碼...');
-                        const verificationResult = await callCloudApi('verifyPin', { pin: pinResult.values.pin });
-                        if (!verificationResult.data.verified) {
-                            showMessage('PIN 碼錯誤，備份失敗。', true); return;
-                        }
-                    }
-
-                    showMessage('PIN 碼驗證成功，正在備份資料...');
-                    const backupResult = await callCloudApi('backupData', { notebookData: recordBooks });
-                    document.getElementById('lastBackupTime').textContent = formatDateTime(backupResult.data.lastUpdated);
-                    showMessage('記事本已成功備份至雲端！');
-                    closeCloudSyncModal();
-                } catch (error) {
-                    showMessage(`備份過程中發生錯誤: ${error.message}`, true);
-                }
-            }
-
-            async function handleCloudRestore() {
-                const confirmRestore = await showCustomModal("確認還原", {
-                    message: "從雲端還原將會覆蓋您目前所有的本機資料。此操作無法復原，確定要繼續嗎？",
-                    confirmButtonText: "確定還原", trackHistory: true
-                });
-
-                if (!confirmRestore.confirmed) {
-                    showMessage('還原操作已取消。'); return;
-                }
-
-                try {
-                    const pinResult = await showCustomModal("輸入 PIN 碼", {
-                        message: "請輸入您的 6 位數字 PIN 碼以還原資料。",
-                        inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
-                        confirmButtonText: '驗證並還原', trackHistory: true
-                    });
-
-                    if (!pinResult.confirmed || !pinResult.values.pin) { showMessage('還原已取消。'); return; }
-
-                    showMessage('正在驗證 PIN 碼...');
-                    const verificationResult = await callCloudApi('verifyPin', { pin: pinResult.values.pin });
-                    if (!verificationResult.data.verified) {
-                        showMessage('PIN 碼錯誤，還原失敗。', true); return;
-                    }
-                    
-                    showMessage('PIN 碼驗證成功，正在從雲端還原資料...');
-                    const restoreResult = await callCloudApi('restoreData');
-                    const restoredData = restoreResult.data;
-
-                    if (restoredData.hasData && restoredData.notebookData) {
-                        recordBooks = restoredData.notebookData;
-                        saveRecordBooks();
-                        renderManagementView();
-                        showMessage('資料已成功從雲端還原！');
-                        closeCloudSyncModal();
-                    } else {
-                        showMessage('雲端沒有可還原的資料。', true);
-                    }
-                } catch (error) {
-                    showMessage(`還原過程中發生錯誤: ${error.message}`, true);
-                }
-            }
-            // --- END: CLOUD SYNC LOGIC ---
-
-
-            // --- START: DATA & VIEW MANAGEMENT ---
-            function loadRecordBooks() {
-                let needsRecordBookSave = false;
-                const storedData = localStorage.getItem(storageKey);
-                if (storedData) {
-                    try {
-                        recordBooks = JSON.parse(storedData);
-                        if (!Array.isArray(recordBooks)) recordBooks = [];
-                        recordBooks.forEach(book => {
-                            if (typeof book.maxNumber === 'undefined') { book.maxNumber = defaultMaxNumber; needsRecordBookSave = true; }
-                            if (typeof book.lastUpdated === 'undefined') { book.lastUpdated = book.createdAt || new Date().toISOString(); delete book.createdAt; needsRecordBookSave = true; }
-                            if (typeof book.notes === 'undefined') { book.notes = ""; needsRecordBookSave = true; }
-                            if (typeof book.recordText === 'undefined') { book.recordText = ""; needsRecordBookSave = true; }
-                            if (typeof book.bookType === 'undefined') { book.bookType = "number"; needsRecordBookSave = true; }
-                            if (typeof book.disabledNumbers === 'undefined') { book.disabledNumbers = {}; needsRecordBookSave = true; }
-                            if (typeof book.history === 'undefined') { book.history = []; needsRecordBookSave = true; }
-                            if (typeof book.checkedNumbers === 'undefined') { book.checkedNumbers = {}; needsRecordBookSave = true; }
-                        });
-                    } catch (e) {
-                        console.error("Failed to parse record books from localStorage", e);
-                        recordBooks = [];
-                    }
-                } else {
-                    recordBooks = [];
-                }
-                displayMode = localStorage.getItem(displayModeKey) || 'list';
-                sortMode = localStorage.getItem(sortModeKey) || 'latest';
-                if (needsRecordBookSave) saveRecordBooks();
-                selectedRecordBookIds.clear();
-
-                const initialState = history.state;
-                if (initialState && initialState.view === 'tracker' && initialState.bookId) {
-                    currentRecordBookId = initialState.bookId;
-                    renderNumberTrackerView('initial');
-                } else {
-                    history.replaceState({ view: 'management', modalOpen: false }, '我的記事本', '');
-                    renderManagementView('initial');
-                }
-            }
-
-            function saveRecordBooks() {
-                try {
-                    localStorage.setItem(storageKey, JSON.stringify(recordBooks));
-                    localStorage.setItem(displayModeKey, displayMode);
-                    localStorage.setItem(sortModeKey, sortMode);
-                } catch (e) {
-                    console.error("Failed to save record books to localStorage", e);
-                    showMessage("儲存本機資料失敗！", true);
-                }
-            }
-
-            function sortRecordBooks() {
-                if (sortMode === 'latest') {
-                    recordBooks.sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime());
-                    document.getElementById('currentSortText').textContent = '最新';
-                    sortByLatestBtn.classList.add('selected-sort-option');
-                    sortByTitleBtn.classList.remove('selected-sort-option');
-                } else if (sortMode === 'title') {
-                    recordBooks.sort((a, b) => a.name.localeCompare(b.name, 'zh-TW', { sensitivity: 'base' }));
-                    document.getElementById('currentSortText').textContent = '標題';
-                    sortByTitleBtn.classList.add('selected-sort-option');
-                    sortByLatestBtn.classList.remove('selected-sort-option');
-                }
-            }
-
-            function showView(newViewElement, state, title) {
-                const allViews = document.querySelectorAll('.view');
-                const currentView = document.querySelector('.view.active-visible');
-
-                fabAddNewRecordBookBtn.classList.toggle('hidden', newViewElement !== managementView);
-                
-                if (currentView && currentView !== newViewElement) {
-                    currentView.classList.remove('active-visible');
-                    currentView.classList.add('hidden');
-                }
-                
-                newViewElement.classList.remove('hidden');
-                newViewElement.classList.add('active-visible');
-                
-                if (state.view === 'tracker' && (!history.state || history.state.view !== 'tracker')) {
-                     history.pushState(state, title, '');
-                } else {
-                    history.replaceState(state, title, '');
-                }
-                document.title = title;
-            }
-
-            function updateToolbarButtonStates() {
-                const hasSelection = selectedRecordBookIds.size > 0;
-                deleteSelectedBtn.disabled = !hasSelection;
-                deleteSelectedBtn.classList.toggle('hidden-if-no-selection', !hasSelection);
-                exportBtn.classList.toggle('hidden-if-no-selection', !hasSelection);
-            }
-            
-            function updateEditorToolbarState() {
-                if(!editorToolbar || !recordTextInput.isContentEditable) return;
-                const commands = ['bold', 'italic', 'underline', 'insertUnorderedList', 'insertOrderedList'];
-                commands.forEach(command => {
-                    const button = editorToolbar.querySelector(`[data-command="${command}"]`);
-                    if (button) {
-                        try { button.classList.toggle('active', document.queryCommandState(command)); } catch(e) {}
-                    }
-                });
-            }
-
-            function renderManagementView() {
-                showView(managementView, { view: 'management', modalOpen: false }, '我的記事本');
-                recordBookList.innerHTML = '';
-                sortRecordBooks();
-
-                const isListView = displayMode === 'list';
-                recordBookList.className = isListView ? 'record-book-list-container record-book-list-view' : 'record-book-grid-container record-book-grid-view';
-                listViewBtn.classList.toggle('selected', isListView);
-                gridViewBtn.classList.toggle('selected', !isListView);
-                listViewHeader.classList.toggle('hidden', !isListView || recordBooks.length === 0);
-                selectAllCheckboxes.classList.toggle('hidden', !isListView || recordBooks.length === 0);
-
-                if (isListView) {
-                    selectAllCheckboxes.checked = recordBooks.length > 0 && selectedRecordBookIds.size === recordBooks.length;
-                }
-                
-                noRecordBooksMessage.classList.toggle('hidden', recordBooks.length > 0);
-
-                recordBooks.forEach(book => {
-                    const bookItem = document.createElement('div');
-                    bookItem.classList.add('record-book-item');
-                    bookItem.dataset.id = book.id;
-                    bookItem.addEventListener('click', (e) => {
-                        if (e.target.closest('.checkbox-wrapper, input[type="checkbox"], .options-button')) return;
-                        selectRecordBook(book.id);
-                    });
-
-                    const checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.classList.add('record-book-checkbox', 'transform', 'scale-125', 'cursor-pointer');
-                    checkbox.dataset.id = book.id;
-                    checkbox.checked = selectedRecordBookIds.has(book.id);
-                    checkbox.addEventListener('change', (e) => {
-                        e.stopPropagation();
-                        selectedRecordBookIds.has(book.id) ? selectedRecordBookIds.delete(book.id) : selectedRecordBookIds.add(book.id);
-                        updateToolbarButtonStates();
-                        if (isListView) {
-                            selectAllCheckboxes.checked = recordBooks.length > 0 && selectedRecordBookIds.size === recordBooks.length;
-                        }
-                    });
-
-                    if (isListView) {
-                        checkbox.classList.add('mr-3');
-                        bookItem.appendChild(checkbox);
-                        const nameCell = document.createElement('div');
-                        nameCell.classList.add('record-book-name-cell');
-                        nameCell.textContent = book.name;
-                        bookItem.appendChild(nameCell);
-                        const lastUpdatedCell = document.createElement('div');
-                        lastUpdatedCell.classList.add('record-book-last-updated-cell');
-                        lastUpdatedCell.textContent = formatDateTime(book.lastUpdated);
-                        bookItem.appendChild(lastUpdatedCell);
-                    } else {
-                        const checkboxWrapper = document.createElement('div');
-                        checkboxWrapper.classList.add('checkbox-wrapper');
-                        checkboxWrapper.appendChild(checkbox);
-                        bookItem.appendChild(checkboxWrapper);
-                        const nameWrapper = document.createElement('div');
-                        nameWrapper.classList.add('record-book-name-wrapper');
-                        const nameSpan = document.createElement('span');
-                        nameSpan.classList.add('record-book-name');
-                        nameSpan.textContent = book.name;
-                        nameWrapper.appendChild(nameSpan);
-                        const lastUpdatedMeta = document.createElement('span');
-                        lastUpdatedMeta.classList.add('record-book-meta');
-                        lastUpdatedMeta.textContent = `更新於: ${formatDateTime(book.lastUpdated)}`;
-                        nameWrapper.appendChild(lastUpdatedMeta);
-                        bookItem.appendChild(nameWrapper);
-                    }
-
-                    const actionsDiv = document.createElement('div');
-                    actionsDiv.classList.add('record-book-actions');
-                    const optionsBtn = document.createElement('button');
-                    optionsBtn.classList.add('options-button', 'action-icon-button');
-                    optionsBtn.innerHTML = '<span class="material-symbols-outlined">more_vert</span>';
-                    optionsBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        showRecordBookActionsModal(book.id);
-                    });
-                    actionsDiv.appendChild(optionsBtn);
-                    bookItem.appendChild(actionsDiv);
-                    recordBookList.appendChild(bookItem);
-                });
-                updateToolbarButtonStates();
-            }
-
-            function renderNumberTrackerView() {
-                const currentBook = recordBooks.find(book => book.id === currentRecordBookId);
-                if (!currentBook) {
-                    console.error("No record book selected or found.");
-                    renderManagementView(); return;
-                }
-
-                showView(numberTrackerView, { view: 'tracker', bookId: currentRecordBookId }, `記事本: ${currentBook.name}`);
-                currentRecordBookName.textContent = currentBook.name;
-                numbersGrid.innerHTML = '';
-                
-                numberTrackerView.classList.add('locked');
-                toggleLockBtn.querySelector('.material-symbols-outlined').textContent = 'lock';
-
-                if (currentBook.bookType === 'number') {
-                    limitedNotesSection.classList.remove('hidden');
-                    numbersGrid.classList.remove('hidden');
-                    unlimitedRecordTextSection.classList.add('hidden');
-
-                    notesInput.value = currentBook.notes || '';
-                    notesInput.setAttribute('maxlength', notesCharLimit);
-                    notesCharCount.textContent = `${(currentBook.notes || '').length}/${notesCharLimit}`;
-
-                    for (let i = 1; i <= currentBook.maxNumber; i++) {
-                        const isChecked = currentBook.checkedNumbers[i] || false;
-                        const isDisabled = currentBook.disabledNumbers[i] || false;
-                        const gridItem = document.createElement('div');
-                        gridItem.classList.add('grid-item');
-                        if (isDisabled) gridItem.classList.add('disabled');
-                        else if (isChecked) gridItem.classList.add('checked');
-                        gridItem.dataset.number = i;
-                        const numberSpan = document.createElement('span');
-                        numberSpan.classList.add('number');
-                        numberSpan.textContent = i;
-                        gridItem.appendChild(numberSpan);
-
-                        let pressTimer = null, longPressTriggered = false;
-                        const handleDisableAction = () => {
-                            const num = parseInt(gridItem.dataset.number, 10);
-                            updateNumberDisabledState(currentBook.id, num, !currentBook.disabledNumbers[num], gridItem);
-                        };
-                        const onPointerDown = () => {
-                            longPressTriggered = false;
-                            pressTimer = setTimeout(() => { longPressTriggered = true; handleDisableAction(); }, 500);
-                        };
-                        const onPointerUpOrLeave = () => clearTimeout(pressTimer);
-                        const onClick = (e) => {
-                            if (longPressTriggered) { e.preventDefault(); return; }
-                            if (gridItem.classList.contains('disabled')) return;
-                            const num = parseInt(gridItem.dataset.number, 10);
-                            updateNumberState(currentBook.id, num, !currentBook.checkedNumbers[num], gridItem);
-                        };
-
-                        gridItem.addEventListener('contextmenu', (e) => { e.preventDefault(); clearTimeout(pressTimer); handleDisableAction(); });
-                        gridItem.addEventListener('click', onClick);
-                        gridItem.addEventListener('mousedown', onPointerDown);
-                        gridItem.addEventListener('touchstart', onPointerDown, { passive: true });
-                        ['mouseup', 'mouseleave', 'touchend', 'touchmove'].forEach(evt => gridItem.addEventListener(evt, onPointerUpOrLeave));
-                        numbersGrid.appendChild(gridItem);
-                    }
-                } else if (currentBook.bookType === 'text') {
-                    limitedNotesSection.classList.add('hidden');
-                    numbersGrid.classList.add('hidden');
-                    unlimitedRecordTextSection.classList.remove('hidden');
-                    recordTextInput.innerHTML = currentBook.recordText || '';
-                }
-            }
-            // --- END: DATA & VIEW MANAGEMENT ---
-
-
-            // --- START: CORE APP ACTIONS ---
-            function updateNumberState(bookId, number, isChecked, gridItem) {
-                const book = recordBooks.find(b => b.id === bookId);
-                if (book) {
-                    if(!book.checkedNumbers) book.checkedNumbers = {};
-                    book.checkedNumbers[number] = isChecked;
-                    book.lastUpdated = new Date().toISOString();
-                    gridItem.classList.toggle('checked', isChecked);
-                    logHistory(bookId, `${isChecked ? '勾選' : '取消勾選'}了數字 ${number}`);
-                    saveRecordBooks();
-                }
-            }
-
-            function updateNumberDisabledState(bookId, number, isDisabled, gridItem) {
-                const book = recordBooks.find(b => b.id === bookId);
-                if (book) {
-                    if(!book.disabledNumbers) book.disabledNumbers = {};
-                    book.disabledNumbers[number] = isDisabled;
-                    if (isDisabled && book.checkedNumbers[number]) {
-                        book.checkedNumbers[number] = false;
-                        gridItem.classList.remove('checked');
-                    }
-                    book.lastUpdated = new Date().toISOString();
-                    gridItem.classList.toggle('disabled', isDisabled);
-                    logHistory(bookId, `${isDisabled ? '禁用' : '啟用'}了數字 ${number}`);
-                    saveRecordBooks();
-                }
-            }
-
-            async function showRecordBookActionsModal(bookId) {
-                const book = recordBooks.find(b => b.id === bookId);
-                if (!book) return;
-                const result = await showCustomModal(`操作記事本`, {
-                    message: `請選擇要對記事本「${book.name}」執行的操作。`,
-                    actions: [ { text: '重新命名', value: 'rename', class: 'rename' }, { text: '刪除', value: 'delete', class: 'delete' } ],
-                    cancelButtonText: '關閉', trackHistory: true
-                });
-                if (result.confirmed) {
-                    if (result.action === 'rename') renameRecordBook(bookId);
-                    else if (result.action === 'delete') deleteRecordBook(bookId);
-                }
-            }
-
-            function selectRecordBook(id) {
-                currentRecordBookId = id;
-                renderNumberTrackerView();
-            }
-
-            async function renameRecordBook(id) {
-                const bookToRename = recordBooks.find(book => book.id === id);
-                if (bookToRename) {
-                    const result = await showCustomModal("重新命名記事本", {
-                        inputs: [{ id: 'newName', label: '新名稱:', type: 'text', defaultValue: bookToRename.name, placeholder: '輸入新名稱' }],
-                        confirmButtonText: '儲存', cancelButtonText: '取消', trackHistory: true
-                    });
-                    if (result.confirmed && result.values.newName.trim() !== '') {
-                        bookToRename.name = result.values.newName.trim();
-                        bookToRename.lastUpdated = new Date().toISOString();
-                        saveRecordBooks();
-                        renderManagementView();
-                        if (currentRecordBookId === id) currentRecordBookName.textContent = bookToRename.name;
-                        showMessage('記事本已成功重新命名！');
-                    }
-                }
-            }
-
-            async function deleteRecordBook(id) {
-                const bookToDelete = recordBooks.find(book => book.id === id);
-                if(!bookToDelete) return;
-                const result = await showCustomModal(`確認刪除`, {
-                    message: `確定要刪除記事本「${bookToDelete.name}」嗎？此操作無法復原。`,
-                    confirmButtonText: '確定刪除', cancelButtonText: '取消', trackHistory: true
-                });
-                if (result.confirmed) {
-                    recordBooks = recordBooks.filter(book => book.id !== id);
-                    selectedRecordBookIds.delete(id);
-                    saveRecordBooks();
-                    renderManagementView();
-                    showMessage('記事本已成功刪除！');
-                }
-            }
-            // --- END: CORE APP ACTIONS ---
-
-
-            // --- START: EVENT LISTENERS ---
-            fabAddNewRecordBookBtn.addEventListener('click', async () => {
-                const result = await showCustomModal("新增記事本", {
-                    inputs: [
-                        { label: '記事本類型:', type: 'radio', name: 'bookType', options: [ { label: '純文字記事', value: 'text' }, { label: '數字追蹤', value: 'number', checked: true } ]},
-                        { id: 'bookName', label: '記事本名稱:', type: 'text', defaultValue: `記事本 ${recordBooks.length + 1}`, placeholder: '例如: 我的待辦事項' },
-                        { id: 'maxNum', label: '最大數字設定 (1-100):', type: 'number', defaultValue: defaultMaxNumber, min: '1', max: '100' }
-                    ],
-                    confirmButtonText: '新增', cancelButtonText: '取消', trackHistory: true
-                });
-                if (result.confirmed) {
-                    let newName = result.values.bookName.trim() || `未命名記事本 ${recordBooks.length + 1}`;
-                    const newBook = {
-                        id: generateUUID(), name: newName, lastUpdated: new Date().toISOString(),
-                        notes: "", recordText: "", bookType: result.values.bookType, history: [],
-                        checkedNumbers: {}, disabledNumbers: {}
-                    };
-                    if (newBook.bookType === 'number') newBook.maxNumber = parseInt(result.values.maxNum, 10) || defaultMaxNumber;
-                    else { newBook.recordText = "<div></div>"; newBook.maxNumber = 0; }
-                    recordBooks.push(newBook);
-                    saveRecordBooks();
-                    renderManagementView();
-                    showMessage('記事本已成功新增！');
-                }
-            });
-
-            deleteSelectedBtn.addEventListener('click', async () => {
-                if (selectedRecordBookIds.size === 0) { showMessage('請選擇至少一個記事本以進行刪除。', true); return; }
-                const booksToDelete = Array.from(selectedRecordBookIds).map(id => recordBooks.find(book => book.id === id)).filter(Boolean);
-                const result = await showCustomModal(`確認大量刪除`, {
-                    message: `確定要刪除選定的 ${selectedRecordBookIds.size} 個記事本嗎？此操作無法復原。`,
-                    itemsToDelete: booksToDelete, confirmButtonText: '確定刪除', cancelButtonText: '取消', trackHistory: true
-                });
-                if (result.confirmed) {
-                    const idsToDelete = new Set(selectedRecordBookIds);
-                    recordBooks = recordBooks.filter(book => !idsToDelete.has(book.id));
-                    selectedRecordBookIds.clear();
-                    saveRecordBooks();
-                    renderManagementView();
-                    showMessage(`${booksToDelete.length} 個記事本已成功刪除！`);
-                }
-            });
-
-            resetCurrentBookBtn.addEventListener('click', async () => {
-                const currentBook = recordBooks.find(book => book.id === currentRecordBookId);
-                 if (currentBook) {
-                    const result = await showCustomModal(`確定要重設記事本 "${currentBook.name}" 嗎？`, {
-                        message: `${currentBook.bookType === 'number' ? '所有打勾與禁用紀錄將被清除。' : '所有內容將被清除。'} 此操作無法復原。`,
-                        confirmButtonText: '確定重設', cancelButtonText: '取消', trackHistory: true
-                    });
-                     if (result.confirmed) {
-                        if (currentBook.bookType === 'number') { currentBook.checkedNumbers = {}; currentBook.disabledNumbers = {}; }
-                        else if (currentBook.bookType === 'text') { currentBook.recordText = ""; }
-                        currentBook.notes = "";
-                        currentBook.lastUpdated = new Date().toISOString();
-                        logHistory(currentBook.id, '重設了整個記事本');
-                        saveRecordBooks();
-                        renderNumberTrackerView();
-                        showMessage('記事本已成功重設！');
-                    }
-                }
-            });
-
-            backToManagementBtn.addEventListener('click', () => { history.back(); });
-            listViewBtn.addEventListener('click', () => { displayMode = 'list'; saveRecordBooks(); renderManagementView(); });
-            gridViewBtn.addEventListener('click', () => { displayMode = 'grid'; saveRecordBooks(); renderManagementView(); });
-            selectAllCheckboxes.addEventListener('change', () => {
-                const checkboxes = recordBookList.querySelectorAll('.record-book-checkbox:not(.hidden)');
-                checkboxes.forEach(cb => {
-                    cb.checked = selectAllCheckboxes.checked;
-                    if (cb.checked) selectedRecordBookIds.add(cb.dataset.id);
-                    else selectedRecordBookIds.delete(cb.dataset.id);
-                });
-                updateToolbarButtonStates();
-            });
-            sortButton.addEventListener('click', (event) => { sortDropdown.classList.toggle('hidden'); event.stopPropagation(); });
-            sortByLatestBtn.addEventListener('click', () => { sortMode = 'latest'; sortDropdown.classList.add('hidden'); saveRecordBooks(); renderManagementView(); });
-            sortByTitleBtn.addEventListener('click', () => { sortMode = 'title'; sortDropdown.classList.add('hidden'); saveRecordBooks(); renderManagementView(); });
-            document.addEventListener('click', (event) => { if (!sortDropdown.contains(event.target) && !sortButton.contains(event.target)) sortDropdown.classList.add('hidden'); });
-
-            exportBtn.addEventListener('click', async () => {
-                if (recordBooks.length === 0) { showMessage('沒有記事本資料可匯出！', true); return; }
-                const checkboxesData = recordBooks.map(book => ({ label: book.name, value: book.id, meta: formatDateTime(book.lastUpdated), checked: selectedRecordBookIds.has(book.id) }));
-                const result = await showCustomModal("匯出記事本資料", {
-                    message: '請選擇要匯出的記事本：', checkboxes: checkboxesData,
-                    confirmButtonText: '匯出選取項目', cancelButtonText: '取消', trackHistory: true
-                });
-                if (result.confirmed && result.values.selectedIds && result.values.selectedIds.length > 0) {
-                    try {
-                        const selectedBooksToExport = recordBooks.filter(book => result.values.selectedIds.includes(book.id));
-                        const dataToExport = JSON.stringify(selectedBooksToExport, null, 2);
-                        const blob = new Blob([dataToExport], { type: 'application/json' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url; a.download = `選取記事本備份_${new Date().toISOString().slice(0, 10)}.json`;
-                        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                        showMessage('選取記事本資料已成功匯出！');
-                    } catch (error) { showMessage('匯出資料時發生錯誤。', true); }
-                }
-            });
-
-            importBtn.addEventListener('click', () => {
-                const input = document.createElement('input');
-                input.type = 'file'; input.accept = '.json';
-                input.onchange = async (event) => {
-                    const file = event.target.files[0];
-                    if (file) {
-                        try {
-                            const importedData = JSON.parse(await file.text());
-                            if (!Array.isArray(importedData) || !importedData.every(item => item.id && item.name)) {
-                                showMessage('匯入的檔案格式不正確。', true); return;
-                            }
-                            const result = await showCustomModal("匯入記事本資料", {
-                                inputs: [{ label: '您想如何處理現有的記事本資料？', type: 'radio', name: 'import_mode', options: [ { label: '覆蓋所有現有記事本', value: 'overwrite' }, { label: '與現有記事本合併 (新資料會加入)', value: 'merge', checked: true } ] }],
-                                confirmButtonText: '確定', cancelButtonText: '取消', trackHistory: true
-                            });
-                            if (result.confirmed) {
-                                if (result.values.import_mode === 'overwrite') {
-                                    recordBooks = importedData;
-                                    showMessage('記事本資料已成功覆蓋！');
-                                } else {
-                                    const existingIds = new Set(recordBooks.map(book => book.id));
-                                    const newBooks = importedData.filter(book => !existingIds.has(book.id));
-                                    recordBooks = [...recordBooks, ...newBooks];
-                                    showMessage('記事本資料已成功合併！');
-                                }
-                                saveRecordBooks();
-                                renderManagementView();
-                            }
-                        } catch (error) { showMessage('匯入資料時發生錯誤。請確保檔案是有效的 JSON 格式。', true); }
-                    }
-                };
-                input.click();
-            });
-            
-            editorToolbar.addEventListener('click', (e) => {
-                const button = e.target.closest('button');
-                if (!button || !button.dataset.command) return;
-                e.preventDefault();
-                document.execCommand(button.dataset.command, false, null);
-                recordTextInput.focus();
-                updateEditorToolbarState();
-            });
-            linkBtn.addEventListener('click', (e) => {
-                 e.preventDefault();
-                 const selection = window.getSelection();
-                 if (!selection || selection.rangeCount === 0 || selection.isCollapsed) { showMessage('請先選取要建立連結的文字。', true); return; }
-                 const url = prompt('請輸入連結網址:', 'https://');
-                 if (url) { recordTextInput.focus(); document.execCommand('createLink', false, url); }
-            });
-            fontSizeSelect.addEventListener('change', () => { document.execCommand('fontSize', false, fontSizeSelect.value); recordTextInput.focus(); });
-            fontColorPicker.addEventListener('input', () => { document.execCommand('foreColor', false, fontColorPicker.value); recordTextInput.focus(); });
-            document.addEventListener('selectionchange', () => { if (document.activeElement === recordTextInput) updateEditorToolbarState(); });
-            ['focus', 'click', 'keyup'].forEach(evt => recordTextInput.addEventListener(evt, updateEditorToolbarState));
-
-            customModal.addEventListener('click', (event) => { if (event.target === customModal) closeCustomModal().then(() => currentModalResolve && currentModalResolve({ confirmed: false })); });
-
-            window.addEventListener('popstate', (event) => {
-                if(customModal.classList.contains('show-modal')) {
-                    closeCustomModal().then(() => currentModalResolve && currentModalResolve({ confirmed: false }));
-                }
-                const state = event.state || { view: 'management' };
-                if (state.view === 'management') {
-                    currentRecordBookId = null;
-                    renderManagementView();
-                } else if (state.view === 'tracker' && state.bookId) {
-                    currentRecordBookId = state.bookId;
-                    renderNumberTrackerView();
-                }
-            });
-            
-            toggleLockBtn.addEventListener('click', () => {
-                const isLocked = numberTrackerView.classList.toggle('locked');
-                toggleLockBtn.querySelector('.material-symbols-outlined').textContent = isLocked ? 'lock' : 'lock_open';
-                showMessage(isLocked ? '記事本已鎖定' : '記事本已解鎖');
-            });
-            viewHistoryBtn.addEventListener('click', () => {
-                const currentBook = recordBooks.find(book => book.id === currentRecordBookId);
-                if (!currentBook || !currentBook.history || currentBook.history.length === 0) { showMessage('此記事本沒有任何操作紀錄。'); return; }
-                const historyHtml = `<div class="history-log-container">${currentBook.history.map(entry => `
-                    <div class="history-log-item"><span class="history-log-time">${formatDateTime(entry.timestamp)}</span><span class="history-log-desc">${entry.description}</span></div>`).join('')}</div>`;
-                showCustomModal('操作歷史紀錄', { htmlContent: historyHtml, trackHistory: true });
-            });
-            shareAsImageBtn.addEventListener('click', async () => {
-                const currentBook = recordBooks.find(book => book.id === currentRecordBookId);
-                if (!currentBook) return;
-                showMessage('正在產生圖片...');
-                const captureElement = document.createElement('div');
-                captureElement.style.cssText = 'position: absolute; left: -9999px; background-color: #ffffff; padding: 24px; border: 1px solid #f0f2f5; border-radius: 16px; display: inline-block;';
-                const innerContainer = document.createElement('div');
-                innerContainer.style.textAlign = 'center';
-                const titleClone = currentRecordBookName.cloneNode(true);
-                titleClone.style.marginBottom = '24px';
-                let contentClone;
-                if (currentBook.bookType === 'number') {
-                    contentClone = numbersGrid.cloneNode(true);
-                    const originalGridStyles = window.getComputedStyle(numbersGrid);
-                    contentClone.style.gridTemplateColumns = originalGridStyles.gridTemplateColumns;
-                    contentClone.style.gap = originalGridStyles.gap;
-                    contentClone.style.width = originalGridStyles.width;
-                } else { 
-                    contentClone = unlimitedRecordTextSection.cloneNode(true);
-                    contentClone.style.display = 'block';
-                    contentClone.querySelector('label')?.remove();
-                    contentClone.querySelector('.editor-toolbar')?.remove();
-                    contentClone.style.width = window.getComputedStyle(unlimitedRecordTextSection).width;
-                }
-                innerContainer.appendChild(titleClone);
-                innerContainer.appendChild(contentClone);
-                captureElement.appendChild(innerContainer);
-                document.body.appendChild(captureElement);
-                try {
-                    const canvas = await html2canvas(captureElement, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-                    const link = document.createElement('a');
-                    link.download = `${currentBook.name.replace(/ /g, '_')}_分享.png`;
-                    link.href = canvas.toDataURL("image/png");
-                    link.click();
-                    showMessage('圖片已成功產生並開始下載！');
-                } catch (err) {
-                    showMessage('產生圖片時發生錯誤。', true);
-                } finally {
-                    document.body.removeChild(captureElement);
-                }
-            });
-
-            cloudSyncBtn.addEventListener('click', openCloudSyncModal);
-            cloudSyncCancelBtn.addEventListener('click', closeCloudSyncModal);
-            cloudSyncModal.addEventListener('click', (event) => { if(event.target === cloudSyncModal) closeCloudSyncModal(); });
-            cloudSignOutBtn.addEventListener('click', handleSignOut);
-            cloudBackupBtn.addEventListener('click', handleCloudBackup);
-            cloudRestoreBtn.addEventListener('click', handleCloudRestore);
-            // --- END: EVENT LISTENERS ---
-
-            // --- START: INITIALIZATION ---
-            loadRecordBooks();
-            // --- END: INITIALIZATION ---
+            app.init();
         });
     </script>
 </body>
