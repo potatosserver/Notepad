@@ -152,7 +152,7 @@
             font-size: 0.95rem;
             font-weight: 500;
             cursor: pointer;
-            transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, color 0.2s ease-in-out;
+            transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, color 0.2s ease-in-out, opacity 0.2s ease-in-out;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -162,18 +162,24 @@
             transform: translateY(0);
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
+        .button-base:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+        }
 
         .button-filled-primary {
             background-color: var(--md-primary-container);
             color: var(--md-on-primary-container);
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
         }
-        .button-filled-primary:hover {
+        .button-filled-primary:hover:not(:disabled) {
             background-color: #D3CEE2;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
             transform: translateY(-1px);
         }
-        .button-filled-primary:active {
+        .button-filled-primary:active:not(:disabled) {
             background-color: var(--md-primary-container);
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
@@ -183,12 +189,12 @@
             color: var(--md-on-error-container);
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
         }
-        .button-filled-secondary:hover {
+        .button-filled-secondary:hover:not(:disabled) {
             background-color: #E2C7C7;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
             transform: translateY(-1px);
         }
-        .button-filled-secondary:active {
+        .button-filled-secondary:active:not(:disabled) {
             background-color: var(--md-error-container);
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
@@ -203,13 +209,13 @@
             display: flex;
             align-items: center;
         }
-        .button-outlined:hover {
+        .button-outlined:hover:not(:disabled) {
             background-color: rgba(var(--md-primary-container-rgb), 0.08);
             color: var(--md-primary);
             transform: translateY(-1px);
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
         }
-        .button-outlined:active {
+        .button-outlined:active:not(:disabled) {
             background-color: rgba(var(--md-primary-container-rgb), 0.12);
             box-shadow: none;
         }
@@ -221,13 +227,13 @@
             box-shadow: none;
             padding: 10px 12px;
         }
-        .button-text:hover {
+        .button-text:hover:not(:disabled) {
             background-color: rgba(var(--md-primary-container-rgb), 0.08);
             color: var(--md-primary);
             transform: translateY(0);
             box-shadow: none;
         }
-        .button-text:active {
+        .button-text:active:not(:disabled) {
             background-color: rgba(var(--md-primary-container-rgb), 0.12);
             box-shadow: none;
         }
@@ -687,22 +693,22 @@
             opacity: 1;
         }
 
-        /* View Transition Animations */
+        /* --- START: View Transition FIX --- */
         .view {
-            position: absolute;
             width: 100%;
-            top: 0;
-            left: 0;
-            padding: inherit;
             box-sizing: border-box;
         }
-
+        /* Make the active view take up space in the document flow */
         .view.active-visible {
             position: relative;
+            display: block;
         }
+        /* Hide inactive views completely */
         .view.hidden {
             display: none;
         }
+        /* --- END: View Transition FIX --- */
+
 
         /* Styling for checkboxes in export/delete modal */
         .modal-checkbox-list {
@@ -927,12 +933,13 @@
              background-color: var(--md-surface-variant);
              color: var(--md-on-surface-variant);
         }
-        .cloud-action-button:hover {
+        .cloud-action-button:hover:not(:disabled) {
             background-color: color-mix(in srgb, var(--md-surface-variant) 90%, black);
         }
 
 
         @media (max-width: 768px) {
+            body { padding: 10px; }
             .container { padding: 15px; }
             .header-controls {
                 flex-direction: row;
@@ -1224,6 +1231,7 @@
         const storageKey = 'multiNumberTrackerState';
         const displayModeKey = 'multiNumberTrackerDisplayMode';
         const sortModeKey = 'multiNumberTrackerSortMode';
+        const googleIdTokenKey = 'googleIdToken'; // --- FIX: Added key for persistent login
         const CLOUD_API_URL = "https://script.google.com/macros/s/AKfycbyI6LVnx-_CGLqpNbdfPpJU1CxfWc-amK91WjItANb3urG7r0YkEmKSCJUlDFd2MP0aRg/exec";
         
         let googleIdToken = null;
@@ -1234,6 +1242,7 @@
         let sortMode = 'latest';
         let selectedRecordBookIds = new Set();
         let currentModalResolve;
+        let isCloudActionInProgress = false; // --- FIX: State to prevent duplicate cloud actions
 
         // --- DECOUPLED GOOGLE SIGN-IN CALLBACK ---
         window.handleCredentialResponse = (response) => {
@@ -1254,6 +1263,7 @@
                 init() {
                     this.cacheDOMElements();
                     this.attachEventListeners();
+                    this.restoreLoginState(); // --- FIX: Restore login state on load
                     this.loadRecordBooks();
                     window.myApp = this; // Expose the app object globally for the callback
                 },
@@ -1502,8 +1512,32 @@
                 },
 
                 // --- CLOUD SYNC LOGIC ---
+                // --- FIX: Logic to restore login state from localStorage ---
+                restoreLoginState() {
+                    const storedToken = localStorage.getItem(googleIdTokenKey);
+                    if (storedToken) {
+                        try {
+                            const base64Url = storedToken.split('.')[1];
+                            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                            const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+                            const decodedToken = JSON.parse(jsonPayload);
+                            
+                            // Check if token is expired
+                            if (decodedToken.exp * 1000 > Date.now()) {
+                                googleIdToken = storedToken;
+                                googleUserProfile = decodedToken;
+                            } else {
+                                localStorage.removeItem(googleIdTokenKey); // Clean up expired token
+                            }
+                        } catch(e) {
+                            console.error("Error decoding stored JWT", e);
+                            localStorage.removeItem(googleIdTokenKey); // Clean up invalid token
+                        }
+                    }
+                },
                 handleGoogleLogin(response) {
                     googleIdToken = response.credential;
+                    localStorage.setItem(googleIdTokenKey, googleIdToken); // --- FIX: Persist token
                     try {
                         let base64Url = googleIdToken.split('.')[1];
                         let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -1525,6 +1559,7 @@
                     google.accounts.id.disableAutoSelect();
                     googleIdToken = null;
                     googleUserProfile = null;
+                    localStorage.removeItem(googleIdTokenKey); // --- FIX: Remove token on sign out
                     this.showMessage('您已成功登出。');
                     this.updateCloudSyncModalUI();
                 },
@@ -1567,60 +1602,124 @@
                         el.cloudSyncActionsView.classList.add('hidden');
                     }
                 },
+                toggleCloudButtons(enabled) {
+                    const el = this.elements;
+                    el.cloudBackupBtn.disabled = !enabled;
+                    el.cloudRestoreBtn.disabled = !enabled;
+                    el.cloudSignOutBtn.disabled = !enabled;
+                },
                 async handleCloudBackup() {
+                    if (isCloudActionInProgress) return;
+                    isCloudActionInProgress = true;
+                    this.toggleCloudButtons(false);
+                    
+                    const el = this.elements;
+                    
                     try {
                         this.showMessage('正在檢查雲端狀態...');
                         const result = await this.callCloudApi('restoreData');
                         const cloudInfo = result.data;
-                        
+                        let pinResult;
+
+                        // --- FIX: Hide main modal before showing PIN modal ---
+                        el.cloudSyncModal.style.opacity = '0';
+                        await new Promise(r => setTimeout(r, 200)); // allow fade out
+
                         if (!cloudInfo || !cloudInfo.hasData) {
-                            const pinResult = await this.showCustomModal("設定雲端同步 PIN 碼", {
+                            pinResult = await this.showCustomModal("設定雲端同步 PIN 碼", {
                                 message: "首次備份，請設定一組 6 位數字的 PIN 碼以保護您的資料安全。",
                                 inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
                                 confirmButtonText: '設定並備份', trackHistory: true
                             });
                             
                             if (!pinResult.confirmed || !pinResult.values.pin || !/^\d{6}$/.test(pinResult.values.pin)) {
-                                return this.showMessage('PIN 碼設定已取消或格式錯誤。', true);
+                                this.showMessage('PIN 碼設定已取消或格式錯誤。', true);
+                                throw new Error("PIN cancelled");
                             }
                             this.showMessage('正在設定 PIN 碼...');
                             await this.callCloudApi('setPin', { pin: pinResult.values.pin });
                         } else {
-                            const pinResult = await this.showCustomModal("輸入 PIN 碼", {
+                            pinResult = await this.showCustomModal("輸入 PIN 碼", {
                                 message: "請輸入您的 6 位數字 PIN 碼以進行備份。",
                                 inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
                                 confirmButtonText: '驗證並備份', trackHistory: true
                             });
-                            if (!pinResult.confirmed || !pinResult.values.pin) return this.showMessage('備份已取消。');
+                            if (!pinResult.confirmed || !pinResult.values.pin) {
+                                this.showMessage('備份已取消。');
+                                throw new Error("PIN cancelled");
+                            }
                             this.showMessage('正在驗證 PIN 碼...');
                             const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
-                            if (!verificationResult.data.verified) return this.showMessage('PIN 碼錯誤，備份失敗。', true);
+                            if (!verificationResult.data.verified) {
+                                this.showMessage('PIN 碼錯誤，備份失敗。', true);
+                                throw new Error("PIN invalid");
+                            }
                         }
+                        
+                        // Re-show modal after PIN entry is done
+                        el.cloudSyncModal.style.opacity = '1';
+
                         this.showMessage('PIN 碼驗證成功，正在備份資料...');
                         const backupResult = await this.callCloudApi('backupData', { notebookData: recordBooks });
-                        this.elements.lastBackupTime.textContent = this.formatDateTime(backupResult.data.lastUpdated);
+                        el.lastBackupTime.textContent = this.formatDateTime(backupResult.data.lastUpdated);
                         this.showMessage('記事本已成功備份至雲端！');
-                        this.elements.cloudSyncModal.querySelector('#cloudSyncCancelBtn').click();
+                        el.cloudSyncModal.querySelector('#cloudSyncCancelBtn').click();
+                    
                     } catch (error) {
-                        this.showMessage(`備份過程中發生錯誤: ${error.message}`, true);
+                        // Only show generic error if it wasn't a user cancellation
+                        if(error.message !== "PIN cancelled" && error.message !== "PIN invalid") {
+                            this.showMessage(`備份過程中發生錯誤: ${error.message}`, true);
+                        }
+                    } finally {
+                        // --- FIX: Ensure UI is responsive after any outcome ---
+                        el.cloudSyncModal.style.opacity = '1';
+                        isCloudActionInProgress = false;
+                        this.toggleCloudButtons(true);
                     }
                 },
                 async handleCloudRestore() {
-                    const confirmRestore = await this.showCustomModal("確認還原", {
-                        message: "從雲端還原將會覆蓋您目前所有的本機資料。此操作無法復原，確定要繼續嗎？",
-                        confirmButtonText: "確定還原", trackHistory: true
-                    });
-                    if (!confirmRestore.confirmed) return this.showMessage('還原操作已取消。');
+                    if (isCloudActionInProgress) return;
+                    isCloudActionInProgress = true;
+                    this.toggleCloudButtons(false);
+
+                    const el = this.elements;
+                    let pinResult;
+                    
                     try {
-                        const pinResult = await this.showCustomModal("輸入 PIN 碼", {
+                        const confirmRestore = await this.showCustomModal("確認還原", {
+                            message: "從雲端還原將會覆蓋您目前所有的本機資料。此操作無法復原，確定要繼續嗎？",
+                            confirmButtonText: "確定還原", trackHistory: true
+                        });
+                        if (!confirmRestore.confirmed) {
+                            this.showMessage('還原操作已取消。');
+                            throw new Error("Restore cancelled");
+                        }
+                        
+                        // --- FIX: Hide main modal before showing PIN modal ---
+                        el.cloudSyncModal.style.opacity = '0';
+                        await new Promise(r => setTimeout(r, 200));
+
+                        pinResult = await this.showCustomModal("輸入 PIN 碼", {
                             message: "請輸入您的 6 位數字 PIN 碼以還原資料。",
                             inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
                             confirmButtonText: '驗證並還原', trackHistory: true
                         });
-                        if (!pinResult.confirmed || !pinResult.values.pin) return this.showMessage('還原已取消。');
+                        
+                        if (!pinResult.confirmed || !pinResult.values.pin) {
+                            this.showMessage('還原已取消。');
+                             throw new Error("PIN cancelled");
+                        }
+                        
                         this.showMessage('正在驗證 PIN 碼...');
                         const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
-                        if (!verificationResult.data.verified) return this.showMessage('PIN 碼錯誤，還原失敗。', true);
+                        if (!verificationResult.data.verified) {
+                            this.showMessage('PIN 碼錯誤，還原失敗。', true);
+                            throw new Error("PIN invalid");
+                        }
+
+                        // Re-show modal
+                        el.cloudSyncModal.style.opacity = '1';
+
                         this.showMessage('PIN 碼驗證成功，正在從雲端還原資料...');
                         const restoreResult = await this.callCloudApi('restoreData');
                         const restoredData = restoreResult.data;
@@ -1629,12 +1728,19 @@
                             this.saveRecordBooks();
                             this.renderManagementView();
                             this.showMessage('資料已成功從雲端還原！');
-                            this.elements.cloudSyncModal.querySelector('#cloudSyncCancelBtn').click();
+                            el.cloudSyncModal.querySelector('#cloudSyncCancelBtn').click();
                         } else {
                             this.showMessage('雲端沒有可還原的資料。', true);
                         }
                     } catch (error) {
-                        this.showMessage(`還原過程中發生錯誤: ${error.message}`, true);
+                        if(error.message !== "PIN cancelled" && error.message !== "PIN invalid" && error.message !== "Restore cancelled") {
+                            this.showMessage(`還原過程中發生錯誤: ${error.message}`, true);
+                        }
+                    } finally {
+                        // --- FIX: Ensure UI is responsive after any outcome ---
+                        el.cloudSyncModal.style.opacity = '1';
+                        isCloudActionInProgress = false;
+                        this.toggleCloudButtons(true);
                     }
                 },
                 
@@ -1705,9 +1811,16 @@
                 // --- VIEW RENDERING & UI UPDATES ---
                 showView(newView, state, title) {
                     const el = this.elements;
-                    document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+                    // --- FIX: Use classes to control visibility to fix layout bug ---
+                    document.querySelectorAll('.view').forEach(v => {
+                        v.classList.remove('active-visible');
+                        v.classList.add('hidden');
+                    });
                     newView.classList.remove('hidden');
+                    newView.classList.add('active-visible');
+
                     el.fabAddNewRecordBookBtn.classList.toggle('hidden', newView !== el.managementView);
+                    
                     if (state.view === 'tracker' && (!history.state || history.state.view !== 'tracker')) {
                         history.pushState(state, title, '');
                     } else {
@@ -2071,7 +2184,7 @@
                     const elToClone = book.bookType === 'number' ? this.elements.numbersGrid : this.elements.unlimitedRecordTextSection;
                     const captureElement = document.createElement('div');
                     captureElement.style.cssText = 'position: absolute; left: -9999px; background-color: #ffffff; padding: 24px; border-radius: 16px; display: inline-block;';
-                    captureElement.innerHTML = `<h1 style="text-align: center; margin-bottom: 24px;">${book.name}</h1>`;
+                    captureElement.innerHTML = `<h1 style="text-align: center; font-size: 1.5rem; font-weight: bold; margin-bottom: 24px;">${book.name}</h1>`;
                     const contentClone = elToClone.cloneNode(true);
                     if (book.bookType === 'text') {
                        contentClone.style.display = 'block';
