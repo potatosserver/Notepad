@@ -90,7 +90,6 @@
         .grid-item.checked {
             background-color: var(--md-tertiary-container);
             color: var(--md-on-tertiary-container);
-            /* transform: scale(1.02); -- Removed to prevent page scroll on mobile */
         }
         .grid-item:hover:not(.checked) {
             background-color: #d0d0d0;
@@ -199,9 +198,8 @@
             color: var(--md-primary);
             border: 1px solid var(--md-outline);
             box-shadow: none;
-            /* 調整 button-outlined 的高度 */
-            height: 40px; /* 將高度設定為與 view-mode-button 相同 */
-            box-sizing: border-box; /* 確保 padding 和 border 包含在高度內 */
+            height: 40px;
+            box-sizing: border-box;
             display: flex;
             align-items: center;
         }
@@ -413,7 +411,6 @@
 
         .record-book-list-view .record-book-item {
             display: grid;
-            /* Adjusted grid-template-columns to accommodate checkbox */
             grid-template-columns: auto 3fr 2fr auto;
             align-items: center;
             gap: 10px;
@@ -439,24 +436,22 @@
             border-bottom-right-radius: 8px;
             border-bottom: none;
         }
-        .record-book-list-view .record-book-name-cell { /* New class for list view name column */
+        .record-book-list-view .record-book-name-cell {
             font-size: 1rem;
             font-weight: normal;
             color: var(--md-on-primary-container);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            /* Remove individual click listener here */
         }
-        .record-book-list-view .record-book-last-updated-cell { /* New class for list view last updated column */
+        .record-book-list-view .record-book-last-updated-cell {
             font-size: 0.9rem;
             color: var(--md-on-surface-variant);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            /* Remove individual click listener here */
         }
-        .record-book-list-view .record-book-name-wrapper, /* These are for grid view, hide in list view */
+        .record-book-list-view .record-book-name-wrapper,
         .record-book-list-view .record-book-name,
         .record-book-list-view .record-book-meta,
         .record-book-list-view .record-book-max-num,
@@ -464,12 +459,11 @@
         .record-book-list-view .record-book-last-updated-col {
             display: none;
         }
-        /* Override specific classes that might be used by record-book-name and record-book-last-updated-col in list view */
         .record-book-list-view .record-book-name {
-             display: none; /* Hide default name styles */
+             display: none;
         }
         .record-book-list-view .record-book-last-updated-col {
-            display: none; /* Hide default last updated styles */
+            display: none;
         }
 
 
@@ -484,7 +478,6 @@
         }
 
         .list-view-header {
-            /* Adjusted grid-template-columns to accommodate checkbox */
             display: grid;
             grid-template-columns: auto 3fr 2fr auto;
             gap: 10px;
@@ -506,33 +499,32 @@
             text-align: left;
             margin-bottom: 0;
             transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-            position: relative; /* Essential for positioning absolute children */
+            position: relative;
         }
         .record-book-grid-view .record-book-item:hover {
              transform: translateY(-2px);
              box-shadow: 0 4px 10px rgba(0,0,0,0.12);
         }
-        /* New style for checkbox wrapper in grid view */
         .record-book-grid-view .checkbox-wrapper {
             position: absolute;
-            top: 8px; /* Adjusted to fit the border-radius */
-            left: 8px; /* Adjusted to fit the border-radius */
-            z-index: 20; /* Ensure it's above other content */
-            padding: 4px; /* Add some padding to increase touch target */
-            border-radius: 50%; /* Make it rounded for better visual */
-            background-color: rgba(255, 255, 255, 0.7); /* Slightly translucent background */
+            top: 8px;
+            left: 8px;
+            z-index: 20;
+            padding: 4px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.7);
             display: flex;
             align-items: center;
             justify-content: center;
         }
         .record-book-grid-view .checkbox-wrapper input[type="checkbox"] {
-            margin-right: 0; /* Remove default margin from the checkbox itself */
+            margin-right: 0;
         }
 
         .record-book-grid-view .record-book-name-wrapper {
             width: 100%;
             margin-bottom: 10px;
-            padding-left: 20px; /* Add padding to account for checkbox position */
+            padding-left: 20px;
         }
         .record-book-grid-view .record-book-name {
             font-size: 1.35rem;
@@ -614,9 +606,8 @@
             border: 1px solid var(--md-outline);
             border-radius: 20px;
             overflow: hidden;
-            /* 調整 view-mode-group 的高度 */
-            height: 40px; /* 將高度設定為與 sortButton 相同 */
-            box-sizing: border-box; /* 確保 padding 和 border 包含在高度內 */
+            height: 40px;
+            box-sizing: border-box;
         }
         .view-mode-button {
             min-width: 56px;
@@ -685,7 +676,7 @@
             padding: 10px 20px;
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            z-index: 1000;
+            z-index: 1050; /* Higher than modal overlay */
             opacity: 0;
             transition: opacity 0.5s ease-in-out;
         }
@@ -698,24 +689,17 @@
 
         /* View Transition Animations */
         .view {
-            transition: transform 0.3s ease-out, opacity 0.3s ease-out;
-            width: 100%;
-            padding: inherit;
-            box-sizing: border-box;
-        }
-        
-        .view:not(.active-visible) {
             position: absolute;
+            width: 100%;
             top: 0;
             left: 0;
-            pointer-events: none;
+            padding: inherit;
+            box-sizing: border-box;
         }
 
         .view.active-visible {
             position: relative;
-            opacity: 1;
         }
-
         .view.hidden {
             display: none;
         }
@@ -743,7 +727,7 @@
         }
         .modal-checkbox-list input[type="checkbox"] {
             margin-right: 10px;
-            transform: scale(1.2); /* Adjusted to ensure consistent size */
+            transform: scale(1.2);
         }
         .modal-checkbox-list .book-name {
             flex-grow: 1;
@@ -761,14 +745,13 @@
             border-bottom: 1px solid #e0e0e0;
         }
         .select-all-checkbox-container label input[type="checkbox"] {
-            /* Fix the size issue for select all checkbox */
-            transform: scale(1.2); /* Adjusted to ensure consistent size */
-            margin-right: 10px; /* Ensure margin is consistent */
+            transform: scale(1.2);
+            margin-right: 10px;
         }
 
         /* New styles for bulk delete confirmation list */
         .bulk-delete-list {
-            max-height: 250px; /* Limit height and enable scroll */
+            max-height: 250px;
             overflow-y: auto;
             border: 1px solid var(--md-outline);
             border-radius: 12px;
@@ -809,10 +792,10 @@
 
 
         .hidden-if-no-selection {
-            display: none !important; /* Use !important to override flex/inline-flex */
+            display: none !important;
         }
 
-        /* --- Rich Text Editor Styles --- */
+        /* Rich Text Editor Styles */
         .editor-toolbar {
             display: flex;
             flex-wrap: wrap;
@@ -850,25 +833,19 @@
             border-radius: 0 0 8px 8px;
         }
 
-        /* --- START: FIX FOR LISTS IN EDITOR --- */
         #recordTextInput ul, #recordTextInput ol {
             display: block;
             list-style-position: inside;
             padding-left: 25px;
             margin: 1em 0;
         }
-        #recordTextInput ul {
-            list-style-type: disc;
-        }
-        #recordTextInput ol {
-            list-style-type: decimal;
-        }
+        #recordTextInput ul { list-style-type: disc; }
+        #recordTextInput ol { list-style-type: decimal; }
         #recordTextInput li {
             display: list-item;
             padding-left: 5px;
             margin-bottom: 0.5em;
         }
-        /* --- END: FIX FOR LISTS IN EDITOR --- */
 
         .color-picker-wrapper {
             position: relative;
@@ -888,9 +865,8 @@
             border: 1px solid var(--md-outline);
             background-color: white;
         }
-        /* --- END: Rich Text Editor Styles --- */
 
-        /* --- START: New Feature Styles --- */
+        /* New Feature Styles */
         .history-log-container {
             max-height: 40vh;
             overflow-y: auto;
@@ -904,9 +880,7 @@
             padding: 8px 4px;
             border-bottom: 1px solid #eee;
         }
-        .history-log-item:last-child {
-            border-bottom: none;
-        }
+        .history-log-item:last-child { border-bottom: none; }
         .history-log-time {
             font-size: 0.8rem;
             color: #666;
@@ -927,9 +901,8 @@
             opacity: 1;
             transition: opacity 0.3s ease-in-out;
         }
-        /* --- END: New Feature Styles --- */
-
-        /* --- START: Cloud Sync Modal Styles --- */
+        
+        /* Cloud Sync Modal Styles */
         .g_id_signin {
             margin-bottom: 16px;
         }
@@ -948,14 +921,8 @@
             height: 48px;
             border-radius: 50%;
         }
-        #cloudSyncUserName {
-            font-size: 1.1rem;
-            font-weight: 500;
-        }
-        #cloudSyncUserEmail {
-            font-size: 0.85rem;
-            opacity: 0.9;
-        }
+        #cloudSyncUserName { font-size: 1.1rem; font-weight: 500; }
+        #cloudSyncUserEmail { font-size: 0.85rem; opacity: 0.9; }
         .cloud-action-button {
              background-color: var(--md-surface-variant);
              color: var(--md-on-surface-variant);
@@ -963,157 +930,68 @@
         .cloud-action-button:hover {
             background-color: color-mix(in srgb, var(--md-surface-variant) 90%, black);
         }
-        /* --- END: Cloud Sync Modal Styles --- */
 
 
         @media (max-width: 768px) {
-            .container {
-                padding: 15px;
-            }
-            /* Adjusted header controls for smaller screens */
+            .container { padding: 15px; }
             .header-controls {
-                flex-direction: row; /* Keep as row for the first line */
-                justify-content: space-between; /* Space out view mode and sort */
+                flex-direction: row;
+                justify-content: space-between;
                 align-items: center;
-                flex-wrap: wrap; /* Allow wrapping if content is too wide */
+                flex-wrap: wrap;
             }
-            .header-right-controls { /* This class doesn't exist in the provided HTML */
-                margin-top: 0; /* Reset margin */
-                width: auto; /* Reset width */
-                justify-content: flex-end; /* Reset justify */
-            }
-            .toolbar { /* Added for toolbar responsiveness */
-                flex-direction: row; /* Keep as row */
+            .toolbar {
+                flex-direction: row;
                 align-items: center;
                 gap: 10px;
                 margin-top: 15px;
-                flex-wrap: nowrap; /* Prevent wrapping for the toolbar buttons */
-                overflow-x: auto; /* Enable horizontal scrolling if needed */
-                -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-                padding-bottom: 5px; /* Add some padding for scrollbar visibility */
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                padding-bottom: 5px;
             }
             .toolbar > div {
-                flex-shrink: 0; /* Prevent children from shrinking */
+                flex-shrink: 0;
                 display: flex;
                 gap: 10px;
             }
-            .toolbar .button-base { /* Make toolbar buttons full width */
-                width: auto; /* Let buttons size naturally */
+            .toolbar .button-base {
+                width: auto;
                 justify-content: center;
-                white-space: nowrap; /* Prevent button text from wrapping */
+                white-space: nowrap;
             }
-            .record-book-grid-container {
-                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-            }
-            .fab-button {
-                bottom: 20px;
-                right: 20px;
-                width: 50px;
-                height: 50px;
-                font-size: 1.5rem;
-            }
-            .list-view-header {
-                grid-template-columns: auto 2fr 1.5fr auto; /* Adjusted for checkbox */
-            }
-            .record-book-list-view .record-book-item {
-                 grid-template-columns: auto 2fr 1.5fr auto; /* Adjusted for checkbox */
-            }
-            .view-mode-button {
-                min-width: 48px;
-                min-height: 36px;
-                padding: 6px 12px;
-            }
+            .record-book-grid-container { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+            .fab-button { bottom: 20px; right: 20px; width: 50px; height: 50px; font-size: 1.5rem; }
+            .list-view-header { grid-template-columns: auto 2fr 1.5fr auto; }
+            .record-book-list-view .record-book-item { grid-template-columns: auto 2fr 1.5fr auto; }
+            .view-mode-button { min-width: 48px; min-height: 36px; padding: 6px 12px; }
 
-            /* --- START: Modified Number Tracker Header for Mobile --- */
-            .number-tracker-header .button-text-content {
-                display: none;
-            }
-            /* Make buttons with text become icon-only on mobile */
+            .number-tracker-header .button-text-content { display: none; }
             .number-tracker-header #backToManagementBtn,
-            .number-tracker-header #resetCurrentBookBtn {
-                padding-left: 10px;
-                padding-right: 10px;
-            }
-             /* Reduce padding for icon-only buttons on mobile */
+            .number-tracker-header #resetCurrentBookBtn { padding-left: 10px; padding-right: 10px; }
             .number-tracker-header #shareAsImageBtn,
             .number-tracker-header #viewHistoryBtn,
-            .number-tracker-header #toggleLockBtn {
-                 padding: 8px;
-            }
-            /* --- END: Modified Number Tracker Header --- */
+            .number-tracker-header #toggleLockBtn { padding: 8px; }
         }
         @media (max-width: 600px) {
-            .container {
-                padding: 10px;
-            }
-            .grid-container {
-                grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); /* Adjusted for smaller size */
-                gap: 12px;
-            }
-            .grid-item {
-                padding: 8px; /* Adjusted padding for smaller screens */
-            }
-            .number {
-                font-size: 1rem; /* Adjusted for smaller size */
-            }
-            .record-book-item {
-                flex-direction: column;
-                align-items: flex-start;
-                padding: 12px;
-            }
-            .record-book-name-wrapper {
-                margin-bottom: 10px;
-                width: 100%;
-            }
-            .record-book-name {
-                font-size: 1.15rem;
-            }
-            .record-book-meta {
-                font-size: 0.75rem;
-                bottom: 8px;
-                right: 10px;
-            }
-            .record-book-actions {
-                width: 100%;
-                justify-content: flex-end;
-                margin-top: 0;
-            }
-            .record-book-actions button {
-                margin-left: 8px;
-                margin-top: 0;
-                padding: 7px 10px;
-                font-size: 0.8rem;
-            }
-            .record-book-grid-view {
-                grid-template-columns: 1fr;
-            }
-            .record-book-grid-view .record-book-item {
-                min-width: unset;
-            }
-            .fab-button {
-                bottom: 15px;
-                right: 15px;
-                width: 45px;
-                height: 45px;
-                font-size: 1.3rem;
-            }
+            .container { padding: 10px; }
+            .grid-container { grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 12px; }
+            .grid-item { padding: 8px; }
+            .number { font-size: 1rem; }
+            .record-book-item { flex-direction: column; align-items: flex-start; padding: 12px; }
+            .record-book-name-wrapper { margin-bottom: 10px; width: 100%; }
+            .record-book-name { font-size: 1.15rem; }
+            .record-book-meta { font-size: 0.75rem; bottom: 8px; right: 10px; }
+            .record-book-actions { width: 100%; justify-content: flex-end; margin-top: 0; }
+            .record-book-actions button { margin-left: 8px; margin-top: 0; padding: 7px 10px; font-size: 0.8rem; }
+            .record-book-grid-view { grid-template-columns: 1fr; }
+            .record-book-grid-view .record-book-item { min-width: unset; }
+            .fab-button { bottom: 15px; right: 15px; width: 45px; height: 45px; font-size: 1.3rem; }
             .list-view-header,
-            .record-book-list-view .record-book-item {
-                 grid-template-columns: auto 1.5fr 1fr auto; /* Adjusted for checkbox */
-                 gap: 5px;
-                 padding: 8px 10px;
-            }
-            .record-book-list-view .record-book-name-cell {
-                font-size: 0.9rem;
-            }
-            .record-book-list-view .record-book-last-updated-cell {
-                 font-size: 0.75rem;
-            }
-             .view-mode-button {
-                min-width: 40px;
-                min-height: 32px;
-                padding: 4px 8px;
-            }
+            .record-book-list-view .record-book-item { grid-template-columns: auto 1.5fr 1fr auto; gap: 5px; padding: 8px 10px; }
+            .record-book-list-view .record-book-name-cell { font-size: 0.9rem; }
+            .record-book-list-view .record-book-last-updated-cell { font-size: 0.75rem; }
+            .view-mode-button { min-width: 40px; min-height: 32px; padding: 4px 8px; }
         }
     </style>
 </head>
@@ -1347,7 +1225,6 @@
         const displayModeKey = 'multiNumberTrackerDisplayMode';
         const sortModeKey = 'multiNumberTrackerSortMode';
 
-        // NEW: Cloud Sync Configuration
         const CLOUD_API_URL = "https://script.google.com/macros/s/AKfycbyI6LVnx-_CGLqpNbdfPpJU1CxfWc-amK91WjItANb3urG7r0YkEmKSCJUlDFd2MP0aRg/exec";
         let googleIdToken = null;
         let googleUserProfile = null;
@@ -1437,7 +1314,6 @@
 
 
         // --- START: CLOUD SYNC FUNCTIONS ---
-        
         function decodeJwtResponse(token) {
             try {
                 let base64Url = token.split('.')[1];
@@ -1504,7 +1380,7 @@
                     throw new Error(result.message || 'API 返回一個未知錯誤。');
                 }
                 
-                return result.data;
+                return result; // Return the full response which includes status, action, and data
 
             } catch (error) {
                 console.error(`API 呼叫失敗 (action: ${action}):`, error);
@@ -1526,7 +1402,8 @@
                 
                 document.getElementById('lastBackupTime').textContent = '正在查詢...';
                 callCloudApi('restoreData')
-                    .then(data => {
+                    .then(result => {
+                         const data = result.data;
                          document.getElementById('lastBackupTime').textContent = data.hasData && data.lastUpdated ? formatDateTime(data.lastUpdated) : '尚無備份';
                     })
                     .catch(err => {
@@ -1542,43 +1419,43 @@
         async function handleCloudBackup() {
             try {
                 showMessage('正在檢查雲端狀態...');
-                const cloudInfo = await callCloudApi('restoreData');
-
-                // Check if a PIN is already set on the cloud.
+                const result = await callCloudApi('restoreData');
+                const cloudInfo = result.data;
+                
                 if (!cloudInfo || !cloudInfo.hasData) {
-                    const result = await showCustomModal("設定雲端同步 PIN 碼", {
+                    const pinResult = await showCustomModal("設定雲端同步 PIN 碼", {
                         message: "首次備份，請設定一組 6 位數字的 PIN 碼以保護您的資料安全。",
                         inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
                         confirmButtonText: '設定並備份',
                         trackHistory: true
                     });
                     
-                    if (!result.confirmed || !result.values.pin || !/^\d{6}$/.test(result.values.pin)) {
+                    if (!pinResult.confirmed || !pinResult.values.pin || !/^\d{6}$/.test(pinResult.values.pin)) {
                         showMessage('PIN 碼設定已取消或格式錯誤。', true); return;
                     }
                     
                     showMessage('正在設定 PIN 碼...');
-                    await callCloudApi('setPin', { pin: result.values.pin });
+                    await callCloudApi('setPin', { pin: pinResult.values.pin });
                 } else {
-                    const result = await showCustomModal("輸入 PIN 碼", {
+                    const pinResult = await showCustomModal("輸入 PIN 碼", {
                         message: "請輸入您的 6 位數字 PIN 碼以進行備份。",
                         inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
                         confirmButtonText: '驗證並備份',
                         trackHistory: true
                     });
 
-                    if (!result.confirmed || !result.values.pin) { showMessage('備份已取消。'); return; }
+                    if (!pinResult.confirmed || !pinResult.values.pin) { showMessage('備份已取消。'); return; }
 
                     showMessage('正在驗證 PIN 碼...');
-                    const verificationResult = await callCloudApi('verifyPin', { pin: result.values.pin });
-                    if (!verificationResult.verified) {
+                    const verificationResult = await callCloudApi('verifyPin', { pin: pinResult.values.pin });
+                    if (!verificationResult.data.verified) {
                         showMessage('PIN 碼錯誤，備份失敗。', true); return;
                     }
                 }
 
                 showMessage('PIN 碼驗證成功，正在備份資料...');
                 const backupResult = await callCloudApi('backupData', { notebookData: recordBooks });
-                document.getElementById('lastBackupTime').textContent = formatDateTime(backupResult.lastUpdated);
+                document.getElementById('lastBackupTime').textContent = formatDateTime(backupResult.data.lastUpdated);
                 showMessage('記事本已成功備份至雲端！');
                 closeCloudSyncModal();
 
@@ -1600,23 +1477,24 @@
             }
 
             try {
-                const result = await showCustomModal("輸入 PIN 碼", {
+                const pinResult = await showCustomModal("輸入 PIN 碼", {
                     message: "請輸入您的 6 位數字 PIN 碼以還原資料。",
                     inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
                     confirmButtonText: '驗證並還原',
                     trackHistory: true
                 });
 
-                if (!result.confirmed || !result.values.pin) { showMessage('還原已取消。'); return; }
+                if (!pinResult.confirmed || !pinResult.values.pin) { showMessage('還原已取消。'); return; }
 
                 showMessage('正在驗證 PIN 碼...');
-                const verificationResult = await callCloudApi('verifyPin', { pin: result.values.pin });
-                if (!verificationResult.verified) {
+                const verificationResult = await callCloudApi('verifyPin', { pin: pinResult.values.pin });
+                if (!verificationResult.data.verified) {
                     showMessage('PIN 碼錯誤，還原失敗。', true); return;
                 }
                 
                 showMessage('PIN 碼驗證成功，正在從雲端還原資料...');
-                const restoredData = await callCloudApi('restoreData');
+                const restoreResult = await callCloudApi('restoreData');
+                const restoredData = restoreResult.data;
 
                 if (restoredData.hasData && restoredData.notebookData) {
                     recordBooks = restoredData.notebookData;
@@ -1636,9 +1514,11 @@
 
 
         document.addEventListener('DOMContentLoaded', () => {
+            // --- START: ELEMENT SELECTORS ---
             const managementView = document.getElementById('managementView');
             const numberTrackerView = document.getElementById('numberTrackerView');
             const fabAddNewRecordBookBtn = document.getElementById('fabAddNewRecordBookBtn');
+            const listViewHeader = document.getElementById('listViewHeader');
             const recordBookList = document.getElementById('recordBookList');
             const noRecordBooksMessage = document.getElementById('noRecordBooksMessage');
             const backToManagementBtn = document.getElementById('backToManagementBtn');
@@ -1646,6 +1526,7 @@
             const resetCurrentBookBtn = document.getElementById('resetCurrentBookBtn');
             const numbersGrid = document.getElementById('numbersGrid');
             const notesInput = document.getElementById('notesInput');
+            const notesCharCount = document.getElementById('notesCharCount');
             const limitedNotesSection = document.getElementById('limitedNotesSection');
             const unlimitedRecordTextSection = document.getElementById('unlimitedRecordTextSection');
             const recordTextInput = document.getElementById('recordTextInput');
@@ -1681,7 +1562,10 @@
             const cloudSignOutBtn = document.getElementById('cloudSignOutBtn');
             const cloudBackupBtn = document.getElementById('cloudBackupBtn');
             const cloudRestoreBtn = document.getElementById('cloudRestoreBtn');
+            // --- END: ELEMENT SELECTORS ---
 
+
+            // --- START: MODAL HANDLING ---
             function loadRecordBooks() {
                 let needsRecordBookSave = false;
                 const storedData = localStorage.getItem(storageKey);
@@ -1691,7 +1575,7 @@
                         if (!Array.isArray(recordBooks)) recordBooks = [];
                         recordBooks.forEach(book => {
                             if (typeof book.maxNumber === 'undefined') { book.maxNumber = defaultMaxNumber; needsRecordBookSave = true; }
-                            if (typeof book.lastUpdated === 'undefined') { book.lastUpdated = new Date().toISOString(); needsRecordBookSave = true; }
+                            if (typeof book.lastUpdated === 'undefined') { book.lastUpdated = book.createdAt || new Date().toISOString(); delete book.createdAt; needsRecordBookSave = true; }
                             if (typeof book.notes === 'undefined') { book.notes = ""; needsRecordBookSave = true; }
                             if (typeof book.recordText === 'undefined') { book.recordText = ""; needsRecordBookSave = true; }
                             if (typeof book.bookType === 'undefined') { book.bookType = "number"; needsRecordBookSave = true; }
@@ -1707,11 +1591,11 @@
                     recordBooks = [];
                 }
 
-                const storedDisplayMode = localStorage.getItem(displayModeKey) || 'list';
-                displayMode = storedDisplayMode;
+                const storedDisplayMode = localStorage.getItem(displayModeKey);
+                displayMode = storedDisplayMode || 'list';
 
-                const storedSortMode = localStorage.getItem(sortModeKey) || 'latest';
-                sortMode = storedSortMode;
+                const storedSortMode = localStorage.getItem(sortModeKey);
+                sortMode = storedSortMode || 'latest';
 
                 if (needsRecordBookSave) {
                     saveRecordBooks();
@@ -1742,15 +1626,6 @@
             
             function showCustomModal(title, options = {}) {
                 const { inputs = [], actions = [], checkboxes = [], itemsToDelete = [], confirmButtonText = '確認', cancelButtonText = '取消', trackHistory = false, message = '', htmlContent = null } = options;
-
-                const modalTitle = document.getElementById('modalTitle');
-                const modalInputsContainer = document.getElementById('modalInputsContainer');
-                const modalActionButtonsContainer = document.getElementById('modalActionButtonsContainer');
-                const modalConfirmCancelButtons = document.getElementById('modalConfirmCancelButtons');
-                const modalConfirmBtn = document.getElementById('modalConfirmBtn');
-                const modalCancelBtn = document.getElementById('modalCancelBtn');
-                const modalMessage = document.getElementById('modalMessage');
-                const modalErrorMessage = document.getElementById('modalErrorMessage');
 
                 modalTitle.textContent = title;
                 modalInputsContainer.innerHTML = '';
@@ -1835,7 +1710,7 @@
                         checkboxListDiv.classList.add('modal-checkbox-list');
                         checkboxes.forEach(checkboxDef => {
                             const label = document.createElement('label');
-                            label.innerHTML = `<input type="checkbox" name="selectedIds" class="modal-checkbox-item" value="${checkboxDef.value}" ${checkboxDef.checked ? 'checked' : ''}><span class="book-name">${checkboxDef.label}</span><span class="book-date ml-auto">${checkboxDef.meta}</span>`;
+                            label.innerHTML = `<input type="checkbox" class="modal-checkbox-item" value="${checkboxDef.value}" ${checkboxDef.checked ? 'checked' : ''}><span class="book-name">${checkboxDef.label}</span><span class="book-date ml-auto">${checkboxDef.meta}</span>`;
                             checkboxListDiv.appendChild(label);
                         });
                         modalInputsContainer.appendChild(checkboxListDiv);
@@ -1872,14 +1747,16 @@
                 else modalConfirmBtn.focus();
 
                 const bookTypeRadios = modalInputsContainer.querySelectorAll('input[name="bookType"]');
-                if (bookTypeRadios.length > 0) {
-                    const toggleMaxNumInput = () => {
-                        const maxNumInputGroup = modalInputsContainer.querySelector('.max-num-input-group');
-                        if (maxNumInputGroup) {
-                            const selectedRadio = modalInputsContainer.querySelector('input[name="bookType"]:checked');
+                const maxNumInputGroup = modalInputsContainer.querySelector('.max-num-input-group');
+                const toggleMaxNumInput = () => {
+                    if (bookTypeRadios.length > 0) {
+                        const selectedRadio = document.querySelector('input[name="bookType"]:checked');
+                        if (selectedRadio && maxNumInputGroup) {
                             maxNumInputGroup.style.display = selectedRadio.value === 'number' ? 'block' : 'none';
                         }
-                    };
+                    }
+                };
+                if (bookTypeRadios.length > 0) {
                     bookTypeRadios.forEach(radio => radio.addEventListener('change', toggleMaxNumInput));
                     toggleMaxNumInput();
                 }
@@ -1891,8 +1768,11 @@
 
             function closeCustomModal() {
                 return new Promise(resolve => {
+                    modalErrorMessage.classList.add('hidden');
+                    modalMessage.classList.add('hidden');
                     customModal.classList.remove('show-modal');
                     customModal.classList.add('hide-modal');
+
                     const onTransitionEnd = (event) => {
                         if (event.target !== customModal) return;
                         customModal.classList.add('hidden');
@@ -1904,6 +1784,7 @@
                         resolve();
                     };
                     customModal.addEventListener('transitionend', onTransitionEnd);
+
                     setTimeout(() => {
                         if (!customModal.classList.contains('hidden')) {
                            onTransitionEnd({ target: customModal });
@@ -1919,9 +1800,9 @@
 
                 const inputs = modalInputsContainer.querySelectorAll('input, textarea, select');
                 inputs.forEach(input => {
-                    if (input.type === 'checkbox' && input.name === 'selectedIds') {
-                        if (!values.selectedIds) values.selectedIds = [];
-                        if (input.checked) values.selectedIds.push(input.value);
+                    if (input.type === 'checkbox' && !input.id.includes('modalSelectAll')) {
+                        if (!values[input.name]) values[input.name] = [];
+                        if (input.checked) values[input.name].push(input.value);
                     } else if (input.type === 'radio') {
                         if (input.checked) values[input.name] = input.value;
                     } else if (input.id) {
@@ -1929,20 +1810,27 @@
                     }
                 });
                 
-                if (modalInputsContainer.querySelector('#bookName') && values.bookName.trim() === '') {
-                    errorMessage = '記事本名稱不能為空。'; isValid = false;
+                const bookNameInput = modalInputsContainer.querySelector('#bookName');
+                const maxNumInput = modalInputsContainer.querySelector('#maxNum');
+                const newNameInput = modalInputsContainer.querySelector('#newName');
+                const pinInput = modalInputsContainer.querySelector('#pin');
+                const modalCheckboxes = modalInputsContainer.querySelectorAll('.modal-checkbox-item');
+
+                if (modalCheckboxes.length > 0) {
+                    values.selectedIds = Array.from(modalCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
+                    if (values.selectedIds.length === 0 && modalTitle.textContent.includes("匯出")) {
+                        errorMessage = '請至少選擇一個記事本。';
+                        isValid = false;
+                    }
                 }
-                if (modalInputsContainer.querySelector('#newName') && values.newName.trim() === '') {
-                    errorMessage = '新名稱不能為空。'; isValid = false;
-                }
-                if (modalInputsContainer.querySelector('#pin') && !/^\d{6}$/.test(values.pin)) {
-                    errorMessage = 'PIN 碼必須是 6 位數字。'; isValid = false;
-                }
+
+                if (bookNameInput && bookNameInput.value.trim() === '') { errorMessage = '記事本名稱不能為空。'; isValid = false; }
+                if (newNameInput && newNameInput.value.trim() === '') { errorMessage = '新名稱不能為空。'; isValid = false; }
+                if (pinInput && !/^\d{6}$/.test(pinInput.value)) { errorMessage = 'PIN 碼必須是 6 位數字。'; isValid = false; }
                 
                 const selectedBookType = values.bookType || (modalInputsContainer.querySelector('input[name="bookType"]') ? 'text' : null);
-                if (selectedBookType === 'number' && modalInputsContainer.querySelector('#maxNum')) {
-                    const maxNumInput = modalInputsContainer.querySelector('#maxNum');
-                    const numValue = parseInt(values.maxNum, 10);
+                if (selectedBookType === 'number' && maxNumInput) {
+                    const numValue = parseInt(maxNumInput.value, 10);
                     if (isNaN(numValue) || numValue < parseInt(maxNumInput.min, 10) || (maxNumInput.max && numValue > parseInt(maxNumInput.max, 10))) {
                         errorMessage = `請為 "最大數字設定" 輸入一個有效的數字 (範圍 ${maxNumInput.min}-${maxNumInput.max})。`;
                         isValid = false;
@@ -1975,18 +1863,30 @@
                     cloudSyncModal.classList.remove('hide-modal');
                  }, 300);
             }
+            // --- END: MODAL HANDLING ---
 
-            function showView(newViewElement, state, title) {
-                document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
-                newViewElement.classList.remove('hidden');
-                document.title = title;
+            
+            // --- START: VIEW RENDERING ---
+            function showView(newViewElement, state, title, direction = 'forward') {
+                const allViews = document.querySelectorAll('.view');
+                const currentView = document.querySelector('.view.active-visible');
+
                 fabAddNewRecordBookBtn.classList.toggle('hidden', newViewElement !== managementView);
 
-                if (history.state?.view !== state.view) {
-                   history.pushState(state, title, '');
-                } else {
-                   history.replaceState(state, title, '');
+                if (currentView && currentView !== newViewElement) {
+                    currentView.classList.remove('active-visible');
+                    currentView.classList.add('hidden');
                 }
+                
+                newViewElement.classList.remove('hidden');
+                newViewElement.classList.add('active-visible');
+                
+                if (state.view === 'tracker' && (!history.state || history.state.view !== 'tracker')) {
+                     history.pushState(state, title, '');
+                } else {
+                    history.replaceState(state, title, '');
+                }
+                document.title = title;
             }
 
             function updateToolbarButtonStates() {
@@ -1997,25 +1897,22 @@
             }
             
             function updateEditorToolbarState() {
-                if(!editorToolbar || !document.queryCommandState) return;
+                if(!editorToolbar || !recordTextInput.isContentEditable) return;
                 const commands = ['bold', 'italic', 'underline', 'insertUnorderedList', 'insertOrderedList'];
                 commands.forEach(command => {
                     const button = editorToolbar.querySelector(`[data-command="${command}"]`);
                     if (button) {
-                        try {
-                           button.classList.toggle('active', document.queryCommandState(command));
-                        } catch(e){}
+                        try { button.classList.toggle('active', document.queryCommandState(command)); } catch(e) {}
                     }
                 });
             }
 
-            function renderManagementView(direction = 'forward') {
-                showView(managementView, { view: 'management' }, '我的記事本');
+            function renderManagementView(animationDirection = 'forward') {
+                showView(managementView, { view: 'management', modalOpen: false }, '我的記事本', animationDirection);
                 recordBookList.innerHTML = '';
                 sortRecordBooks();
 
                 const isListView = displayMode === 'list';
-                const listViewHeader = document.getElementById('listViewHeader');
                 recordBookList.className = isListView ? 'record-book-list-container record-book-list-view' : 'record-book-grid-container record-book-grid-view';
                 listViewBtn.classList.toggle('selected', isListView);
                 gridViewBtn.classList.toggle('selected', !isListView);
@@ -2028,123 +1925,179 @@
                 
                 noRecordBooksMessage.classList.toggle('hidden', recordBooks.length > 0);
 
-                recordBooks.forEach(book => {
-                    const bookItem = document.createElement('div');
-                    bookItem.className = 'record-book-item';
-                    bookItem.dataset.id = book.id;
-                    bookItem.onclick = (e) => {
-                        if (e.target.closest('.record-book-checkbox-wrapper, input[type="checkbox"], .options-button')) return;
-                        selectRecordBook(book.id);
-                    };
+                if (recordBooks.length > 0) {
+                    recordBooks.forEach(book => {
+                        const bookItem = document.createElement('div');
+                        bookItem.classList.add('record-book-item');
+                        bookItem.dataset.id = book.id;
+                        bookItem.addEventListener('click', (e) => {
+                            if (e.target.closest('.record-book-checkbox-wrapper, input[type="checkbox"], .options-button')) return;
+                            selectRecordBook(book.id);
+                        });
 
-                    const checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.className = 'record-book-checkbox transform scale-125 cursor-pointer';
-                    checkbox.dataset.id = book.id;
-                    checkbox.checked = selectedRecordBookIds.has(book.id);
-                    checkbox.onchange = (e) => {
-                        e.stopPropagation();
-                        selectedRecordBookIds.has(book.id) ? selectedRecordBookIds.delete(book.id) : selectedRecordBookIds.add(book.id);
-                        updateToolbarButtonStates();
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.classList.add('record-book-checkbox', 'transform', 'scale-125', 'cursor-pointer');
+                        checkbox.dataset.id = book.id;
+                        checkbox.checked = selectedRecordBookIds.has(book.id);
+                        checkbox.addEventListener('change', (e) => {
+                            e.stopPropagation();
+                            selectedRecordBookIds.has(book.id) ? selectedRecordBookIds.delete(book.id) : selectedRecordBookIds.add(book.id);
+                            updateToolbarButtonStates();
+                            if (isListView) {
+                                selectAllCheckboxes.checked = recordBooks.length > 0 && selectedRecordBookIds.size === recordBooks.length;
+                            }
+                        });
+
                         if (isListView) {
-                            selectAllCheckboxes.checked = recordBooks.length > 0 && selectedRecordBookIds.size === recordBooks.length;
-                        }
-                    };
+                            checkbox.classList.add('mr-3');
+                            bookItem.appendChild(checkbox);
 
-                    if (isListView) {
-                        bookItem.innerHTML = `
-                            <div></div>
-                            <div class="record-book-name-cell">${book.name}</div>
-                            <div class="record-book-last-updated-cell">${formatDateTime(book.lastUpdated)}</div>
-                            <div class="record-book-actions">
-                                <button class="options-button action-icon-button"><span class="material-symbols-outlined">more_vert</span></button>
-                            </div>
-                        `;
-                        bookItem.firstElementChild.appendChild(checkbox);
-                    } else {
-                        bookItem.innerHTML = `
-                            <div class="checkbox-wrapper"></div>
-                            <div class="record-book-name-wrapper">
-                                <span class="record-book-name">${book.name}</span>
-                                <span class="record-book-meta">更新於: ${formatDateTime(book.lastUpdated)}</span>
-                            </div>
-                            <div class="record-book-actions">
-                                <button class="options-button action-icon-button"><span class="material-symbols-outlined">more_vert</span></button>
-                            </div>
-                        `;
-                        bookItem.querySelector('.checkbox-wrapper').appendChild(checkbox);
-                    }
-                    bookItem.querySelector('.options-button').onclick = (e) => { e.stopPropagation(); showRecordBookActionsModal(book.id); };
-                    recordBookList.appendChild(bookItem);
-                });
+                            const nameCell = document.createElement('div');
+                            nameCell.classList.add('record-book-name-cell');
+                            nameCell.textContent = book.name;
+                            bookItem.appendChild(nameCell);
+
+                            const lastUpdatedCell = document.createElement('div');
+                            lastUpdatedCell.classList.add('record-book-last-updated-cell');
+                            lastUpdatedCell.textContent = formatDateTime(book.lastUpdated);
+                            bookItem.appendChild(lastUpdatedCell);
+                        } else { // Grid View
+                            const checkboxWrapper = document.createElement('div');
+                            checkboxWrapper.classList.add('checkbox-wrapper');
+                            checkboxWrapper.appendChild(checkbox);
+                            bookItem.appendChild(checkboxWrapper);
+
+                            const nameWrapper = document.createElement('div');
+                            nameWrapper.classList.add('record-book-name-wrapper');
+                            const nameSpan = document.createElement('span');
+                            nameSpan.classList.add('record-book-name');
+                            nameSpan.textContent = book.name;
+                            nameWrapper.appendChild(nameSpan);
+                            const lastUpdatedMeta = document.createElement('span');
+                            lastUpdatedMeta.classList.add('record-book-meta');
+                            lastUpdatedMeta.textContent = `更新於: ${formatDateTime(book.lastUpdated)}`;
+                            nameWrapper.appendChild(lastUpdatedMeta);
+                            bookItem.appendChild(nameWrapper);
+                        }
+
+                        const actionsDiv = document.createElement('div');
+                        actionsDiv.classList.add('record-book-actions');
+                        const optionsBtn = document.createElement('button');
+                        optionsBtn.classList.add('options-button', 'action-icon-button');
+                        optionsBtn.innerHTML = '<span class="material-symbols-outlined">more_vert</span>';
+                        optionsBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            showRecordBookActionsModal(book.id);
+                        });
+                        actionsDiv.appendChild(optionsBtn);
+
+                        bookItem.appendChild(actionsDiv);
+                        recordBookList.appendChild(bookItem);
+                    });
+                }
                 updateToolbarButtonStates();
             }
 
-            function renderNumberTrackerView() {
+
+            function renderNumberTrackerView(animationDirection = 'forward') {
                 const currentBook = recordBooks.find(book => book.id === currentRecordBookId);
                 if (!currentBook) {
+                    console.error("No record book selected or found.");
                     renderManagementView('backward');
                     return;
                 }
 
-                showView(numberTrackerView, { view: 'tracker', bookId: currentRecordBookId }, `記事本: ${currentBook.name}`);
+                showView(numberTrackerView, { view: 'tracker', bookId: currentRecordBookId, modalOpen: false }, `記事本: ${currentBook.name}`, animationDirection);
                 currentRecordBookName.textContent = currentBook.name;
                 numbersGrid.innerHTML = '';
                 
                 numberTrackerView.classList.add('locked');
                 toggleLockBtn.querySelector('.material-symbols-outlined').textContent = 'lock';
 
+
                 if (currentBook.bookType === 'number') {
                     limitedNotesSection.classList.remove('hidden');
                     numbersGrid.classList.remove('hidden');
                     unlimitedRecordTextSection.classList.add('hidden');
+
                     notesInput.value = currentBook.notes || '';
-                    document.getElementById('notesCharCount').textContent = `${(currentBook.notes || '').length}/${notesCharLimit}`;
+                    notesInput.setAttribute('maxlength', notesCharLimit);
+                    notesCharCount.textContent = `${notesInput.value.length}/${notesCharLimit}`;
+
                     for (let i = 1; i <= currentBook.maxNumber; i++) {
+                        const isChecked = currentBook.checkedNumbers[i] || false;
+                        const isDisabled = currentBook.disabledNumbers[i] || false;
+
                         const gridItem = document.createElement('div');
-                        gridItem.className = 'grid-item';
-                        if (currentBook.disabledNumbers[i]) gridItem.classList.add('disabled');
-                        else if (currentBook.checkedNumbers[i]) gridItem.classList.add('checked');
+                        gridItem.classList.add('grid-item');
+                        if (isDisabled) gridItem.classList.add('disabled');
+                        else if (isChecked) gridItem.classList.add('checked');
                         gridItem.dataset.number = i;
-                        gridItem.innerHTML = `<span class="number">${i}</span>`;
-                        
-                        let pressTimer = null, longPressTriggered = false;
+
+                        const numberSpan = document.createElement('span');
+                        numberSpan.classList.add('number');
+                        numberSpan.textContent = i;
+                        gridItem.appendChild(numberSpan);
+
+                        let pressTimer = null;
+                        let longPressTriggered = false;
+
                         const handleDisableAction = () => {
-                            updateNumberDisabledState(currentBook.id, i, !currentBook.disabledNumbers[i], gridItem);
+                            const currentNumber = parseInt(gridItem.dataset.number, 10);
+                            const newDisabledState = !currentBook.disabledNumbers[currentNumber];
+                            updateNumberDisabledState(currentBook.id, currentNumber, newDisabledState, gridItem);
                         };
-                        const onPointerDown = () => { longPressTriggered = false; pressTimer = setTimeout(() => { longPressTriggered = true; handleDisableAction(); }, 500); };
+
+                        const onPointerDown = (e) => {
+                            longPressTriggered = false;
+                            pressTimer = setTimeout(() => {
+                                longPressTriggered = true;
+                                handleDisableAction();
+                            }, 500);
+                        };
+
                         const onPointerUpOrLeave = () => clearTimeout(pressTimer);
+
                         const onClick = (e) => {
-                            if (longPressTriggered || gridItem.classList.contains('disabled')) { e.preventDefault(); return; }
-                            updateNumberState(currentBook.id, i, !currentBook.checkedNumbers[i], gridItem);
+                            if (longPressTriggered) { e.preventDefault(); e.stopPropagation(); return; }
+                            if (gridItem.classList.contains('disabled')) return;
+                            const currentNumber = parseInt(gridItem.dataset.number, 10);
+                            const newCheckedState = !currentBook.checkedNumbers[currentNumber];
+                            updateNumberState(currentBook.id, currentNumber, newCheckedState, gridItem);
                         };
-                        
-                        gridItem.addEventListener('contextmenu', (e) => { e.preventDefault(); if(longPressTriggered) return; clearTimeout(pressTimer); handleDisableAction(); });
+
+                        gridItem.addEventListener('contextmenu', (e) => { e.preventDefault(); if (longPressTriggered) return; clearTimeout(pressTimer); handleDisableAction(); });
                         gridItem.addEventListener('click', onClick);
-                        ['mousedown', 'touchstart'].forEach(evt => gridItem.addEventListener(evt, onPointerDown, { passive: true }));
-                        ['mouseup', 'mouseleave', 'touchend', 'touchmove'].forEach(evt => gridItem.addEventListener(evt, onPointerUpOrLeave));
-                        
+                        gridItem.addEventListener('mousedown', onPointerDown);
+                        gridItem.addEventListener('touchstart', onPointerDown, { passive: true });
+                        gridItem.addEventListener('mouseup', onPointerUpOrLeave);
+                        gridItem.addEventListener('mouseleave', onPointerUpOrLeave);
+                        gridItem.addEventListener('touchend', onPointerUpOrLeave);
+                        gridItem.addEventListener('touchmove', onPointerUpOrLeave);
+
                         numbersGrid.appendChild(gridItem);
                     }
-                } else {
+                } else if (currentBook.bookType === 'text') {
                     limitedNotesSection.classList.add('hidden');
                     numbersGrid.classList.add('hidden');
                     unlimitedRecordTextSection.classList.remove('hidden');
                     recordTextInput.innerHTML = currentBook.recordText || '';
                 }
 
-                const debouncedSaveNotes = debounce(() => {
+                notesInput.oninput = debounce(() => {
                     const book = recordBooks.find(b => b.id === currentRecordBookId);
                     if(!book) return;
-                    book.notes = notesInput.value.substring(0, notesCharLimit);
+                    if (notesInput.value.length > notesCharLimit) {
+                        notesInput.value = notesInput.value.substring(0, notesCharLimit);
+                    }
+                    book.notes = notesInput.value;
                     book.lastUpdated = new Date().toISOString();
                     logHistory(book.id, '編輯了簡短備註');
                     saveRecordBooks();
-                    document.getElementById('notesCharCount').textContent = `${book.notes.length}/${notesCharLimit}`;
                 }, 500);
-                notesInput.oninput = debouncedSaveNotes;
 
-                const debouncedSaveText = debounce(() => {
+                recordTextInput.oninput = debounce(() => {
                     const book = recordBooks.find(b => b.id === currentRecordBookId);
                     if(!book) return;
                     book.recordText = recordTextInput.innerHTML;
@@ -2152,9 +2105,11 @@
                     logHistory(book.id, '編輯了記事本內容');
                     saveRecordBooks();
                 }, 500);
-                recordTextInput.oninput = debouncedSaveText;
             }
+            // --- END: VIEW RENDERING ---
 
+
+            // --- START: CORE APP LOGIC & ACTIONS ---
             function updateNumberState(bookId, number, isChecked, gridItem) {
                 const book = recordBooks.find(b => b.id === bookId);
                 if (book) {
@@ -2184,14 +2139,17 @@
             async function showRecordBookActionsModal(bookId) {
                 const book = recordBooks.find(b => b.id === bookId);
                 if (!book) return;
+
                 const result = await showCustomModal(`操作記事本`, {
                     message: `請選擇要對記事本「${book.name}」執行的操作。`,
                     actions: [
                         { text: '重新命名', value: 'rename', class: 'rename' },
                         { text: '刪除', value: 'delete', class: 'delete' }
                     ],
-                    cancelButtonText: '關閉', trackHistory: true
+                    cancelButtonText: '關閉',
+                    trackHistory: true
                 });
+
                 if (result.confirmed) {
                     if (result.action === 'rename') renameRecordBook(bookId);
                     else if (result.action === 'delete') deleteRecordBook(bookId);
@@ -2201,24 +2159,33 @@
             fabAddNewRecordBookBtn.addEventListener('click', async () => {
                 const result = await showCustomModal("新增記事本", {
                     inputs: [
-                        { label: '記事本類型:', type: 'radio', name: 'bookType', options: [ { label: '純文字記事', value: 'text' }, { label: '數字追蹤', value: 'number', checked: true }] },
-                        { id: 'bookName', label: '記事本名稱:', type: 'text', defaultValue: `記事本 ${recordBooks.length + 1}` },
+                        { label: '記事本類型:', type: 'radio', name: 'bookType', options: [
+                            { label: '純文字記事', value: 'text' },
+                            { label: '數字追蹤', value: 'number', checked: true }
+                        ]},
+                        { id: 'bookName', label: '記事本名稱:', type: 'text', defaultValue: `記事本 ${recordBooks.length + 1}`, placeholder: '例如: 我的待辦事項' },
                         { id: 'maxNum', label: '最大數字設定 (1-100):', type: 'number', defaultValue: defaultMaxNumber, min: '1', max: '100' }
                     ],
-                    confirmButtonText: '新增', trackHistory: true
+                    confirmButtonText: '新增',
+                    cancelButtonText: '取消',
+                    trackHistory: true
                 });
 
                 if (result.confirmed) {
+                    let newName = result.values.bookName.trim() || `未命名記事本 ${recordBooks.length + 1}`;
                     const newBook = {
-                        id: generateUUID(), name: result.values.bookName.trim() || `未命名 ${recordBooks.length + 1}`, lastUpdated: new Date().toISOString(),
-                        notes: "", bookType: result.values.bookType, history: [], checkedNumbers: {}, disabledNumbers: {}
+                        id: generateUUID(), name: newName, lastUpdated: new Date().toISOString(),
+                        notes: "", recordText: "", bookType: result.values.bookType, history: [],
+                        checkedNumbers: {}, disabledNumbers: {}
                     };
+
                     if (newBook.bookType === 'number') {
                         newBook.maxNumber = parseInt(result.values.maxNum, 10) || defaultMaxNumber;
                     } else {
-                        newBook.recordText = "<div>開始編輯...</div>";
+                        newBook.recordText = "<div>這是您的新<b>記事本</b>！</div>";
                         newBook.maxNumber = 0;
                     }
+
                     recordBooks.push(newBook);
                     saveRecordBooks();
                     renderManagementView();
@@ -2228,21 +2195,25 @@
 
             function selectRecordBook(id) {
                 currentRecordBookId = id;
-                renderNumberTrackerView();
+                renderNumberTrackerView('forward');
             }
 
             async function renameRecordBook(id) {
                 const bookToRename = recordBooks.find(book => book.id === id);
                 if (bookToRename) {
                     const result = await showCustomModal("重新命名記事本", {
-                        inputs: [{ id: 'newName', label: '新名稱:', type: 'text', defaultValue: bookToRename.name }],
-                        confirmButtonText: '儲存', trackHistory: true
+                        inputs: [{ id: 'newName', label: '新名稱:', type: 'text', defaultValue: bookToRename.name, placeholder: '輸入新名稱' }],
+                        confirmButtonText: '儲存', cancelButtonText: '取消', trackHistory: true
                     });
-                    if (result.confirmed && result.values.newName.trim()) {
+
+                    if (result.confirmed && result.values.newName.trim() !== '') {
                         bookToRename.name = result.values.newName.trim();
                         bookToRename.lastUpdated = new Date().toISOString();
                         saveRecordBooks();
                         renderManagementView();
+                        if (currentRecordBookId === id) {
+                            currentRecordBookName.textContent = bookToRename.name;
+                        }
                         showMessage('記事本已成功重新命名！');
                     }
                 }
@@ -2251,10 +2222,12 @@
             async function deleteRecordBook(id) {
                 const bookToDelete = recordBooks.find(book => book.id === id);
                 if(!bookToDelete) return;
+
                 const result = await showCustomModal(`確認刪除`, {
                     message: `確定要刪除記事本「${bookToDelete.name}」嗎？此操作無法復原。`,
-                    confirmButtonText: '確定刪除', trackHistory: true
+                    confirmButtonText: '確定刪除', cancelButtonText: '取消', trackHistory: true
                 });
+
                 if (result.confirmed) {
                     recordBooks = recordBooks.filter(book => book.id !== id);
                     selectedRecordBookIds.delete(id);
@@ -2265,14 +2238,21 @@
             }
 
             deleteSelectedBtn.addEventListener('click', async () => {
-                if (selectedRecordBookIds.size === 0) return;
+                if (selectedRecordBookIds.size === 0) {
+                    showMessage('請選擇至少一個記事本以進行刪除。', true);
+                    return;
+                }
+
                 const booksToDelete = Array.from(selectedRecordBookIds).map(id => recordBooks.find(book => book.id === id)).filter(Boolean);
                 const result = await showCustomModal(`確認大量刪除`, {
-                    message: `確定要刪除選定的 ${selectedRecordBookIds.size} 個記事本嗎？`,
-                    itemsToDelete: booksToDelete, confirmButtonText: '確定刪除', trackHistory: true
+                    message: `確定要刪除選定的 ${selectedRecordBookIds.size} 個記事本嗎？此操作無法復原。`,
+                    itemsToDelete: booksToDelete,
+                    confirmButtonText: '確定刪除', cancelButtonText: '取消', trackHistory: true
                 });
+
                 if (result.confirmed) {
-                    recordBooks = recordBooks.filter(book => !selectedRecordBookIds.has(book.id));
+                    const idsToDelete = new Set(selectedRecordBookIds);
+                    recordBooks = recordBooks.filter(book => !idsToDelete.has(book.id));
                     selectedRecordBookIds.clear();
                     saveRecordBooks();
                     renderManagementView();
@@ -2284,30 +2264,37 @@
                 const currentBook = recordBooks.find(book => book.id === currentRecordBookId);
                  if (currentBook) {
                     const result = await showCustomModal(`確定要重設記事本 "${currentBook.name}" 嗎？`, {
-                        message: '所有內容將被清除。此操作無法復原。',
-                        confirmButtonText: '確定重設', trackHistory: true
+                        message: `${currentBook.bookType === 'number' ? '所有打勾與禁用紀錄將被清除。' : '所有內容將被清除。'} 此操作無法復原。`,
+                        confirmButtonText: '確定重設', cancelButtonText: '取消', trackHistory: true
                     });
                      if (result.confirmed) {
-                        currentBook.checkedNumbers = {};
-                        currentBook.disabledNumbers = {};
-                        currentBook.recordText = "";
+                        if (currentBook.bookType === 'number') {
+                            currentBook.checkedNumbers = {};
+                            currentBook.disabledNumbers = {};
+                        } else if (currentBook.bookType === 'text') {
+                            currentBook.recordText = "";
+                        }
                         currentBook.notes = "";
                         currentBook.lastUpdated = new Date().toISOString();
                         logHistory(currentBook.id, '重設了整個記事本');
                         saveRecordBooks();
-                        renderNumberTrackerView();
+                        renderNumberTrackerView('none');
                         showMessage('記事本已成功重設！');
                     }
                 }
             });
-            
-            backToManagementBtn.addEventListener('click', () => history.back());
+            // --- END: CORE APP LOGIC & ACTIONS ---
 
-            listViewBtn.addEventListener('click', () => { displayMode = 'list'; saveRecordBooks(); renderManagementView(); });
-            gridViewBtn.addEventListener('click', () => { displayMode = 'grid'; saveRecordBooks(); renderManagementView(); });
+
+            // --- START: EVENT LISTENERS ---
+            backToManagementBtn.addEventListener('click', () => { history.back(); });
+
+            listViewBtn.addEventListener('click', () => { displayMode = 'list'; saveRecordBooks(); renderManagementView('none'); });
+            gridViewBtn.addEventListener('click', () => { displayMode = 'grid'; saveRecordBooks(); renderManagementView('none'); });
 
             selectAllCheckboxes.addEventListener('change', () => {
-                document.querySelectorAll('.record-book-checkbox').forEach(cb => {
+                const checkboxes = recordBookList.querySelectorAll('.record-book-checkbox:not(.hidden)');
+                checkboxes.forEach(cb => {
                     cb.checked = selectAllCheckboxes.checked;
                     if (cb.checked) selectedRecordBookIds.add(cb.dataset.id);
                     else selectedRecordBookIds.delete(cb.dataset.id);
@@ -2315,27 +2302,39 @@
                 updateToolbarButtonStates();
             });
 
-            sortButton.addEventListener('click', (e) => { sortDropdown.classList.toggle('hidden'); e.stopPropagation(); });
-            document.getElementById('sortByLatestBtn').addEventListener('click', () => { sortMode = 'latest'; sortDropdown.classList.add('hidden'); saveRecordBooks(); renderManagementView(); });
-            document.getElementById('sortByTitleBtn').addEventListener('click', () => { sortMode = 'title'; sortDropdown.classList.add('hidden'); saveRecordBooks(); renderManagementView(); });
-            document.addEventListener('click', (e) => { if (!sortDropdown.contains(e.target) && !sortButton.contains(e.target)) sortDropdown.classList.add('hidden'); });
+            sortButton.addEventListener('click', (event) => { sortDropdown.classList.toggle('hidden'); event.stopPropagation(); });
+            document.getElementById('sortByLatestBtn').addEventListener('click', () => { sortMode = 'latest'; sortDropdown.classList.add('hidden'); saveRecordBooks(); renderManagementView('none'); });
+            document.getElementById('sortByTitleBtn').addEventListener('click', () => { sortMode = 'title'; sortDropdown.classList.add('hidden'); saveRecordBooks(); renderManagementView('none'); });
+            document.addEventListener('click', (event) => { if (!sortDropdown.contains(event.target) && !sortButton.contains(event.target)) sortDropdown.classList.add('hidden'); });
 
             exportBtn.addEventListener('click', async () => {
                 if (recordBooks.length === 0) { showMessage('沒有記事本資料可匯出！', true); return; }
+
+                const checkboxesData = recordBooks.map(book => ({ label: book.name, value: book.id, meta: formatDateTime(book.lastUpdated), checked: selectedRecordBookIds.has(book.id) }));
                 const result = await showCustomModal("匯出記事本資料", {
                     message: '請選擇要匯出的記事本：',
-                    checkboxes: recordBooks.map(b => ({ label: b.name, value: b.id, meta: formatDateTime(b.lastUpdated), checked: selectedRecordBookIds.has(b.id) })),
-                    confirmButtonText: '匯出選取項目', trackHistory: true
+                    checkboxes: checkboxesData,
+                    confirmButtonText: '匯出選取項目', cancelButtonText: '取消', trackHistory: true
                 });
-                if (result.confirmed && result.values.selectedIds?.length > 0) {
-                    const toExport = recordBooks.filter(b => result.values.selectedIds.includes(b.id));
-                    const blob = new Blob([JSON.stringify(toExport, null, 2)], { type: 'application/json' });
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(blob);
-                    a.download = `記事本備份_${new Date().toISOString().slice(0, 10)}.json`;
-                    a.click();
-                    URL.revokeObjectURL(a.href);
-                    showMessage('選取記事本資料已成功匯出！');
+
+                if (result.confirmed && result.values.selectedIds && result.values.selectedIds.length > 0) {
+                    try {
+                        const selectedBooksToExport = recordBooks.filter(book => result.values.selectedIds.includes(book.id));
+                        const dataToExport = JSON.stringify(selectedBooksToExport, null, 2);
+                        const blob = new Blob([dataToExport], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `選取記事本備份_${new Date().toISOString().slice(0, 10)}.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        showMessage('選取記事本資料已成功匯出！');
+                    } catch (error) {
+                        console.error('匯出資料時發生錯誤:', error);
+                        showMessage('匯出資料時發生錯誤。', true);
+                    }
                 }
             });
 
@@ -2343,28 +2342,47 @@
                 const input = document.createElement('input');
                 input.type = 'file';
                 input.accept = '.json';
-                input.onchange = async (e) => {
-                    const file = e.target.files[0];
+                input.onchange = async (event) => {
+                    const file = event.target.files[0];
                     if (file) {
                         try {
-                            const importedData = JSON.parse(await file.text());
-                            if (!Array.isArray(importedData) || !importedData.every(i => i.id && i.name)) throw new Error('Invalid format');
+                            const fileContent = await file.text();
+                            const importedData = JSON.parse(fileContent);
+
+                            if (!Array.isArray(importedData) || !importedData.every(item => item.id && item.name)) {
+                                showMessage('匯入的檔案格式不正確。', true); return;
+                            }
+
                             const result = await showCustomModal("匯入記事本資料", {
-                                inputs: [{ label: '匯入模式：', type: 'radio', name: 'import_mode', options: [ { label: '覆蓋現有', value: 'overwrite' }, { label: '合併資料', value: 'merge', checked: true }] }],
-                                confirmButtonText: '確定', trackHistory: true
+                                confirmButtonText: '確定', cancelButtonText: '取消',
+                                inputs: [{
+                                    label: '您想如何處理現有的記事本資料？', type: 'radio', name: 'import_mode',
+                                    options: [
+                                        { label: '覆蓋所有現有記事本', value: 'overwrite' },
+                                        { label: '與現有記事本合併 (新資料會加入)', value: 'merge', checked: true }
+                                    ]
+                                }],
+                                trackHistory: true
                             });
+
                             if (result.confirmed) {
-                                if (result.values.import_mode === 'overwrite') {
+                                const importMode = result.values.import_mode;
+                                if (importMode === 'overwrite') {
                                     recordBooks = importedData;
+                                    showMessage('記事本資料已成功覆蓋！');
                                 } else {
-                                    const existingIds = new Set(recordBooks.map(b => b.id));
-                                    recordBooks.push(...importedData.filter(b => !existingIds.has(b.id)));
+                                    const existingIds = new Set(recordBooks.map(book => book.id));
+                                    const newBooks = importedData.filter(book => !existingIds.has(book.id));
+                                    recordBooks = [...recordBooks, ...newBooks];
+                                    showMessage('記事本資料已成功合併！');
                                 }
                                 saveRecordBooks();
                                 renderManagementView();
-                                showMessage('資料已成功匯入！');
                             }
-                        } catch (err) { showMessage('匯入失敗，檔案格式錯誤。', true); }
+                        } catch (error) {
+                            console.error('匯入資料時發生錯誤:', error);
+                            showMessage('匯入資料時發生錯誤。請確保檔案是有效的 JSON 格式。', true);
+                        }
                     }
                 };
                 input.click();
@@ -2372,46 +2390,53 @@
             
             editorToolbar.addEventListener('click', (e) => {
                 const button = e.target.closest('button');
-                if (!button || !button.dataset.command) return;
+                if (!button) return;
                 e.preventDefault();
-                document.execCommand(button.dataset.command, false, null);
+                if (button.dataset.command) document.execCommand(button.dataset.command, false, null);
                 recordTextInput.focus();
                 updateEditorToolbarState();
             });
             linkBtn.addEventListener('click', (e) => {
                  e.preventDefault();
+                 const selection = window.getSelection();
+                 if (!selection || selection.rangeCount === 0 || selection.isCollapsed) { showMessage('請先選取要建立連結的文字。', true); return; }
                  const url = prompt('請輸入連結網址:', 'https://');
-                 if (url) { document.execCommand('createLink', false, url); }
+                 if (url) { recordTextInput.focus(); document.execCommand('createLink', false, url); }
             });
-            fontSizeSelect.onchange = () => { document.execCommand('fontSize', false, fontSizeSelect.value); };
-            fontColorPicker.oninput = () => { document.execCommand('foreColor', false, fontColorPicker.value); };
+            fontSizeSelect.addEventListener('change', () => { document.execCommand('fontSize', false, fontSizeSelect.value); recordTextInput.focus(); });
+            fontColorPicker.addEventListener('input', () => { document.execCommand('foreColor', false, fontColorPicker.value); recordTextInput.focus(); });
             document.addEventListener('selectionchange', () => { if (document.activeElement === recordTextInput) updateEditorToolbarState(); });
-            recordTextInput.addEventListener('focusout', updateEditorToolbarState);
+            recordTextInput.addEventListener('focus', updateEditorToolbarState);
+            recordTextInput.addEventListener('click', updateEditorToolbarState);
+            recordTextInput.addEventListener('keyup', updateEditorToolbarState);
 
-            customModal.addEventListener('click', (e) => { if (e.target === customModal) closeCustomModal().then(() => currentModalResolve && currentModalResolve({ confirmed: false })); });
+            customModal.addEventListener('click', (event) => { if (event.target === customModal) closeCustomModal().then(() => currentModalResolve && currentModalResolve({ confirmed: false })); });
 
-            window.addEventListener('popstate', (e) => {
+            window.addEventListener('popstate', (event) => {
                 if(customModal.classList.contains('show-modal')) {
-                    closeCustomModal();
+                    closeCustomModal().then(() => currentModalResolve && currentModalResolve({ confirmed: false }));
                 }
-                const state = e.state || { view: 'management' };
+
+                const state = event.state || { view: 'management' };
                 if (state.view === 'management') {
                     currentRecordBookId = null;
                     renderManagementView('backward');
                 } else if (state.view === 'tracker' && state.bookId) {
                     currentRecordBookId = state.bookId;
-                    renderNumberTrackerView();
+                    renderNumberTrackerView('forward');
                 }
             });
             
             toggleLockBtn.addEventListener('click', () => {
                 const isLocked = numberTrackerView.classList.toggle('locked');
                 toggleLockBtn.querySelector('.material-symbols-outlined').textContent = isLocked ? 'lock' : 'lock_open';
-                showMessage(isLocked ? '已鎖定' : '已解鎖');
+                showMessage(isLocked ? '記事本已鎖定' : '記事本已解鎖');
             });
             viewHistoryBtn.addEventListener('click', () => {
-                const currentBook = recordBooks.find(b => b.id === currentRecordBookId);
-                if (!currentBook?.history?.length) { showMessage('沒有任何操作紀錄。'); return; }
+                const currentBook = recordBooks.find(book => book.id === currentRecordBookId);
+                if (!currentBook || !currentBook.history || currentBook.history.length === 0) {
+                    showMessage('此記事本沒有任何操作紀錄。'); return;
+                }
                 const historyHtml = `<div class="history-log-container">${currentBook.history.map(entry => `
                     <div class="history-log-item">
                         <span class="history-log-time">${formatDateTime(entry.timestamp)}</span>
@@ -2420,29 +2445,43 @@
                 showCustomModal('操作歷史紀錄', { htmlContent: historyHtml, trackHistory: true });
             });
             shareAsImageBtn.addEventListener('click', async () => {
-                const currentBook = recordBooks.find(b => b.id === currentRecordBookId);
+                const currentBook = recordBooks.find(book => book.id === currentRecordBookId);
                 if (!currentBook) return;
                 showMessage('正在產生圖片...');
                 const captureElement = document.createElement('div');
                 captureElement.style.cssText = 'position: absolute; left: -9999px; background-color: #ffffff; padding: 24px; border: 1px solid #f0f2f5; border-radius: 16px; display: inline-block;';
-                const titleClone = document.getElementById('currentRecordBookName').cloneNode(true);
+                const innerContainer = document.createElement('div');
+                innerContainer.style.textAlign = 'center';
+                const titleClone = currentRecordBookName.cloneNode(true);
                 titleClone.style.marginBottom = '24px';
-                const contentClone = currentBook.bookType === 'number' ? numbersGrid.cloneNode(true) : unlimitedRecordTextSection.cloneNode(true);
-                if (currentBook.bookType !== 'number') {
+                let contentClone;
+                if (currentBook.bookType === 'number') {
+                    contentClone = numbersGrid.cloneNode(true);
+                    const originalGridStyles = window.getComputedStyle(numbersGrid);
+                    contentClone.style.gridTemplateColumns = originalGridStyles.gridTemplateColumns;
+                    contentClone.style.gap = originalGridStyles.gap;
+                    contentClone.style.width = originalGridStyles.width;
+                } else { 
+                    contentClone = unlimitedRecordTextSection.cloneNode(true);
                     contentClone.style.display = 'block';
                     contentClone.querySelector('label')?.remove();
                     contentClone.querySelector('.editor-toolbar')?.remove();
+                    const originalTextStyles = window.getComputedStyle(unlimitedRecordTextSection);
+                    contentClone.style.width = originalTextStyles.width;
                 }
-                captureElement.append(titleClone, contentClone);
+                innerContainer.appendChild(titleClone);
+                innerContainer.appendChild(contentClone);
+                captureElement.appendChild(innerContainer);
                 document.body.appendChild(captureElement);
                 try {
                     const canvas = await html2canvas(captureElement, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-                    const a = document.createElement('a');
-                    a.download = `${currentBook.name.replace(/ /g, '_')}_分享.png`;
-                    a.href = canvas.toDataURL("image/png");
-                    a.click();
-                    showMessage('圖片已成功產生！');
+                    const link = document.createElement('a');
+                    link.download = `${currentBook.name.replace(/ /g, '_')}_分享.png`;
+                    link.href = canvas.toDataURL("image/png");
+                    link.click();
+                    showMessage('圖片已成功產生並開始下載！');
                 } catch (err) {
+                    console.error('圖片分享錯誤:', err);
                     showMessage('產生圖片時發生錯誤。', true);
                 } finally {
                     document.body.removeChild(captureElement);
@@ -2451,11 +2490,12 @@
 
             cloudSyncBtn.addEventListener('click', openCloudSyncModal);
             cloudSyncCancelBtn.addEventListener('click', closeCloudSyncModal);
-            cloudSyncModal.addEventListener('click', (e) => { if(e.target === cloudSyncModal) closeCloudSyncModal(); });
+            cloudSyncModal.addEventListener('click', (event) => { if(event.target === cloudSyncModal) closeCloudSyncModal(); });
             cloudSignOutBtn.addEventListener('click', handleSignOut);
             cloudBackupBtn.addEventListener('click', handleCloudBackup);
             cloudRestoreBtn.addEventListener('click', handleCloudRestore);
-            
+            // --- END: EVENT LISTENERS ---
+
             loadRecordBooks();
         });
     </script>
