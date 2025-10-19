@@ -1635,49 +1635,2403 @@
                     this.toggleCloudButtons(false);
                     
                     try {
+                        await this.closeCloudSyncModal();
                         this.showMessage('正在檢查雲端狀態...');
                         const result = await this.callCloudApi('restoreData');
                         const cloudInfo = result.data;
-                        let pinResult;
-
-                        await this.closeCloudSyncModal();
 
                         if (!cloudInfo || !cloudInfo.hasData) {
-                            pinResult = await this.showCustomModal("設定雲端同步 PIN 碼", {
+                            const pinResult = await this.showCustomModal("設定雲端同步 PIN 碼", {
                                 message: "首次備份，請設定一組 6 位數字的 PIN 碼以保護您的資料安全。",
                                 inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
                                 confirmButtonText: '設定並備份', trackHistory: true
                             });
                             
-                            if (!pinResult.confirmed || !pinResult.values.pin || !/^\d{6}$/.test(pinResult.values.pin)) {
+                            if (pinResult.confirmed && pinResult.values.pin && /^\d{6}$/.test(pinResult.values.pin)) {
+                                this.showMessage('正在設定 PIN 碼...');
+                                await this.callCloudApi('setPin', { pin: pinResult.values.pin });
+                                this.showMessage('正在備份資料...');
+                                const backupResult = await this.callCloudApi('backupData', { notebookData: recordBooks });
+                                this.elements.lastBackupTime.textContent = this.formatDateTime(backupResult.data.lastUpdated);
+                                this.showMessage('記事本已成功備份至雲端！');
+                            } else {
                                 this.showMessage('PIN 碼設定已取消或格式錯誤。', true);
-                                return;
                             }
-                            this.showMessage('正在設定 PIN 碼...');
-                            await this.callCloudApi('setPin', { pin: pinResult.values.pin });
                         } else {
-                            pinResult = await this.showCustomModal("輸入 PIN 碼", {
+                            const pinResult = await this.showCustomModal("輸入 PIN 碼", {
                                 message: "請輸入您的 6 位數字 PIN 碼以進行備份。",
                                 inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
                                 confirmButtonText: '驗證並備份', trackHistory: true
                             });
-                            if (!pinResult.confirmed || !pinResult.values.pin) {
+                            if (pinResult.confirmed && pinResult.values.pin) {
+                                this.showMessage('正在驗證 PIN 碼...');
+                                const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
+                                if (verificationResult.data.verified) {
+                                     this.showMessage('PIN 碼驗證成功，正在備份資料...');
+                                    const backupResult = await this.callCloudApi('backupData', { notebookData: recordBooks });
+                                    this.elements.lastBackupTime.textContent = this.formatDateTime(backupResult.data.lastUpdated);
+                                    this.showMessage('記事本已成功備份至雲端！');
+                                } else {
+                                    this.showMessage('PIN 碼錯誤，備份失敗。', true);
+                                }
+                            } else {
                                 this.showMessage('備份已取消。');
-                                return;
-                            }
-                            this.showMessage('正在驗證 PIN 碼...');
-                            const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
-                            if (!verificationResult.data.verified) {
-                                this.showMessage('PIN 碼錯誤，備份失敗。', true);
-                                return;
                             }
                         }
-                        
-                        this.showMessage('PIN 碼驗證成功，正在備份資料...');
-                        const backupResult = await this.callCloudApi('backupData', { notebookData: recordBooks });
-                        this.elements.lastBackupTime.textContent = this.formatDateTime(backupResult.data.lastUpdated);
-                        this.showMessage('記事本已成功備份至雲端！');
+                    } catch (error) {
+                       this.showMessage(`備份過程中發生錯誤: ${error.message}`, true);
+                    } finally {
+                        isCloudActionInProgress = false;
+                        this.toggleCloudButtons(true);
+                    }
+                },
+                async handleCloudRestore() {
+                    if (isCloudActionInProgress) return;
+                    isCloudActionInProgress = true;
+                    this.toggleCloudButtons(false);
+
+                    try {
+                        await this.closeCloudSyncModal();
+
+                        const confirmRestore = await this.showCustomModal("確認還原", {
+                            message: "從雲端還原將會覆蓋您目前所有的本機資料。此操作無法復原，確定要繼續嗎？",
+                            confirmButtonText: "確定還原", trackHistory: true
+                        });
+
+                        if (confirmRestore.confirmed) {
+                            const pinResult = await this.showCustomModal("輸入 PIN 碼", {
+                                message: "請輸入您的 6 位數字 PIN 碼以還原資料。",
+                                inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
+                                confirmButtonText: '驗證並還原', trackHistory: true
+                            });
+                            
+                            if (pinResult.confirmed && pinResult.values.pin) {
+                                this.showMessage('正在驗證 PIN 碼...');
+                                const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
+                                
+                                if (verificationResult.data.verified) {
+                                    this.showMessage('PIN 碼驗證成功，正在從雲端還原資料...');
+                                    const restoreResult = await this.callCloudApi('restoreData');
+                                    const restoredData = restoreResult.data;
+                                    
+                                    if (restoredData.hasData && restoredData.notebookData) {
+                                        recordBooks = restoredData.notebookData;
+                                        this.saveRecordBooks();
+                                        this.renderManagementView();
+                                        this.showMessage('資料已成功從雲端還原！');
+                                    } else {
+                                        this.showMessage('雲端沒有可還原的資料。', true);
+                                    }
+                                } else {
+                                    this.showMessage('PIN 碼錯誤，還原失敗。', true);
+                                }
+                            } else {
+                                this.showMessage('還原已取消。');
+                            }
+                        } else {
+                            this.showMessage('還原操作已取消。');
+                        }
+                    } catch (error) {
+                        this.showMessage(`還原過程中發生錯誤: ${error.message}`, true);
+                    } finally {
+                        isCloudActionInProgress = false;
+                        this.toggleCloudButtons(true);
+                    }
+                },
+                
+                // --- CORE APP LOGIC & STATE MANAGEMENT ---
+                loadRecordBooks() {
+                    let needsSave = false;
+                    const stored = localStorage.getItem(storageKey);
+                    if (stored) {
+                        try {
+                            recordBooks = JSON.parse(stored);
+                            if (!Array.isArray(recordBooks)) recordBooks = [];
+                            recordBooks.forEach(b => {
+                                if (b.maxNumber === undefined) { b.maxNumber = defaultMaxNumber; needsSave = true; }
+                                if (b.lastUpdated === undefined) { b.lastUpdated = new Date().toISOString(); needsSave = true; }
+                                if (b.notes === undefined) { b.notes = ""; needsSave = true; }
+                                if (b.recordText === undefined) { b.recordText = ""; needsSave = true; }
+                                if (b.bookType === undefined) { b.bookType = "number"; needsSave = true; }
+                                if (b.disabledNumbers === undefined) { b.disabledNumbers = {}; needsSave = true; }
+                                if (b.history === undefined) { b.history = []; needsSave = true; }
+                                if (b.checkedNumbers === undefined) { b.checkedNumbers = {}; needsSave = true; }
+                            });
+                        } catch (e) { recordBooks = []; }
+                    } else { recordBooks = []; }
+                    displayMode = localStorage.getItem(displayModeKey) || 'list';
+                    sortMode = localStorage.getItem(sortModeKey) || 'latest';
+                    if (needsSave) this.saveRecordBooks();
+                    selectedRecordBookIds.clear();
+                    const state = history.state;
+                    if (state && state.view === 'tracker' && state.bookId) {
+                        currentRecordBookId = state.bookId;
+                        this.renderNumberTrackerView('initial');
+                    } else {
+                        history.replaceState({ view: 'management', modalOpen: false }, '我的記事本', '');
+                        this.renderManagementView('initial');
+                    }
+                },
+                saveRecordBooks() {
+                    try {
+                        localStorage.setItem(storageKey, JSON.stringify(recordBooks));
+                        localStorage.setItem(displayModeKey, displayMode);
+                        localStorage.setItem(sortModeKey, sortMode);
+                    } catch (e) {
+                        this.showMessage("儲存本機資料失敗！", true);
+                    }
+                },
+                sortRecordBooks() {
+                    const el = this.elements;
+                    if (sortMode === 'latest') {
+                        recordBooks.sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime());
+                        el.sortButton.querySelector('#currentSortText').textContent = '最新';
+                        el.sortByLatestBtn.classList.add('selected-sort-option');
+                        el.sortByTitleBtn.classList.remove('selected-sort-option');
+                    } else if (sortMode === 'title') {
+                        recordBooks.sort((a, b) => a.name.localeCompare(b.name, 'zh-TW'));
+                        el.sortButton.querySelector('#currentSortText').textContent = '標題';
+                        el.sortByTitleBtn.classList.add('selected-sort-option');
+                        el.sortByLatestBtn.classList.remove('selected-sort-option');
+                    }
+                },
+                logHistory(bookId, description) {
+                    const book = recordBooks.find(b => b.id === bookId);
+                    if (book && book.history) {
+                        book.history.unshift({ timestamp: new Date().toISOString(), description });
+                        if (book.history.length > 200) book.history.pop();
+                    }
+                },
+                
+                // --- VIEW RENDERING & UI UPDATES ---
+                showView(newView, state, title) {
+                    const el = this.elements;
+                    document.querySelectorAll('.view').forEach(v => {
+                        v.classList.remove('active-visible');
+                        v.classList.add('hidden');
+                    });
+                    newView.classList.remove('hidden');
+                    newView.classList.add('active-visible');
+
+                    el.fabAddNewRecordBookBtn.classList.toggle('hidden', newView !== el.managementView);
                     
+                    if (state.view === 'tracker' && (!history.state || history.state.view !== 'tracker')) {
+                        history.pushState(state, title, '');
+                    } else {
+                        history.replaceState(state, title, '');
+                    }
+                    document.title = title;
+                },
+                updateToolbarButtonStates() {
+                    const hasSelection = selectedRecordBookIds.size > 0;
+                    this.elements.deleteSelectedBtn.disabled = !hasSelection;
+                    this.elements.deleteSelectedBtn.classList.toggle('hidden-if-no-selection', !hasSelection);
+                    this.elements.exportBtn.classList.toggle('hidden-if-no-selection', !hasSelection);
+                },
+                updateEditorToolbarState() {
+                    const el = this.elements;
+                    if(!el.editorToolbar || !el.recordTextInput.isContentEditable) return;
+                    const commands = ['bold', 'italic', 'underline', 'insertUnorderedList', 'insertOrderedList'];
+                    commands.forEach(command => {
+                        const button = el.editorToolbar.querySelector(`[data-command="${command}"]`);
+                        if (button) {
+                            try { button.classList.toggle('active', document.queryCommandState(command)); } catch(e) {}
+                        }
+                    });
+                },
+                renderManagementView() {
+                    this.showView(this.elements.managementView, { view: 'management' }, '我的記事本');
+                    this.sortRecordBooks();
+                    const el = this.elements;
+                    el.recordBookList.innerHTML = '';
+                    const isListView = displayMode === 'list';
+                    el.recordBookList.className = isListView ? 'record-book-list-container record-book-list-view' : 'record-book-grid-container record-book-grid-view';
+                    el.listViewBtn.classList.toggle('selected', isListView);
+                    el.gridViewBtn.classList.toggle('selected', !isListView);
+                    el.listViewHeader.classList.toggle('hidden', !isListView || recordBooks.length === 0);
+                    el.selectAllCheckboxes.classList.toggle('hidden', !isListView || recordBooks.length === 0);
+                    if (isListView) el.selectAllCheckboxes.checked = recordBooks.length > 0 && selectedRecordBookIds.size === recordBooks.length;
+                    el.noRecordBooksMessage.classList.toggle('hidden', recordBooks.length > 0);
+
+                    if (recordBooks.length > 0) {
+                        recordBooks.forEach(book => {
+                            const bookItem = document.createElement('div');
+                            bookItem.className = 'record-book-item';
+                            bookItem.dataset.id = book.id;
+                            bookItem.onclick = (e) => {
+                                if (!e.target.closest('.record-book-checkbox-wrapper, input[type="checkbox"], .options-button')) {
+                                    currentRecordBookId = book.id;
+                                    this.renderNumberTrackerView();
+                                }
+                            };
+                            const checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.className = 'record-book-checkbox transform scale-125 cursor-pointer';
+                            checkbox.dataset.id = book.id;
+                            checkbox.checked = selectedRecordBookIds.has(book.id);
+                            checkbox.onchange = (e) => {
+                                e.stopPropagation();
+                                selectedRecordBookIds.has(book.id) ? selectedRecordBookIds.delete(book.id) : selectedRecordBookIds.add(book.id);
+                                this.updateToolbarButtonStates();
+                                if (isListView) el.selectAllCheckboxes.checked = recordBooks.length > 0 && selectedRecordBookIds.size === recordBooks.length;
+                            };
+                            const actionsDiv = document.createElement('div');
+                            actionsDiv.className = 'record-book-actions';
+                            const optionsBtn = document.createElement('button');
+                            optionsBtn.className = 'options-button action-icon-button';
+                            optionsBtn.innerHTML = '<span class="material-symbols-outlined">more_vert</span>';
+                            optionsBtn.onclick = (e) => { e.stopPropagation(); this.showRecordBookActionsModal(book.id); };
+                            actionsDiv.appendChild(optionsBtn);
+
+                            if (isListView) {
+                                checkbox.classList.add('mr-3');
+                                bookItem.innerHTML = `<div></div><div class="record-book-name-cell"></div><div class="record-book-last-updated-cell"></div>`;
+                                bookItem.firstChild.appendChild(checkbox);
+                                bookItem.children[1].textContent = book.name;
+                                bookItem.children[2].textContent = this.formatDateTime(book.lastUpdated);
+                            } else {
+                                const checkboxWrapper = document.createElement('div');
+                                checkboxWrapper.className = 'checkbox-wrapper';
+                                checkboxWrapper.appendChild(checkbox);
+                                bookItem.appendChild(checkboxWrapper);
+                                const nameWrapper = document.createElement('div');
+                                nameWrapper.className = 'record-book-name-wrapper';
+                                nameWrapper.innerHTML = `<span class="record-book-name"></span><span class="record-book-meta"></span>`;
+                                nameWrapper.firstChild.textContent = book.name;
+                                nameWrapper.lastChild.textContent = `更新於: ${this.formatDateTime(book.lastUpdated)}`;
+                                bookItem.appendChild(nameWrapper);
+                            }
+                            bookItem.appendChild(actionsDiv);
+                            el.recordBookList.appendChild(bookItem);
+                        });
+                    }
+                    this.updateToolbarButtonStates();
+                },
+
+                renderNumberTrackerView() {
+                    const currentBook = recordBooks.find(b => b.id === currentRecordBookId);
+                    if (!currentBook) return this.renderManagementView();
+
+                    this.showView(this.elements.numberTrackerView, { view: 'tracker', bookId: currentRecordBookId }, `記事本: ${currentBook.name}`);
+                    const el = this.elements;
+                    el.currentRecordBookName.textContent = currentBook.name;
+                    el.numbersGrid.innerHTML = '';
+                    el.numberTrackerView.classList.add('locked');
+                    el.toggleLockBtn.querySelector('.material-symbols-outlined').textContent = 'lock';
+
+                    if (currentBook.bookType === 'number') {
+                        el.limitedNotesSection.classList.remove('hidden');
+                        el.numbersGrid.classList.remove('hidden');
+                        el.unlimitedRecordTextSection.classList.add('hidden');
+                        el.notesInput.value = currentBook.notes || '';
+                        el.notesCharCount.textContent = `${el.notesInput.value.length}/${notesCharLimit}`;
+                        for (let i = 1; i <= currentBook.maxNumber; i++) {
+                            const gridItem = document.createElement('div');
+                            gridItem.className = 'grid-item';
+                            if (currentBook.disabledNumbers[i]) gridItem.classList.add('disabled');
+                            else if (currentBook.checkedNumbers[i]) gridItem.classList.add('checked');
+                            gridItem.dataset.number = i;
+                            gridItem.innerHTML = `<span class="number">${i}</span>`;
+                            let pressTimer = null, longPressTriggered = false;
+                            const handleDisable = () => {
+                                const num = parseInt(gridItem.dataset.number, 10);
+                                const state = !currentBook.disabledNumbers[num];
+                                currentBook.disabledNumbers[num] = state;
+                                if (state) currentBook.checkedNumbers[num] = false;
+                                currentBook.lastUpdated = new Date().toISOString();
+                                gridItem.classList.toggle('disabled', state);
+                                if (state) gridItem.classList.remove('checked');
+                                this.logHistory(currentBook.id, `${state ? '禁用' : '啟用'}了數字 ${num}`);
+                                this.saveRecordBooks();
+                            };
+                            const handleCheck = () => {
+                                if (gridItem.classList.contains('disabled')) return;
+                                const num = parseInt(gridItem.dataset.number, 10);
+                                const state = !currentBook.checkedNumbers[num];
+                                currentBook.checkedNumbers[num] = state;
+                                currentBook.lastUpdated = new Date().toISOString();
+                                gridItem.classList.toggle('checked', state);
+                                this.logHistory(currentBook.id, `${state ? '勾選' : '取消勾選'}了數字 ${num}`);
+                                this.saveRecordBooks();
+                            };
+                            const onPointerDown = () => { longPressTriggered = false; pressTimer = setTimeout(() => { longPressTriggered = true; handleDisable(); }, 500); };
+                            const onPointerUpOrLeave = () => clearTimeout(pressTimer);
+                            gridItem.addEventListener('contextmenu', e => { e.preventDefault(); clearTimeout(pressTimer); handleDisable(); });
+                            gridItem.addEventListener('click', () => { if (!longPressTriggered) handleCheck(); });
+                            ['mousedown', 'touchstart'].forEach(evt => gridItem.addEventListener(evt, onPointerDown, { passive: true }));
+                            ['mouseup', 'mouseleave', 'touchend', 'touchmove'].forEach(evt => gridItem.addEventListener(evt, onPointerUpOrLeave));
+                            el.numbersGrid.appendChild(gridItem);
+                        }
+                    } else { // Text book
+                        el.limitedNotesSection.classList.add('hidden');
+                        el.numbersGrid.classList.add('hidden');
+                        el.unlimitedRecordTextSection.classList.remove('hidden');
+                        el.recordTextInput.innerHTML = currentBook.recordText || '';
+                    }
+                },
+                
+                // --- EVENT LISTENERS & HANDLERS ---
+                attachEventListeners() {
+                    const el = this.elements;
+                    // Management View
+                    el.fabAddNewRecordBookBtn.onclick = () => this.addNewRecordBook();
+                    el.importBtn.onclick = () => this.importData();
+                    el.exportBtn.onclick = () => this.exportData();
+                    el.deleteSelectedBtn.onclick = () => this.deleteSelectedBooks();
+                    el.cloudSyncBtn.onclick = () => { el.cloudSyncModal.classList.add('show-modal'); el.cloudSyncModal.classList.remove('hidden'); this.updateCloudSyncModalUI(); };
+                    el.listViewBtn.onclick = () => { displayMode = 'list'; this.saveRecordBooks(); this.renderManagementView(); };
+                    el.gridViewBtn.onclick = () => { displayMode = 'grid'; this.saveRecordBooks(); this.renderManagementView(); };
+                    el.selectAllCheckboxes.onchange = () => {
+                        const checkboxes = el.recordBookList.querySelectorAll('.record-book-checkbox');
+                        checkboxes.forEach(cb => {
+                            cb.checked = el.selectAllCheckboxes.checked;
+                            if (cb.checked) selectedRecordBookIds.add(cb.dataset.id); else selectedRecordBookIds.delete(cb.dataset.id);
+                        });
+                        this.updateToolbarButtonStates();
+                    };
+                    el.sortButton.onclick = (e) => { e.stopPropagation(); el.sortDropdown.classList.toggle('hidden'); };
+                    el.sortByLatestBtn.onclick = () => { sortMode = 'latest'; el.sortDropdown.classList.add('hidden'); this.saveRecordBooks(); this.renderManagementView(); };
+                    el.sortByTitleBtn.onclick = () => { sortMode = 'title'; el.sortDropdown.classList.add('hidden'); this.saveRecordBooks(); this.renderManagementView(); };
+                    
+                    // Tracker View
+                    el.backToManagementBtn.onclick = () => history.back();
+                    el.resetCurrentBookBtn.onclick = () => this.resetCurrentBook();
+                    el.toggleLockBtn.onclick = () => {
+                        const isLocked = el.numberTrackerView.classList.toggle('locked');
+                        el.toggleLockBtn.querySelector('.material-symbols-outlined').textContent = isLocked ? 'lock' : 'lock_open';
+                        this.showMessage(isLocked ? '記事本已鎖定' : '記事本已解鎖');
+                    };
+                    el.viewHistoryBtn.onclick = () => this.viewHistory();
+                    el.shareAsImageBtn.onclick = () => this.shareAsImage();
+                    el.notesInput.oninput = this.debounce(() => {
+                        const book = recordBooks.find(b => b.id === currentRecordBookId);
+                        if(book) {
+                            book.notes = el.notesInput.value;
+                            book.lastUpdated = new Date().toISOString();
+                            this.logHistory(book.id, '編輯了簡短備註');
+                            this.saveRecordBooks();
+                        }
+                    }, 500);
+                     el.recordTextInput.oninput = this.debounce(() => {
+                        const book = recordBooks.find(b => b.id === currentRecordBookId);
+                        if(book) {
+                            book.recordText = el.recordTextInput.innerHTML;
+                            book.lastUpdated = new Date().toISOString();
+                            this.logHistory(book.id, '編輯了記事本內容');
+                            this.saveRecordBooks();
+                        }
+                    }, 500);
+
+                    // Rich Text Editor
+                    el.editorToolbar.onclick = (e) => {
+                        const button = e.target.closest('button');
+                        if (button && button.dataset.command) {
+                            e.preventDefault();
+                            document.execCommand(button.dataset.command, false, null);
+                            el.recordTextInput.focus();
+                            this.updateEditorToolbarState();
+                        }
+                    };
+                    el.linkBtn.onclick = (e) => {
+                        e.preventDefault();
+                        const selection = window.getSelection();
+                        if (!selection || selection.isCollapsed) return this.showMessage('請先選取要建立連結的文字。', true);
+                        const url = prompt('請輸入連結網址:', 'https://');
+                        if (url) { el.recordTextInput.focus(); document.execCommand('createLink', false, url); }
+                    };
+                    el.fontSizeSelect.onchange = () => { document.execCommand('fontSize', false, el.fontSizeSelect.value); el.recordTextInput.focus(); };
+                    el.fontColorPicker.oninput = () => { document.execCommand('foreColor', false, el.fontColorPicker.value); el.recordTextInput.focus(); };
+                    
+                    // Global / System
+                    document.addEventListener('click', (e) => { if (!el.sortButton.contains(e.target)) el.sortDropdown.classList.add('hidden'); });
+                    window.onpopstate = (e) => {
+                        if (isClosingModalProgrammatically) {
+                            return;
+                        }
+
+                        if (el.customModal.classList.contains('show-modal')) {
+                             this.closeCustomModal().then(() => {
+                                if (currentModalResolve) {
+                                    currentModalResolve({ confirmed: false, fromPopState: true });
+                                    currentModalResolve = null;
+                                }
+                            });
+                        }
+                        if (el.cloudSyncModal.classList.contains('show-modal')) {
+                            this.closeCloudSyncModal();
+                        }
+                        
+                        const state = e.state || { view: 'management' };
+                        if (state.view === 'management') { currentRecordBookId = null; this.renderManagementView(); }
+                        else if (state.view === 'tracker' && state.bookId) { currentRecordBookId = state.bookId; this.renderNumberTrackerView(); }
+                    };
+                    ['focus', 'click', 'keyup'].forEach(evt => el.recordTextInput.addEventListener(evt, () => this.updateEditorToolbarState()));
+                    document.addEventListener('selectionchange', () => { if (document.activeElement === el.recordTextInput) this.updateEditorToolbarState(); });
+
+                    // Modal Buttons
+                    el.modalConfirmBtn.onclick = () => {
+                        const values = {}; let isValid = true, errorMessage = '';
+                        el.modalInputsContainer.querySelectorAll('input, textarea, select').forEach(input => {
+                            if (input.type === 'radio') { if (input.checked) values[input.name] = input.value; } 
+                            else if (input.id) values[input.id] = input.value;
+                        });
+                        const pinInput = el.modalInputsContainer.querySelector('#pin');
+                        if (pinInput && !/^\d{6}$/.test(pinInput.value)) { errorMessage = 'PIN 碼必須是 6 位數字。'; isValid = false; }
+                        if (!isValid) { el.modalErrorMessage.textContent = errorMessage; el.modalErrorMessage.classList.remove('hidden'); } 
+                        else { this.closeCustomModal().then(() => currentModalResolve({ confirmed: true, values })); }
+                    };
+                    el.modalCancelBtn.onclick = () => this.closeCustomModal().then(() => currentModalResolve({ confirmed: false }));
+                    el.customModal.onclick = (e) => { if (e.target === el.customModal) this.closeCustomModal().then(() => currentModalResolve({ confirmed: false })); };
+
+                    // Cloud Sync Modal Buttons
+                    el.cloudSyncCancelBtn.onclick = () => this.closeCloudSyncModal();
+                    el.cloudSyncModal.onclick = (e) => { if (e.target === el.cloudSyncModal) this.closeCloudSyncModal(); };
+                    el.cloudSignOutBtn.onclick = () => this.handleSignOut();
+                    el.cloudBackupBtn.onclick = () => this.handleCloudBackup();
+                    el.cloudRestoreBtn.onclick = () => this.handleCloudRestore();
+                },
+
+                async addNewRecordBook() {
+                    const result = await this.showCustomModal("新增記事本", {
+                        inputs: [
+                            { label: '記事本類型:', type: 'radio', name: 'bookType', options: [{ label: '純文字記事', value: 'text' }, { label: '數字追蹤', value: 'number', checked: true }] },
+                            { id: 'bookName', label: '記事本名稱:', type: 'text', defaultValue: `記事本 ${recordBooks.length + 1}` },
+                            { id: 'maxNum', label: '最大數字設定 (1-100):', type: 'number', defaultValue: defaultMaxNumber, min: '1', max: '100' }
+                        ],
+                        confirmButtonText: '新增', trackHistory: true
+                    });
+                    if (result.confirmed) {
+                        const newBook = { id: this.generateUUID(), name: result.values.bookName.trim() || `未命名 ${recordBooks.length + 1}`, lastUpdated: new Date().toISOString(), notes: "", recordText: "", bookType: result.values.bookType, history: [], checkedNumbers: {}, disabledNumbers: {} };
+                        if (newBook.bookType === 'number') newBook.maxNumber = parseInt(result.values.maxNum, 10) || defaultMaxNumber;
+                        else { newBook.recordText = "<div>開始編輯...</div>"; newBook.maxNumber = 0; }
+                        recordBooks.push(newBook);
+                        this.saveRecordBooks(); this.renderManagementView(); this.showMessage('記事本已成功新增！');
+                    }
+                },
+                
+                async showRecordBookActionsModal(bookId) {
+                    const book = recordBooks.find(b => b.id === bookId);
+                    if (!book) return;
+                    const result = await this.showCustomModal(`操作記事本`, {
+                        message: `請選擇要對記事本「${book.name}」執行的操作。`,
+                        actions: [{ text: '重新命名', value: 'rename', class: 'rename' }, { text: '刪除', value: 'delete', class: 'delete' }],
+                        trackHistory: false
+                    });
+                    if (result.confirmed) {
+                        setTimeout(() => {
+                           if (result.action === 'rename') this.renameRecordBook(bookId, book.name);
+                           else if (result.action === 'delete') this.deleteRecordBook(bookId, book.name);
+                        }, 50);
+                    }
+                },
+                async renameRecordBook(id, oldName) {
+                    const result = await this.showCustomModal("重新命名記事本", {
+                        inputs: [{ id: 'newName', label: '新名稱:', type: 'text', defaultValue: oldName }],
+                        confirmButtonText: '儲存', trackHistory: true
+                    });
+                    if (result.confirmed && result.values.newName.trim()) {
+                        const book = recordBooks.find(b => b.id === id);
+                        if (book) {
+                            book.name = result.values.newName.trim();
+                            book.lastUpdated = new Date().toISOString();
+                            this.saveRecordBooks(); this.renderManagementView(); this.showMessage('記事本已成功重新命名！');
+                        }
+                    }
+                },
+                async deleteRecordBook(id, name) {
+                    const result = await this.showCustomModal(`確認刪除`, {
+                        message: `確定要刪除記事本「${name}」嗎？此操作無法復原。`,
+                        confirmButtonText: '確定刪除', trackHistory: true
+                    });
+                    if (result.confirmed) {
+                        recordBooks = recordBooks.filter(b => b.id !== id);
+                        selectedRecordBookIds.delete(id);
+                        this.saveRecordBooks(); this.renderManagementView(); this.showMessage('記事本已成功刪除！');
+                    }
+                },
+                async deleteSelectedBooks() {
+                    if (selectedRecordBookIds.size === 0) return;
+                    const booksToDelete = recordBooks.filter(b => selectedRecordBookIds.has(b.id));
+                    const result = await this.showCustomModal(`確認大量刪除`, {
+                        message: `確定要刪除選定的 ${selectedRecordBookIds.size} 個記事本嗎？`,
+                        itemsToDelete: booksToDelete, confirmButtonText: '確定刪除', trackHistory: true
+                    });
+                    if (result.confirmed) {
+                        const ids = new Set(selectedRecordBookIds);
+                        recordBooks = recordBooks.filter(b => !ids.has(b.id));
+                        selectedRecordBookIds.clear();
+                        this.saveRecordBooks(); this.renderManagementView(); this.showMessage(`${booksToDelete.length} 個記事本已成功刪除！`);
+                    }
+                },
+                async resetCurrentBook() {
+                    const book = recordBooks.find(b => b.id === currentRecordBookId);
+                    if(!book) return;
+                    const result = await this.showCustomModal(`確定要重設記事本 "${book.name}" 嗎？`, {
+                        message: `${book.bookType === 'number' ? '所有打勾與禁用紀錄將被清除。' : '所有內容將被清除。'} 此操作無法復原。`,
+                        confirmButtonText: '確定重設', trackHistory: true
+                    });
+                     if (result.confirmed) {
+                        if (book.bookType === 'number') { book.checkedNumbers = {}; book.disabledNumbers = {}; }
+                        else { book.recordText = ""; }
+                        book.notes = ""; book.lastUpdated = new Date().toISOString(); this.logHistory(book.id, '重設了整個記事本');
+                        this.saveRecordBooks(); this.renderNumberTrackerView(); this.showMessage('記事本已成功重設！');
+                    }
+                },
+                async viewHistory() {
+                    const book = recordBooks.find(b => b.id === currentRecordBookId);
+                    if (!book || !book.history || book.history.length === 0) return this.showMessage('此記事本沒有任何操作紀錄。');
+                    const historyHtml = `<div class="history-log-container">${book.history.map(entry => `
+                        <div class="history-log-item">
+                            <span class="history-log-time">${this.formatDateTime(entry.timestamp)}</span>
+                            <span class="history-log-desc">${entry.description}</span>
+                        </div>`).join('')}</div>`;
+                    this.showCustomModal('操作歷史紀錄', { htmlContent: historyHtml, trackHistory: true });
+                },
+                async shareAsImage() {
+                    const book = recordBooks.find(b => b.id === currentRecordBookId);
+                    if (!book) return;
+                    this.showMessage('正在產生圖片...');
+                    const elToClone = book.bookType === 'number' ? this.elements.numbersGrid : this.elements.unlimitedRecordTextSection;
+                    const captureElement = document.createElement('div');
+                    captureElement.style.cssText = 'position: absolute; left: -9999px; background-color: #ffffff; padding: 24px; border-radius: 16px; display: inline-block;';
+                    captureElement.innerHTML = `<h1 style="text-align: center; font-size: 1.5rem; font-weight: bold; margin-bottom: 24px;">${book.name}</h1>`;
+                    const contentClone = elToClone.cloneNode(true);
+                    if (book.bookType === 'text') {
+                       contentClone.style.display = 'block';
+                       contentClone.querySelector('label')?.remove();
+                       contentClone.querySelector('.editor-toolbar')?.remove();
+                    }
+                    captureElement.appendChild(contentClone);
+                    document.body.appendChild(captureElement);
+                    try {
+                        const canvas = await html2canvas(captureElement, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+                        const link = document.createElement('a');
+                        link.download = `${book.name.replace(/ /g, '_')}_分享.png`;
+                        link.href = canvas.toDataURL("image/png");
+                        link.click();
+                        this.showMessage('圖片已成功產生並開始下載！');
+                    } catch (err) { this.showMessage('產生圖片時發生錯誤。', true); }
+                    finally { document.body.removeChild(captureElement); }
+                },
+                async importData() {
+                    const input = document.createElement('input');
+                    input.type = 'file'; input.accept = '.json';
+                    input.onchange = async (e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        try {
+                            const content = await file.text();
+                            const data = JSON.parse(content);
+                            if (!Array.isArray(data) || !data.every(item => item.id && item.name)) return this.showMessage('匯入的檔案格式不正確。', true);
+                            const result = await this.showCustomModal("匯入記事本資料", {
+                                inputs: [{ label: '您想如何處理現有的記事本資料？', type: 'radio', name: 'import_mode', options: [{ label: '覆蓋所有', value: 'overwrite' }, { label: '合併資料', value: 'merge', checked: true }] }],
+                                confirmButtonText: '確定', trackHistory: true
+                            });
+                            if (result.confirmed) {
+                                if (result.values.import_mode === 'overwrite') { recordBooks = data; this.showMessage('記事本資料已成功覆蓋！'); }
+                                else { const ids = new Set(recordBooks.map(b => b.id)); recordBooks.push(...data.filter(b => !ids.has(b.id))); this.showMessage('記事本資料已成功合併！'); }
+                                this.saveRecordBooks(); this.renderManagementView();
+                            }
+                        } catch (err) { this.showMessage('匯入失敗，請確認檔案格式。', true); }
+                    };
+                    input.click();
+                },
+                async exportData() {
+                    if (selectedRecordBookIds.size === 0) return this.showMessage('請先選擇要匯出的記事本。', true);
+                    const books = recordBooks.filter(b => selectedRecordBookIds.has(b.id));
+                    const data = JSON.stringify(books, null, 2);
+                    const blob = new Blob([data], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `記事本備份_${new Date().toISOString().slice(0, 10)}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    this.showMessage('選取記事本資料已成功匯出！');
+                }
+            };
+
+            app.init();
+        });
+    </script>
+</body>
+</html>
+```好的，萬分抱歉！看來我上次的修復沒有命中問題的核心。您說的非常對，在提供解決方案前，我應該先專業地分析問題的根本原因。
+
+非常感謝您給我機會再次審視並修正這個問題。
+
+### 問題的專業說明與根本原因分析
+
+您遇到的「即使雲端操作成功後下一次點擊也會失敗」的核心問題，源自於**非同步流程中的狀態管理缺陷**。
+
+#### 核心概念
+
+1.  **狀態旗標 (State Flag):** 程式碼中使用了一個名為 `isCloudActionInProgress` 的布林（`true`/`false`）變數。它的作用就像一個「請勿打擾」的牌子。當雲端同步開始時，這個牌子會掛上 (`isCloudActionInProgress = true`)，目的是為了防止使用者在同步還沒完成時，又重複點擊按鈕，造成多次、混亂的請求。當同步結束（無論成功、失敗或取消），這個牌子理應被摘下 (`isCloudActionInProgress = false`)，讓使用者可以進行下一次操作。
+
+2.  **非同步流程 (`async/await`):** 雲端備份/還原是一個包含多個步驟的非同步流程。例如在「還原」中，它需要：
+    *   `await` 等待「確認還原」的彈出視窗回應。
+    *   `await` 等待「輸入 PIN 碼」的彈出視窗回應。
+    *   `await` 等待與雲端伺服器進行網路通訊。
+    *   `await` 等待......
+
+3.  **`try...finally` 結構:** 為了確保「請勿打擾」的牌子 (`isCloudActionInProgress`) 一定會被摘下，程式碼使用了 `try...finally` 結構。理論上，不論 `try` 區塊中的程式碼是順利執行完畢，還是中途出錯（被 `catch` 捕捉），`finally` 區塊中的程式碼（也就是摘下牌子的動作）都**一定會**被執行。
+
+#### 根本原因：脆弱的流程控制
+
+問題就出在 `handleCloudRestore` 和 `handleCloudBackup` 函數內部 `try` 區塊的邏輯結構。原始程式碼使用了**多個提前 `return` 的判斷式**來處理使用者取消操作的情況，例如：
+
+```javascript
+// 舊的、有問題的結構
+try {
+    // ...
+    const confirmRestore = await this.showCustomModal(...);
+    if (!confirmRestore.confirmed) {
+        this.showMessage('還原操作已取消。');
+        return; // <--- 問題點 1
+    }
+
+    const pinResult = await this.showCustomModal(...);
+    if (!pinResult.confirmed || !pinResult.values.pin) {
+        this.showMessage('還原已取消。');
+        return; // <--- 問題點 2
+    }
+    // ... 更多邏輯
+} catch (error) {
+    // ...
+} finally {
+    isCloudActionInProgress = false; // 摘下牌子
+    this.toggleCloudButtons(true);
+}
+```
+
+雖然 `finally` 區塊在 `return` 之前確實會執行，但這種**多個出口（early returns）的寫法**在複雜的非同步流程中是相當脆弱的。它導致了兩個主要問題：
+
+1.  **流程中斷與狀態不一致：** 這正是您遇到的第一個問題「按下確認還原後沒有出現 pin 碼輸入框」。這是因為 `if (!confirmRestore.confirmed)` 的邏輯，一旦使用者點擊了「取消」，整個 `handleCloudRestore` 函數就直接 `return` 了，後續的 PIN 碼輸入框自然不會出現。這部分雖然是預期行為，但結合下一個問題就產生了 Bug。
+
+2.  **狀態重設失敗的根源：** 真正導致按鈕鎖死的，是當整個流程**順利完成**或在某一步驟**出錯**時，`isCloudActionInProgress` 旗標沒有被正確重設回 `false`。上面提到的**多出口寫法**使得程式碼的流程變得複雜且難以追蹤。當 `await` 和 `Promise` 鏈（例如彈出視窗的互動）結合時，如果其中一個環節的狀態沒有被正確處理，就可能導致函式在 `finally` 區塊執行前就以非預期的方式終止，從而**永久地鎖定了狀態旗標**。
+
+#### 解決方案：改用單一出口的健壯流程
+
+最穩健的作法是重構這段邏輯，**避免使用多個 `return` 來控制流程**，而是改用**巢狀的 `if` 條件判斷**，確保整個 `try` 區塊只有一個主要的成功路徑。
+
+```javascript
+// 新的、健壯的結構
+try {
+    // ...
+    const confirmRestore = await this.showCustomModal(...);
+
+    if (confirmRestore.confirmed) { // 如果使用者確認，才繼續往下走
+        const pinResult = await this.showCustomModal(...);
+        if (pinResult.confirmed && pinResult.values.pin) { // 如果 PIN 也輸入了，再繼續
+            // ... 核心的還原邏輯 ...
+        } else {
+            this.showMessage('還原已取消。');
+        }
+    } else {
+        this.showMessage('還原操作已取消。');
+    }
+    // 這裡沒有 return，函式會自然地執行到結尾
+} catch (error) {
+    // ...
+} finally {
+    // 只有一個最終出口，無論發生什麼，這裡都會被執行
+    isCloudActionInProgress = false;
+    this.toggleCloudButtons(true);
+}
+```
+
+透過這種方式，我們確保了：
+*   **流程清晰：** 程式碼從上到下只有一條主幹，易於理解和維護。
+*   **狀態安全：** `isCloudActionInProgress = false` 的重設操作位於唯一的、必然會執行的 `finally` 區塊中，無論使用者是確認、取消，還是操作過程中發生網路錯誤，這個狀態最終都會被可靠地重設。
+
+這樣就同時解決了您提到的兩個問題。
+
+---
+
+### 已修復的程式碼
+
+這一次，我已按照上述的健壯流程重構了 `handleCloudRestore` 和 `handleCloudBackup` 兩個函式。請用下面的完整程式碼替換您的 `index.html` 檔案。
+
+```html
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>記事本 (含雲端備份)</title>
+    <!-- Google GSI Client -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- START: Added Rule to Prevent Horizontal Scrolling --- */
+        html {
+            overflow-x: hidden;
+        }
+        /* --- END: Added Rule --- */
+
+        :root {
+            --md-primary: #6750A4;
+            --md-on-primary: #FFFFFF;
+            --md-primary-container: #E8DEF8;
+            --md-on-primary-container: #21005D;
+
+            --md-error: #B3261E;
+            --md-on-error: #FFFFFF;
+            --md-error-container: #F9DEDC;
+            --md-on-error-container: #410E0B;
+
+            --md-outline: #79747E;
+            --md-surface-variant: #E7E0EC;
+            --md-on-surface-variant: #49454F;
+
+            --md-tertiary-container: #B2F082;
+            --md-on-tertiary-container: #0C1F03;
+
+
+            --md-neutral-container: #E0E0E0;
+            --md-on-neutral-container: #333333;
+
+            --md-amber-500: #FFE082;
+            --md-amber-700: #FFD54F;
+            --md-on-amber: #000000;
+
+            /* Define RGB values for transparency in hover states */
+            --md-primary-container-rgb: 232, 222, 248; /* E8DEF8 */
+            --md-on-surface-variant-rgb: 73, 69, 79; /* 49454F */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-x: hidden; /* Prevent horizontal scroll during view transitions */
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.08);
+            padding: 32px;
+            width: 100%;
+            max-width: 800px;
+            box-sizing: border-box;
+            position: relative;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); /* Adjusted for smaller size */
+            gap: 16px;
+        }
+        .grid-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #e0e0e0;
+            border-radius: 8px;
+            padding: 10px; /* Adjusted padding for square appearance */
+            width: 100%; /* Make width fill the grid column */
+            aspect-ratio: 1 / 1; /* Force a square aspect ratio */
+            transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
+            cursor: pointer;
+            user-select: none;
+        }
+        .grid-item.checked {
+            background-color: var(--md-tertiary-container);
+            color: var(--md-on-tertiary-container);
+        }
+        .grid-item:hover:not(.checked) {
+            background-color: #d0d0d0;
+        }
+        /* --- START: New Disabled Number Style --- */
+        .grid-item.disabled {
+            background-color: #f0f0f0; /* Lighter, faded color */
+            color: #b0b0b0;
+            cursor: not-allowed;
+            position: relative;
+            overflow: hidden;
+        }
+        .grid-item.disabled .number {
+            color: #b0b0b0;
+        }
+        .grid-item.disabled::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: -10%;
+            width: 120%;
+            height: 2px;
+            background-color: #9E9E9E;
+            transform: rotate(-45deg);
+            transform-origin: center center;
+        }
+        /* --- END: New Disabled Number Style --- */
+        .number {
+            font-size: 1.2rem; /* Adjusted for smaller size */
+            font-weight: 600;
+            color: #333333;
+        }
+        .grid-item.checked .number {
+            color: var(--md-on-tertiary-container);
+        }
+
+        .material-symbols-outlined {
+          font-variation-settings:
+          'FILL' 0,
+          'wght' 400,
+          'GRAD' 0,
+          'opsz' 24;
+          font-size: 24px;
+          line-height: 1;
+          display: inline-block;
+          width: 24px;
+          height: 24px;
+        }
+        .material-symbols-outlined.fill {
+          font-variation-settings:
+          'FILL' 1,
+          'wght' 400,
+          'GRAD' 0,
+          'opsz' 24;
+        }
+
+        .button-base {
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, color 0.2s ease-in-out, opacity 0.2s ease-in-out;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .button-base:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        .button-base:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+        }
+
+        .button-filled-primary {
+            background-color: var(--md-primary-container);
+            color: var(--md-on-primary-container);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+        }
+        .button-filled-primary:hover:not(:disabled) {
+            background-color: #D3CEE2;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transform: translateY(-1px);
+        }
+        .button-filled-primary:active:not(:disabled) {
+            background-color: var(--md-primary-container);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .button-filled-secondary {
+            background-color: var(--md-error-container);
+            color: var(--md-on-error-container);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+        }
+        .button-filled-secondary:hover:not(:disabled) {
+            background-color: #E2C7C7;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transform: translateY(-1px);
+        }
+        .button-filled-secondary:active:not(:disabled) {
+            background-color: var(--md-error-container);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .button-outlined {
+            background-color: transparent;
+            color: var(--md-primary);
+            border: 1px solid var(--md-outline);
+            box-shadow: none;
+            height: 40px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+        }
+        .button-outlined:hover:not(:disabled) {
+            background-color: rgba(var(--md-primary-container-rgb), 0.08);
+            color: var(--md-primary);
+            transform: translateY(-1px);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+        }
+        .button-outlined:active:not(:disabled) {
+            background-color: rgba(var(--md-primary-container-rgb), 0.12);
+            box-shadow: none;
+        }
+
+        .button-text {
+            background-color: transparent;
+            color: var(--md-primary);
+            border: none;
+            box-shadow: none;
+            padding: 10px 12px;
+        }
+        .button-text:hover:not(:disabled) {
+            background-color: rgba(var(--md-primary-container-rgb), 0.08);
+            color: var(--md-primary);
+            transform: translateY(0);
+            box-shadow: none;
+        }
+        .button-text:active:not(:disabled) {
+            background-color: rgba(var(--md-primary-container-rgb), 0.12);
+            box-shadow: none;
+        }
+
+
+        .fab-button {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 40;
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background-color: var(--md-primary);
+            color: var(--md-on-primary);
+            font-size: 1.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2), 0 2px 5px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .fab-button:hover {
+            background-color: color-mix(in srgb, var(--md-primary) 80%, white);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 14px rgba(0, 0, 0, 0.25), 0 3px 6px rgba(0, 0, 0, 0.15);
+        }
+        .fab-button:active {
+            transform: translateY(0);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+        }
+
+
+        .record-book-item {
+            background-color: var(--md-primary-container);
+            border-radius: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            cursor: pointer;
+            margin-bottom: 12px;
+            border: none;
+        }
+        .record-book-item:hover {
+            background-color: color-mix(in srgb, var(--md-primary-container) 90%, black);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+        }
+
+        .record-book-name-wrapper {
+            flex-grow: 1;
+            min-width: 0;
+        }
+        .record-book-name {
+            font-size: 1.25rem;
+            font-weight: 500;
+            color: var(--md-on-primary-container);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+        }
+        .record-book-meta {
+            font-size: 0.85rem;
+            color: var(--md-on-surface-variant);
+            margin-top: 4px;
+        }
+        .record-book-actions {
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .record-book-actions .action-icon-button {
+            background-color: transparent;
+            border: none;
+            color: var(--md-on-surface-variant);
+            padding: 8px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .record-book-actions .action-icon-button:hover {
+            background-color: rgba(var(--md-on-surface-variant-rgb), 0.08);
+            color: var(--md-on-surface-variant);
+        }
+        .record-book-actions .action-icon-button:active {
+            background-color: rgba(var(--md-on-surface-variant-rgb), 0.12);
+        }
+
+
+        /* Custom Modal Styling */
+        .custom-modal-overlay {
+            background-color: rgba(0, 0, 0, 0.75);
+            transition: opacity 0.3s ease-out;
+            opacity: 0; /* Start hidden */
+            display: flex; /* Always flex to center content */
+            align-items: center;
+            justify-content: center;
+        }
+        .custom-modal-overlay.show-modal {
+            opacity: 1; /* Show with fade-in */
+        }
+        .custom-modal-overlay.hide-modal {
+            opacity: 0; /* Hide with fade-out */
+            pointer-events: none; /* Disable interaction during fade-out */
+        }
+        .custom-modal-content {
+            background-color: #ffffff;
+            border-radius: 28px;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2), 0 4px 6px rgba(0, 0, 0, 0.05);
+            transform: scale(0.9); /* Start slightly smaller for pop effect */
+            transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+            opacity: 0;
+            overflow-y: auto; /* Enable scrolling for content within modal */
+            max-height: 90vh; /* Limit modal height */
+        }
+        .custom-modal-overlay.show-modal .custom-modal-content {
+            transform: scale(1); /* Pop to full size */
+            opacity: 1;
+        }
+        .custom-modal-overlay.hide-modal .custom-modal-content {
+            transform: scale(0.9); /* Shrink slightly on fade-out */
+            opacity: 0;
+        }
+
+
+        .modal-action-button {
+            width: 100%;
+            padding: 12px;
+            border-radius: 20px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s, box-shadow 0.2s, transform 0.2s;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        .modal-action-button:last-child {
+            margin-bottom: 0;
+        }
+        .modal-action-button.rename {
+            background-color: var(--md-amber-500);
+            color: var(--md-on-amber);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .modal-action-button.rename:hover {
+            background-color: var(--md-amber-700);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+            transform: translateY(-1px);
+        }
+        .modal-action-button.delete {
+            background-color: var(--md-error-container);
+            color: var(--md-on-error-container);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .modal-action-button.delete:hover {
+            background-color: color-mix(in srgb, var(--md-error-container) 90%, black);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+            transform: translateY(-1px);
+        }
+        .modal-action-button.cancel {
+            background-color: var(--md-surface-variant);
+            color: var(--md-on-surface-variant);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        .modal-action-button.cancel:hover {
+            background-color: color-mix(in srgb, var(--md-surface-variant) 90%, black);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transform: translateY(-1px);
+        }
+
+
+        .record-book-list-container {
+            display: flex;
+            flex-direction: column;
+        }
+        .record-book-grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .record-book-list-view .record-book-item {
+            display: grid;
+            grid-template-columns: auto 3fr 2fr auto;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            border-bottom: 1px solid #e0e0e0;
+            border-left: none;
+            border-right: none;
+            border-top: none;
+            background-color: var(--md-primary-container);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .record-book-list-view .record-book-item:hover {
+            background-color: color-mix(in srgb, var(--md-primary-container) 90%, black);
+            transform: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+        }
+        .record-book-list-view .record-book-item:first-of-type {
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+         .record-book-list-view .record-book-item:last-of-type {
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+            border-bottom: none;
+        }
+        .record-book-list-view .record-book-name-cell {
+            font-size: 1rem;
+            font-weight: normal;
+            color: var(--md-on-primary-container);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .record-book-list-view .record-book-last-updated-cell {
+            font-size: 0.9rem;
+            color: var(--md-on-surface-variant);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .record-book-list-view .record-book-name-wrapper,
+        .record-book-list-view .record-book-name,
+        .record-book-list-view .record-book-meta,
+        .record-book-list-view .record-book-max-num,
+        .record-book-list-view .record-book-created-at,
+        .record-book-list-view .record-book-last-updated-col {
+            display: none;
+        }
+        .record-book-list-view .record-book-name {
+             display: none;
+        }
+        .record-book-list-view .record-book-last-updated-col {
+            display: none;
+        }
+
+
+        .record-book-list-view .record-book-actions {
+            justify-content: flex-end;
+            gap: 5px;
+        }
+        .record-book-list-view .record-book-actions button {
+            margin-left: 0;
+            padding: 6px;
+            font-size: 0.75rem;
+        }
+
+        .list-view-header {
+            display: grid;
+            grid-template-columns: auto 3fr 2fr auto;
+            gap: 10px;
+            padding: 10px 16px;
+            font-weight: 600;
+            color: var(--md-on-surface-variant);
+            border-bottom: 2px solid #ccc;
+            margin-bottom: 12px;
+            background-color: var(--md-surface-variant);
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+
+        .record-book-grid-view .record-book-item {
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 20px;
+            min-height: 140px;
+            text-align: left;
+            margin-bottom: 0;
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            position: relative;
+        }
+        .record-book-grid-view .record-book-item:hover {
+             transform: translateY(-2px);
+             box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+        }
+        .record-book-grid-view .checkbox-wrapper {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            z-index: 20;
+            padding: 4px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .record-book-grid-view .checkbox-wrapper input[type="checkbox"] {
+            margin-right: 0;
+        }
+
+        .record-book-grid-view .record-book-name-wrapper {
+            width: 100%;
+            margin-bottom: 10px;
+            padding-left: 20px;
+        }
+        .record-book-grid-view .record-book-name {
+            font-size: 1.35rem;
+            white-space: normal;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            -webkit-box-orient: vertical;
+            margin-bottom: 5px;
+            padding-right: 30px;
+        }
+        .record-book-grid-view .record-book-meta {
+            font-size: 0.8rem;
+            color: var(--md-on-surface-variant);
+            position: absolute;
+            bottom: 10px;
+            right: 15px;
+            text-align: right;
+            line-height: 1;
+            padding-left: 10px;
+        }
+        .record-book-grid-view .record-book-max-num,
+        .record-book-grid-view .record-book-created-at,
+        .record-book-grid-view .record-book-last-updated-col {
+            display: none;
+        }
+        .record-book-grid-view .record-book-actions {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+        }
+        .record-book-grid-view .record-book-actions button {
+            margin-left: 0;
+            padding: 6px;
+            font-size: 1rem;
+        }
+
+
+        .sort-dropdown-content {
+            position: absolute;
+            background-color: #f9f9f9;
+            min-width: 120px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+            border-radius: 8px;
+            padding: 8px 0;
+            right: 0;
+            top: 100%;
+            margin-top: 5px;
+        }
+
+        .sort-dropdown-content button {
+            color: black;
+            padding: 10px 16px;
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            text-align: left;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .sort-dropdown-content button:hover {
+            background-color: #f1f1f1;
+        }
+
+        .sort-dropdown-content button.selected-sort-option {
+            background-color: #e0e0e0;
+            font-weight: 600;
+        }
+
+        .view-mode-group {
+            display: flex;
+            border: 1px solid var(--md-outline);
+            border-radius: 20px;
+            overflow: hidden;
+            height: 40px;
+            box-sizing: border-box;
+        }
+        .view-mode-button {
+            min-width: 56px;
+            min-height: 40px;
+            padding: 8px 16px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+            background-color: transparent;
+            color: var(--md-on-surface-variant);
+            outline: none;
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .view-mode-button:hover:not(.selected) {
+            background-color: rgba(var(--md-on-surface-variant-rgb), 0.08);
+        }
+        .view-mode-button.selected {
+            background-color: var(--md-primary-container);
+            color: var(--md-on-primary-container);
+        }
+        .view-mode-button.selected:hover {
+            background-color: var(--md-primary-container);
+        }
+
+        .radio-group label {
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background-color 0.2s ease-in-out;
+            font-size: 0.95rem;
+            color: #49454F;
+        }
+
+        .radio-group label:hover {
+            background-color: #F0F0F0;
+        }
+
+        .radio-group input[type="radio"] {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--md-outline);
+            border-radius: 50%;
+            margin-right: 8px;
+            position: relative;
+            outline: none;
+            transition: border-color 0.2s ease-in-out, background-color 0.2s ease-in-out;
+        }
+
+        .radio-group input[type="radio"]:checked {
+            border-color: var(--md-primary);
+            background-color: var(--md-primary);
+        }
+
+        .message-box {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            z-index: 1050; /* Higher than modal overlay */
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .message-box.error {
+            background-color: var(--md-error);
+        }
+        .message-box.show {
+            opacity: 1;
+        }
+
+        /* --- START: View Transition FIX --- */
+        .view {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        /* Make the active view take up space in the document flow */
+        .view.active-visible {
+            position: relative;
+            display: block;
+        }
+        /* Hide inactive views completely */
+        .view.hidden {
+            display: none;
+        }
+        /* --- END: View Transition FIX --- */
+
+
+        /* Styling for checkboxes in export/delete modal */
+        .modal-checkbox-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 15px;
+            margin-bottom: 20px;
+        }
+
+        .modal-checkbox-list label {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+        }
+        .modal-checkbox-list label:last-child {
+            border-bottom: none;
+        }
+        .modal-checkbox-list input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+        .modal-checkbox-list .book-name {
+            flex-grow: 1;
+            font-size: 1rem;
+            color: #333;
+        }
+        .modal-checkbox-list .book-date {
+            font-size: 0.8rem;
+            color: #777;
+            white-space: nowrap;
+        }
+        .select-all-checkbox-container {
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .select-all-checkbox-container label input[type="checkbox"] {
+            transform: scale(1.2);
+            margin-right: 10px;
+        }
+
+        /* New styles for bulk delete confirmation list */
+        .bulk-delete-list {
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid var(--md-outline);
+            border-radius: 12px;
+            padding: 10px;
+            margin-top: 15px;
+            margin-bottom: 20px;
+            background-color: var(--md-surface-variant);
+        }
+
+        .bulk-delete-list-item {
+            display: flex;
+            flex-direction: column;
+            padding: 8px 12px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .bulk-delete-list-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .bulk-delete-item-name {
+            font-weight: 500;
+            color: #333;
+            font-size: 1rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .bulk-delete-item-date {
+            font-size: 0.85rem;
+            color: #777;
+            margin-top: 2px;
+        }
+
+
+        .hidden-if-no-selection {
+            display: none !important;
+        }
+
+        /* Rich Text Editor Styles */
+        .editor-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 8px 8px 0 0;
+            background-color: #f7f7f7;
+        }
+        .toolbar-button {
+            background: none;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+        .toolbar-button:hover {
+            background-color: #e0e0e0;
+        }
+        .toolbar-button.active {
+            background-color: var(--md-primary-container);
+            color: var(--md-on-primary-container);
+            border-color: var(--md-primary);
+        }
+        #recordTextInput {
+            min-height: 250px;
+            height: auto;
+            overflow-y: auto;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+        }
+
+        #recordTextInput ul, #recordTextInput ol {
+            display: block;
+            list-style-position: inside;
+            padding-left: 25px;
+            margin: 1em 0;
+        }
+        #recordTextInput ul { list-style-type: disc; }
+        #recordTextInput ol { list-style-type: decimal; }
+        #recordTextInput li {
+            display: list-item;
+            padding-left: 5px;
+            margin-bottom: 0.5em;
+        }
+
+        .color-picker-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .color-picker-wrapper input[type="color"] {
+            position: absolute;
+            opacity: 0;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+        }
+        .font-size-select {
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--md-outline);
+            background-color: white;
+        }
+
+        /* New Feature Styles */
+        .history-log-container {
+            max-height: 40vh;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 15px;
+            background-color: #f9f9f9;
+        }
+        .history-log-item {
+            padding: 8px 4px;
+            border-bottom: 1px solid #eee;
+        }
+        .history-log-item:last-child { border-bottom: none; }
+        .history-log-time {
+            font-size: 0.8rem;
+            color: #666;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .history-log-desc {
+            font-size: 0.95rem;
+            color: #333;
+        }
+
+        #numberTrackerView.locked #tracker-content-wrapper {
+            pointer-events: none;
+            opacity: 0.5;
+            transition: opacity 0.3s ease-in-out;
+        }
+        #numberTrackerView:not(.locked) #tracker-content-wrapper {
+            opacity: 1;
+            transition: opacity 0.3s ease-in-out;
+        }
+        
+        /* Cloud Sync Modal Styles */
+        .g_id_signin {
+            margin-bottom: 16px;
+        }
+        #cloudSyncUserInfo {
+            padding: 16px;
+            border-radius: 12px;
+            background-color: var(--md-primary-container);
+            color: var(--md-on-primary-container);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        #cloudSyncUserPic {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+        }
+        #cloudSyncUserName { font-size: 1.1rem; font-weight: 500; }
+        #cloudSyncUserEmail { font-size: 0.85rem; opacity: 0.9; }
+        .cloud-action-button {
+             background-color: var(--md-surface-variant);
+             color: var(--md-on-surface-variant);
+        }
+        .cloud-action-button:hover:not(:disabled) {
+            background-color: color-mix(in srgb, var(--md-surface-variant) 90%, black);
+        }
+
+
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .container { padding: 15px; }
+            .header-controls {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                flex-wrap: wrap;
+            }
+            .toolbar {
+                flex-direction: row;
+                align-items: center;
+                gap: 10px;
+                margin-top: 15px;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                padding-bottom: 5px;
+            }
+            .toolbar > div {
+                flex-shrink: 0;
+                display: flex;
+                gap: 10px;
+            }
+            .toolbar .button-base {
+                width: auto;
+                justify-content: center;
+                white-space: nowrap;
+            }
+            .record-book-grid-container { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+            .fab-button { bottom: 20px; right: 20px; width: 50px; height: 50px; font-size: 1.5rem; }
+            .list-view-header { grid-template-columns: auto 2fr 1.5fr auto; }
+            .record-book-list-view .record-book-item { grid-template-columns: auto 2fr 1.5fr auto; }
+            .view-mode-button { min-width: 48px; min-height: 36px; padding: 6px 12px; }
+
+            .number-tracker-header .button-text-content { display: none; }
+            .number-tracker-header #backToManagementBtn,
+            .number-tracker-header #resetCurrentBookBtn { padding-left: 10px; padding-right: 10px; }
+            .number-tracker-header #shareAsImageBtn,
+            .number-tracker-header #viewHistoryBtn,
+            .number-tracker-header #toggleLockBtn { padding: 8px; }
+        }
+        @media (max-width: 600px) {
+            .container { padding: 10px; }
+            .grid-container { grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 12px; }
+            .grid-item { padding: 8px; }
+            .number { font-size: 1rem; }
+            .record-book-item { flex-direction: column; align-items: flex-start; padding: 12px; }
+            .record-book-name-wrapper { margin-bottom: 10px; width: 100%; }
+            .record-book-name { font-size: 1.15rem; }
+            .record-book-meta { font-size: 0.75rem; bottom: 8px; right: 10px; }
+            .record-book-actions { width: 100%; justify-content: flex-end; margin-top: 0; }
+            .record-book-actions button { margin-left: 8px; margin-top: 0; padding: 7px 10px; font-size: 0.8rem; }
+            .record-book-grid-view { grid-template-columns: 1fr; }
+            .record-book-grid-view .record-book-item { min-width: unset; }
+            .fab-button { bottom: 15px; right: 15px; width: 45px; height: 45px; font-size: 1.3rem; }
+            .list-view-header,
+            .record-book-list-view .record-book-item { grid-template-columns: auto 1.5fr 1fr auto; gap: 5px; padding: 8px 10px; }
+            .record-book-list-view .record-book-name-cell { font-size: 0.9rem; }
+            .record-book-list-view .record-book-last-updated-cell { font-size: 0.75rem; }
+            .view-mode-button { min-width: 40px; min-height: 32px; padding: 4px 8px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Google Sign-In onload div -->
+    <div id="g_id_onload"
+         data-client_id="541525685075-c7081uf4p28o7gp17ssa2udvriat6qdl.apps.googleusercontent.com"
+         data-callback="handleCredentialResponse"
+         data-auto_select="false">
+    </div>
+
+    <div class="container">
+        <div id="managementView" class="view active-visible">
+            <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">我的記事本</h1>
+            <p class="text-center text-gray-600 text-lg mb-8"></p>
+
+            <div class="flex justify-end items-center mb-4 header-controls space-x-3">
+                <div class="view-mode-group flex-shrink-0">
+                    <button id="listViewBtn" class="view-mode-button">
+                        <span class="material-symbols-outlined">view_list</span>
+                    </button>
+                    <button id="gridViewBtn" class="view-mode-button">
+                        <span class="material-symbols-outlined">grid_view</span>
+                    </button>
+                </div>
+
+                <div class="relative flex-shrink-0">
+                    <button id="sortButton" class="button-base button-outlined">
+                        <span class="material-symbols-outlined">sort</span>
+                        <span id="currentSortText">最新</span>
+                    </button>
+                    <div id="sortDropdown" class="sort-dropdown-content hidden">
+                        <button id="sortByLatestBtn" class="button-text">最新</button>
+                        <button id="sortByTitleBtn" class="button-text">標題</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="managementToolbar" class="flex justify-between items-center mb-6 toolbar">
+                <div class="flex space-x-3 flex-shrink-0">
+                    <button id="importBtn" class="button-base button-outlined">
+                        <span class="material-symbols-outlined">upload_file</span>
+                        匯入
+                    </button>
+                    <button id="exportBtn" class="button-base button-outlined hidden-if-no-selection">
+                        <span class="material-symbols-outlined">download</span>
+                        匯出
+                    </button>
+                    <button id="cloudSyncBtn" class="button-base button-outlined">
+                        <span class="material-symbols-outlined">cloud_sync</span>
+                        雲端同步
+                    </button>
+                </div>
+                <div class="flex-shrink-0">
+                    <button id="deleteSelectedBtn" class="button-base button-filled-secondary hidden-if-no-selection" disabled>
+                        <span class="material-symbols-outlined">delete</span>
+                        刪除選取項目
+                    </button>
+                </div>
+            </div>
+
+
+            <div id="recordBookListContainer" class="mb-6">
+                <div id="listViewHeader" class="list-view-header hidden">
+                    <input type="checkbox" id="selectAllCheckboxes" class="cursor-pointer transform scale-125 mr-3">
+                    <span class="font-bold">標題</span>
+                    <span class="font-bold">最後更新時間</span>
+                    <span></span>
+                </div>
+                <div id="recordBookList" class="record-book-list-container">
+                </div>
+                <p id="noRecordBooksMessage" class="text-center text-gray-500 text-base italic hidden p-4 mt-8">
+                    目前沒有記事本。點擊右下角「＋」按鈕開始一個新的記事本！
+                </p>
+            </div>
+        </div>
+
+        <div id="numberTrackerView" class="view hidden">
+            <div class="flex flex-col items-center mb-6 space-y-4 number-tracker-header">
+                <h1 id="currentRecordBookName" class="text-2xl font-bold text-gray-800 text-center w-full"></h1>
+                <div class="w-full flex justify-between items-center">
+                    <button id="backToManagementBtn" class="button-base button-filled-primary whitespace-nowrap">
+                        <span class="material-symbols-outlined">arrow_back</span>
+                        <span class="button-text-content">返回管理頁面</span>
+                    </button>
+                    <div class="flex items-center space-x-2">
+                        <button id="shareAsImageBtn" title="分享為圖片" class="button-base button-outlined">
+                            <span class="material-symbols-outlined">image</span>
+                        </button>
+                        <button id="viewHistoryBtn" title="檢視歷史紀錄" class="button-base button-outlined">
+                            <span class="material-symbols-outlined">history</span>
+                        </button>
+                        <button id="toggleLockBtn" title="鎖定/解鎖" class="button-base button-outlined">
+                            <span class="material-symbols-outlined">lock_open</span>
+                        </button>
+                        <button id="resetCurrentBookBtn" class="button-base button-filled-secondary whitespace-nowrap">
+                            <span class="material-symbols-outlined">refresh</span>
+                            <span class="button-text-content">重設</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tracker-content-wrapper">
+                <div id="limitedNotesSection" class="mb-6 bg-gray-100 p-4 rounded-lg">
+                    <label for="notesInput" class="block text-gray-700 text-sm font-bold mb-2">簡短備註 (最多 50 個字):</label>
+                    <textarea id="notesInput" maxlength="50" rows="2"
+                              class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+                              placeholder="在此輸入簡短備註..."></textarea>
+                    <div class="text-right text-gray-500 text-xs mt-1">
+                        <span id="notesCharCount">0/50</span>
+                    </div>
+                </div>
+
+                <div id="unlimitedRecordTextSection" class="mb-6 bg-gray-100 p-4 rounded-lg hidden">
+                    <label for="recordTextInput" class="block text-gray-700 text-sm font-bold mb-2">記事本內容:</label>
+                    <div class="editor-toolbar">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined">format_size</span>
+                            <select id="fontSizeSelect" class="font-size-select">
+                                <option value="1">小</option>
+                                <option value="3" selected>中</option>
+                                <option value="5">大</option>
+                                <option value="7">特大</option>
+                            </select>
+                        </div>
+                        <button id="boldBtn" class="toolbar-button" data-command="bold">
+                            <span class="material-symbols-outlined">format_bold</span>
+                        </button>
+                        <button id="italicBtn" class="toolbar-button" data-command="italic">
+                            <span class="material-symbols-outlined">format_italic</span>
+                        </button>
+                        <button id="underlineBtn" class="toolbar-button" data-command="underline">
+                            <span class="material-symbols-outlined">format_underlined</span>
+                        </button>
+                        <label class="color-picker-wrapper toolbar-button">
+                            <span class="material-symbols-outlined">format_color_text</span>
+                            <input type="color" id="fontColorPicker" value="#000000">
+                        </label>
+                        <button id="bulletListBtn" class="toolbar-button" data-command="insertUnorderedList">
+                            <span class="material-symbols-outlined">format_list_bulleted</span>
+                        </button>
+                        <button id="numberedListBtn" class="toolbar-button" data-command="insertOrderedList">
+                            <span class="material-symbols-outlined">format_list_numbered</span>
+                        </button>
+                        <button id="linkBtn" class="toolbar-button">
+                            <span class="material-symbols-outlined">link</span>
+                        </button>
+                    </div>
+                    <div id="recordTextInput"
+                         contenteditable="true"
+                         class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+                         placeholder="在此輸入記事本內容... (無字數限制)"></div>
+                </div>
+
+                <div id="numbersGrid" class="grid-container mb-6">
+                </div>
+            </div>
+            <p class="text-center text-gray-600 text-sm mt-4"></p>
+        </div>
+    </div>
+
+    <button id="fabAddNewRecordBookBtn" class="fab-button">
+        <span class="material-symbols-outlined">add</span>
+    </button>
+
+    <div id="customModal" class="fixed inset-0 custom-modal-overlay z-50 hidden">
+        <div class="custom-modal-content p-8 max-w-sm w-full relative">
+            <h2 id="modalTitle" class="text-2xl font-bold mb-4 text-gray-800"></h2>
+            <p id="modalMessage" class="text-gray-700 text-base mb-4 hidden"></p>
+            <p id="modalErrorMessage" class="text-red-500 text-sm mb-4 hidden"></p>
+            <div id="modalInputsContainer">
+            </div>
+            <div id="modalActionButtonsContainer" class="flex flex-col space-y-3 mt-6 hidden">
+            </div>
+            <div id="modalConfirmCancelButtons" class="flex justify-end space-x-3 mt-6 hidden">
+                <button id="modalCancelBtn" class="button-base button-outlined">取消</button>
+                <button id="modalConfirmBtn" class="button-base button-filled-primary">確認</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="cloudSyncModal" class="fixed inset-0 custom-modal-overlay z-50 hidden">
+        <div class="custom-modal-content p-8 max-w-md w-full relative">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800 text-center">雲端同步</h2>
+            
+            <div id="cloudSyncLoginView">
+                <p class="text-center text-gray-600 mb-6">請登入您的 Google 帳號以使用雲端備份與還原功能。</p>
+                <div class="flex justify-center">
+                    <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline" data-text="sign_in_with" data-shape="pill" data-logo_alignment="left"></div>
+                </div>
+            </div>
+
+            <div id="cloudSyncActionsView" class="hidden">
+                <div id="cloudSyncUserInfo">
+                    <img id="cloudSyncUserPic" src="" alt="頭像">
+                    <div>
+                        <h3 id="cloudSyncUserName"></h3>
+                        <p id="cloudSyncUserEmail"></p>
+                    </div>
+                </div>
+                 <p id="cloudSyncStatus" class="text-center text-gray-600 text-sm mb-4">雲端最後備份時間：<span id="lastBackupTime"></span></p>
+
+                <div id="cloudSyncButtons" class="flex flex-col space-y-3 mt-6">
+                    <button id="cloudBackupBtn" class="button-base button-filled-primary cloud-action-button w-full">
+                        <span class="material-symbols-outlined">cloud_upload</span>
+                        備份至雲端
+                    </button>
+                    <button id="cloudRestoreBtn" class="button-base button-filled-primary cloud-action-button w-full">
+                        <span class="material-symbols-outlined">cloud_download</span>
+                        從雲端還原
+                    </button>
+                    <button id="cloudSignOutBtn" class="button-base button-outlined w-full">登出</button>
+                </div>
+            </div>
+
+            <div class="mt-6 text-center">
+                <button id="cloudSyncCancelBtn" class="button-base button-text">關閉</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="messageBox" class="message-box"></div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+        // --- GLOBAL CONFIGURATION & STATE ---
+        const defaultMaxNumber = 40;
+        const notesCharLimit = 50;
+        const storageKey = 'multiNumberTrackerState';
+        const displayModeKey = 'multiNumberTrackerDisplayMode';
+        const sortModeKey = 'multiNumberTrackerSortMode';
+        const googleIdTokenKey = 'googleIdToken';
+        const CLOUD_API_URL = "https://script.google.com/macros/s/AKfycbyI6LVnx-_CGLqpNbdfPpJU1CxfWc-amK91WjItANb3urG7r0YkEmKSCJUlDFd2MP0aRg/exec";
+        
+        let googleIdToken = null;
+        let googleUserProfile = null;
+        let recordBooks = [];
+        let currentRecordBookId = null;
+        let displayMode = 'list';
+        let sortMode = 'latest';
+        let selectedRecordBookIds = new Set();
+        let currentModalResolve;
+        let isCloudActionInProgress = false;
+        let isClosingModalProgrammatically = false;
+
+        // --- DECOUPLED GOOGLE SIGN-IN CALLBACK ---
+        window.handleCredentialResponse = (response) => {
+            const app = window.myApp;
+            if (app && app.handleGoogleLogin) {
+                app.handleGoogleLogin(response);
+            }
+        };
+
+        // --- APPLICATION INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            const app = {
+                // --- DOM Element References ---
+                elements: {},
+
+                // --- App Initialization ---
+                init() {
+                    this.cacheDOMElements();
+                    this.attachEventListeners();
+                    this.restoreLoginState();
+                    this.loadRecordBooks();
+                    window.myApp = this; // Expose the app object globally for the callback
+                },
+
+                cacheDOMElements() {
+                    this.elements = {
+                        managementView: document.getElementById('managementView'),
+                        numberTrackerView: document.getElementById('numberTrackerView'),
+                        fabAddNewRecordBookBtn: document.getElementById('fabAddNewRecordBookBtn'),
+                        listViewHeader: document.getElementById('listViewHeader'),
+                        recordBookList: document.getElementById('recordBookList'),
+                        noRecordBooksMessage: document.getElementById('noRecordBooksMessage'),
+                        backToManagementBtn: document.getElementById('backToManagementBtn'),
+                        currentRecordBookName: document.getElementById('currentRecordBookName'),
+                        resetCurrentBookBtn: document.getElementById('resetCurrentBookBtn'),
+                        numbersGrid: document.getElementById('numbersGrid'),
+                        notesInput: document.getElementById('notesInput'),
+                        notesCharCount: document.getElementById('notesCharCount'),
+                        limitedNotesSection: document.getElementById('limitedNotesSection'),
+                        unlimitedRecordTextSection: document.getElementById('unlimitedRecordTextSection'),
+                        recordTextInput: document.getElementById('recordTextInput'),
+                        importBtn: document.getElementById('importBtn'),
+                        exportBtn: document.getElementById('exportBtn'),
+                        deleteSelectedBtn: document.getElementById('deleteSelectedBtn'),
+                        selectAllCheckboxes: document.getElementById('selectAllCheckboxes'),
+                        listViewBtn: document.getElementById('listViewBtn'),
+                        gridViewBtn: document.getElementById('gridViewBtn'),
+                        sortButton: document.getElementById('sortButton'),
+                        sortDropdown: document.getElementById('sortDropdown'),
+                        sortByLatestBtn: document.getElementById('sortByLatestBtn'),
+                        sortByTitleBtn: document.getElementById('sortByTitleBtn'),
+                        toggleLockBtn: document.getElementById('toggleLockBtn'),
+                        viewHistoryBtn: document.getElementById('viewHistoryBtn'),
+                        shareAsImageBtn: document.getElementById('shareAsImageBtn'),
+                        editorToolbar: document.querySelector('.editor-toolbar'),
+                        fontSizeSelect: document.getElementById('fontSizeSelect'),
+                        fontColorPicker: document.getElementById('fontColorPicker'),
+                        linkBtn: document.getElementById('linkBtn'),
+                        
+                        // Modals
+                        customModal: document.getElementById('customModal'),
+                        modalTitle: document.getElementById('modalTitle'),
+                        modalMessage: document.getElementById('modalMessage'),
+                        modalInputsContainer: document.getElementById('modalInputsContainer'),
+                        modalActionButtonsContainer: document.getElementById('modalActionButtonsContainer'),
+                        modalConfirmCancelButtons: document.getElementById('modalConfirmCancelButtons'),
+                        modalCancelBtn: document.getElementById('modalCancelBtn'),
+                        modalConfirmBtn: document.getElementById('modalConfirmBtn'),
+                        modalErrorMessage: document.getElementById('modalErrorMessage'),
+                        
+                        cloudSyncModal: document.getElementById('cloudSyncModal'),
+                        cloudSyncBtn: document.getElementById('cloudSyncBtn'),
+                        cloudSyncCancelBtn: document.getElementById('cloudSyncCancelBtn'),
+                        cloudSignOutBtn: document.getElementById('cloudSignOutBtn'),
+                        cloudBackupBtn: document.getElementById('cloudBackupBtn'),
+                        cloudRestoreBtn: document.getElementById('cloudRestoreBtn'),
+                        lastBackupTime: document.getElementById('lastBackupTime'),
+                        cloudSyncLoginView: document.getElementById('cloudSyncLoginView'),
+                        cloudSyncActionsView: document.getElementById('cloudSyncActionsView'),
+                        cloudSyncUserPic: document.getElementById('cloudSyncUserPic'),
+                        cloudSyncUserName: document.getElementById('cloudSyncUserName'),
+                        cloudSyncUserEmail: document.getElementById('cloudSyncUserEmail'),
+                    };
+                },
+
+                // --- UTILITY FUNCTIONS ---
+                debounce(func, wait) {
+                    let timeout;
+                    return (...args) => {
+                        const later = () => {
+                            clearTimeout(timeout);
+                            func.apply(this, args);
+                        };
+                        clearTimeout(timeout);
+                        timeout = setTimeout(later, wait);
+                    };
+                },
+                generateUUID: () => crypto.randomUUID(),
+                formatDateTime(isoDateString) {
+                    if (!isoDateString) return 'N/A';
+                    const date = new Date(isoDateString);
+                    return date.toLocaleString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+                },
+                showMessage(message, isError = false) {
+                    const messageBox = document.getElementById('messageBox');
+                    messageBox.textContent = message;
+                    messageBox.className = 'message-box'; // Reset classes
+                    if (isError) messageBox.classList.add('error');
+                    messageBox.classList.add('show');
+                    setTimeout(() => messageBox.classList.remove('show'), 3000);
+                },
+
+                // --- MODAL HANDLING ---
+                showCustomModal(title, options = {}) {
+                    const { inputs = [], actions = [], checkboxes = [], itemsToDelete = [], confirmButtonText = '確認', cancelButtonText = '取消', trackHistory = false, message = '', htmlContent = null } = options;
+                    const el = this.elements;
+
+                    el.modalTitle.textContent = title;
+                    el.modalInputsContainer.innerHTML = '';
+                    el.modalActionButtonsContainer.innerHTML = '';
+                    el.modalErrorMessage.classList.add('hidden');
+                    el.modalMessage.classList.add('hidden');
+
+                    if (message) {
+                        el.modalMessage.textContent = message;
+                        el.modalMessage.classList.remove('hidden');
+                    }
+                    
+                    if (htmlContent) {
+                        el.modalInputsContainer.innerHTML = htmlContent;
+                        el.modalActionButtonsContainer.classList.add('hidden');
+                        el.modalConfirmCancelButtons.classList.remove('hidden');
+                        el.modalConfirmBtn.classList.add('hidden');
+                        el.modalCancelBtn.textContent = '關閉';
+                    } else if (actions.length > 0) {
+                        el.modalConfirmCancelButtons.classList.add('hidden');
+                        el.modalActionButtonsContainer.classList.remove('hidden');
+                        actions.forEach(actionDef => {
+                            const button = document.createElement('button');
+                            button.className = `modal-action-button ${actionDef.class}`;
+                            button.textContent = actionDef.text;
+                            button.onclick = () => this.closeCustomModal().then(() => currentModalResolve({ confirmed: true, action: actionDef.value }));
+                            el.modalActionButtonsContainer.appendChild(button);
+                        });
+                        const cancelButton = document.createElement('button');
+                        cancelButton.className = 'modal-action-button cancel';
+                        cancelButton.textContent = cancelButtonText;
+                        cancelButton.onclick = () => this.closeCustomModal().then(() => currentModalResolve({ confirmed: false }));
+                        el.modalActionButtonsContainer.appendChild(cancelButton);
+                    } else {
+                        el.modalConfirmCancelButtons.classList.remove('hidden');
+                        el.modalActionButtonsContainer.classList.add('hidden');
+                        el.modalConfirmBtn.textContent = confirmButtonText;
+                        el.modalCancelBtn.textContent = cancelButtonText;
+                        el.modalConfirmBtn.classList.remove('hidden');
+
+                        inputs.forEach(inputDef => {
+                            const div = document.createElement('div');
+                            div.className = 'mb-4';
+                            if (inputDef.id === 'maxNum') div.classList.add('max-num-input-group');
+                            
+                            const label = document.createElement('label');
+                            label.className = 'block text-gray-700 text-sm font-bold mb-2';
+                            label.textContent = inputDef.label;
+                            div.appendChild(label);
+
+                            if (inputDef.type === 'radio') {
+                                const radioGroupDiv = document.createElement('div');
+                                radioGroupDiv.className = 'flex space-x-4 radio-group';
+                                inputDef.options.forEach(option => {
+                                    const radioLabel = document.createElement('label');
+                                    radioLabel.innerHTML = `<input type="radio" name="${inputDef.name}" value="${option.value}" ${option.checked ? 'checked' : ''} class="mr-2"> ${option.label}`;
+                                    radioGroupDiv.appendChild(radioLabel);
+                                });
+                                div.appendChild(radioGroupDiv);
+                            } else {
+                                const input = document.createElement('input');
+                                input.type = inputDef.type;
+                                input.id = inputDef.id;
+                                input.value = inputDef.defaultValue || '';
+                                input.placeholder = inputDef.placeholder || '';
+                                input.className = 'w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500';
+                                if (inputDef.min !== undefined) input.min = inputDef.min;
+                                if (inputDef.max !== undefined) input.max = inputDef.max;
+                                div.appendChild(input);
+                            }
+                            el.modalInputsContainer.appendChild(div);
+                        });
+
+                         if (checkboxes.length > 0) {
+                            const selectAllContainer = document.createElement('div');
+                            selectAllContainer.className = 'select-all-checkbox-container';
+                            selectAllContainer.innerHTML = `<label class="inline-flex items-center cursor-pointer"><input type="checkbox" id="modalSelectAllCheckboxes" class="mr-2 transform scale-125"> 全選</label>`;
+                            el.modalInputsContainer.appendChild(selectAllContainer);
+
+                            const checkboxListDiv = document.createElement('div');
+                            checkboxListDiv.className = 'modal-checkbox-list';
+                            checkboxes.forEach(checkboxDef => {
+                                const label = document.createElement('label');
+                                label.innerHTML = `<input type="checkbox" class="modal-checkbox-item" value="${checkboxDef.value}" ${checkboxDef.checked ? 'checked' : ''}><span class="book-name">${checkboxDef.label}</span><span class="book-date ml-auto">${checkboxDef.meta}</span>`;
+                                checkboxListDiv.appendChild(label);
+                            });
+                            el.modalInputsContainer.appendChild(checkboxListDiv);
+
+                            const modalSelectAll = selectAllContainer.querySelector('#modalSelectAllCheckboxes');
+                            const modalCheckboxes = checkboxListDiv.querySelectorAll('.modal-checkbox-item');
+                            modalSelectAll.addEventListener('change', () => modalCheckboxes.forEach(cb => cb.checked = modalSelectAll.checked));
+                            modalCheckboxes.forEach(cb => cb.addEventListener('change', () => modalSelectAll.checked = Array.from(modalCheckboxes).every(item => item.checked)));
+                            modalSelectAll.checked = Array.from(modalCheckboxes).every(item => item.checked);
+                        }
+                    
+                        if (itemsToDelete.length > 0) {
+                            const deleteListContainer = document.createElement('div');
+                            deleteListContainer.className = 'bulk-delete-list';
+                            itemsToDelete.forEach(item => {
+                                const itemDiv = document.createElement('div');
+                                itemDiv.className = 'bulk-delete-list-item';
+                                itemDiv.innerHTML = `<span class="bulk-delete-item-name">${item.name}</span><span class="bulk-delete-item-date">${this.formatDateTime(item.lastUpdated)}</span>`;
+                                deleteListContainer.appendChild(itemDiv);
+                            });
+                            el.modalInputsContainer.appendChild(deleteListContainer);
+                        }
+                    }
+
+                    el.customModal.classList.remove('hidden', 'hide-modal');
+                    el.customModal.classList.add('show-modal');
+
+                    if (trackHistory) history.pushState({ view: history.state.view, modalOpen: true }, '');
+
+                    if (inputs.length > 0) el.modalInputsContainer.querySelector('input, textarea, select')?.focus();
+                    else if (actions.length > 0) el.modalActionButtonsContainer.querySelector('button')?.focus();
+                    else el.modalConfirmBtn.focus();
+                    
+                    const bookTypeRadios = el.modalInputsContainer.querySelectorAll('input[name="bookType"]');
+                    if (bookTypeRadios.length > 0) {
+                        const toggleMaxNumInput = () => {
+                            const maxNumInputGroup = el.modalInputsContainer.querySelector('.max-num-input-group');
+                            const selectedRadio = el.modalInputsContainer.querySelector('input[name="bookType"]:checked');
+                            if (maxNumInputGroup) maxNumInputGroup.style.display = selectedRadio?.value === 'number' ? 'block' : 'none';
+                        };
+                        bookTypeRadios.forEach(radio => radio.addEventListener('change', toggleMaxNumInput));
+                        toggleMaxNumInput();
+                    }
+
+                    return new Promise(resolve => { currentModalResolve = resolve; });
+                },
+
+                closeCustomModal() {
+                    return new Promise(resolve => {
+                        const el = this.elements.customModal;
+                        if (el.classList.contains('hidden')) return resolve();
+                        
+                        isClosingModalProgrammatically = true;
+                        
+                        el.classList.remove('show-modal');
+                        el.classList.add('hide-modal');
+
+                        const onTransitionEnd = (event) => {
+                            if (event.target !== el) return;
+                            el.classList.add('hidden');
+                            el.removeEventListener('transitionend', onTransitionEnd);
+                            if(history.state && history.state.modalOpen) history.back();
+                            
+                            setTimeout(() => { isClosingModalProgrammatically = false; }, 0);
+                            resolve();
+                        };
+                        el.addEventListener('transitionend', onTransitionEnd);
+                        setTimeout(() => { if (!el.classList.contains('hidden')) onTransitionEnd({ target: el }); }, 350);
+                    });
+                },
+
+                // --- CLOUD SYNC LOGIC ---
+                restoreLoginState() {
+                    const storedToken = localStorage.getItem(googleIdTokenKey);
+                    if (storedToken) {
+                        try {
+                            const base64Url = storedToken.split('.')[1];
+                            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                            const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+                            const decodedToken = JSON.parse(jsonPayload);
+                            
+                            if (decodedToken.exp * 1000 > Date.now()) {
+                                googleIdToken = storedToken;
+                                googleUserProfile = decodedToken;
+                            } else {
+                                localStorage.removeItem(googleIdTokenKey);
+                            }
+                        } catch(e) {
+                            console.error("Error decoding stored JWT", e);
+                            localStorage.removeItem(googleIdTokenKey);
+                        }
+                    }
+                },
+                handleGoogleLogin(response) {
+                    googleIdToken = response.credential;
+                    localStorage.setItem(googleIdTokenKey, googleIdToken);
+                    try {
+                        let base64Url = googleIdToken.split('.')[1];
+                        let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                        let jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+                        googleUserProfile = JSON.parse(jsonPayload);
+                    } catch(e) {
+                        googleUserProfile = null;
+                        console.error("Error decoding JWT", e);
+                    }
+
+                    if(googleUserProfile) {
+                        this.showMessage(`已成功登入為 ${googleUserProfile.name}`);
+                        this.updateCloudSyncModalUI();
+                    } else {
+                        this.showMessage('登入失敗，無法解析憑證。', true);
+                    }
+                },
+                handleSignOut() {
+                    google.accounts.id.disableAutoSelect();
+                    googleIdToken = null;
+                    googleUserProfile = null;
+                    localStorage.removeItem(googleIdTokenKey);
+                    this.showMessage('您已成功登出。');
+                    this.updateCloudSyncModalUI();
+                },
+                async callCloudApi(action, params = {}) {
+                    if (!googleIdToken) throw new Error("使用者未登入，無法執行雲端操作。");
+                    try {
+                        const response = await fetch(CLOUD_API_URL, {
+                            method: 'POST', mode: 'cors', cache: 'no-cache',
+                            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                            body: JSON.stringify({ idToken: googleIdToken, action, params }),
+                            redirect: 'follow'
+                        });
+                        if (!response.ok) throw new Error(`網路回應錯誤: ${response.status} ${response.statusText}`);
+                        const result = await response.json();
+                        if (result.status === 'error') throw new Error(result.message || 'API 返回一個未知錯誤。');
+                        return result;
+                    } catch (error) {
+                        console.error(`API 呼叫失敗 (action: ${action}):`, error);
+                        throw error;
+                    }
+                },
+                updateCloudSyncModalUI() {
+                    const el = this.elements;
+                    if (googleUserProfile) {
+                        el.cloudSyncLoginView.classList.add('hidden');
+                        el.cloudSyncActionsView.classList.remove('hidden');
+                        el.cloudSyncUserPic.src = googleUserProfile.picture || '';
+                        el.cloudSyncUserName.textContent = googleUserProfile.name || 'N/A';
+                        el.cloudSyncUserEmail.textContent = googleUserProfile.email || 'N/A';
+                        
+                        el.lastBackupTime.textContent = '正在查詢...';
+                        this.callCloudApi('restoreData')
+                            .then(result => {
+                                const data = result.data;
+                                el.lastBackupTime.textContent = data.hasData && data.lastUpdated ? this.formatDateTime(data.lastUpdated) : '尚無備份';
+                            })
+                            .catch(err => { el.lastBackupTime.textContent = '查詢失敗'; });
+                    } else {
+                        el.cloudSyncLoginView.classList.remove('hidden');
+                        el.cloudSyncActionsView.classList.add('hidden');
+                    }
+                },
+                toggleCloudButtons(enabled) {
+                    const el = this.elements;
+                    el.cloudBackupBtn.disabled = !enabled;
+                    el.cloudRestoreBtn.disabled = !enabled;
+                    el.cloudSignOutBtn.disabled = !enabled;
+                },
+                closeCloudSyncModal() {
+                    return new Promise(resolve => {
+                        const el = this.elements.cloudSyncModal;
+                        if (el.classList.contains('hidden')) return resolve();
+                        
+                        el.classList.remove('show-modal');
+                        el.classList.add('hide-modal');
+                        
+                        const onTransitionEnd = (event) => {
+                            if (event.target !== el) return;
+                            el.removeEventListener('transitionend', onTransitionEnd);
+                            el.classList.add('hidden');
+                            resolve();
+                        };
+                        el.addEventListener('transitionend', onTransitionEnd);
+                        setTimeout(() => { if (!el.classList.contains('hidden')) onTransitionEnd({ target: el }); }, 350);
+                    });
+                },
+                async handleCloudBackup() {
+                    if (isCloudActionInProgress) return;
+                    isCloudActionInProgress = true;
+                    this.toggleCloudButtons(false);
+                    
+                    try {
+                        await this.closeCloudSyncModal();
+                        this.showMessage('正在檢查雲端狀態...');
+                        const result = await this.callCloudApi('restoreData');
+                        const cloudInfo = result.data;
+
+                        if (!cloudInfo || !cloudInfo.hasData) {
+                            const pinResult = await this.showCustomModal("設定雲端同步 PIN 碼", {
+                                message: "首次備份，請設定一組 6 位數字的 PIN 碼以保護您的資料安全。",
+                                inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
+                                confirmButtonText: '設定並備份', trackHistory: true
+                            });
+                            
+                            if (pinResult.confirmed && pinResult.values.pin && /^\d{6}$/.test(pinResult.values.pin)) {
+                                this.showMessage('正在設定 PIN 碼...');
+                                await this.callCloudApi('setPin', { pin: pinResult.values.pin });
+                                this.showMessage('正在備份資料...');
+                                const backupResult = await this.callCloudApi('backupData', { notebookData: recordBooks });
+                                this.elements.lastBackupTime.textContent = this.formatDateTime(backupResult.data.lastUpdated);
+                                this.showMessage('記事本已成功備份至雲端！');
+                            } else {
+                                this.showMessage('PIN 碼設定已取消或格式錯誤。', true);
+                            }
+                        } else {
+                            const pinResult = await this.showCustomModal("輸入 PIN 碼", {
+                                message: "請輸入您的 6 位數字 PIN 碼以進行備份。",
+                                inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
+                                confirmButtonText: '驗證並備份', trackHistory: true
+                            });
+                            if (pinResult.confirmed && pinResult.values.pin) {
+                                this.showMessage('正在驗證 PIN 碼...');
+                                const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
+                                if (verificationResult.data.verified) {
+                                     this.showMessage('PIN 碼驗證成功，正在備份資料...');
+                                    const backupResult = await this.callCloudApi('backupData', { notebookData: recordBooks });
+                                    this.elements.lastBackupTime.textContent = this.formatDateTime(backupResult.data.lastUpdated);
+                                    this.showMessage('記事本已成功備份至雲端！');
+                                } else {
+                                    this.showMessage('PIN 碼錯誤，備份失敗。', true);
+                                }
+                            } else {
+                                this.showMessage('備份已取消。');
+                            }
+                        }
                     } catch (error) {
                        this.showMessage(`備份過程中發生錯誤: ${error.message}`, true);
                     } finally {
