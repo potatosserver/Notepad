@@ -1240,7 +1240,6 @@
         let displayMode = 'list';
         let sortMode = 'latest';
         let selectedRecordBookIds = new Set();
-        let currentModalResolve;
         let isCloudActionInProgress = false;
         let isClosingModalProgrammatically = false;
 
@@ -1356,11 +1355,12 @@
                     setTimeout(() => messageBox.classList.remove('show'), 3000);
                 },
 
-                // --- MODAL HANDLING ---
-                showCustomModal(title, options = {}) {
+                // --- MODAL HANDLING (REWRITTEN FOR ROBUSTNESS) ---
+                async showCustomModal(title, options = {}) {
                     const { inputs = [], actions = [], checkboxes = [], itemsToDelete = [], confirmButtonText = '確認', cancelButtonText = '取消', trackHistory = false, message = '', htmlContent = null } = options;
                     const el = this.elements;
 
+                    // Setup UI
                     el.modalTitle.textContent = title;
                     el.modalInputsContainer.innerHTML = '';
                     el.modalActionButtonsContainer.innerHTML = '';
@@ -1385,13 +1385,13 @@
                             const button = document.createElement('button');
                             button.className = `modal-action-button ${actionDef.class}`;
                             button.textContent = actionDef.text;
-                            button.onclick = () => currentModalResolve({ confirmed: true, action: actionDef.value });
+                            button.dataset.action = actionDef.value; // Store action value
                             el.modalActionButtonsContainer.appendChild(button);
                         });
                         const cancelButton = document.createElement('button');
                         cancelButton.className = 'modal-action-button cancel';
                         cancelButton.textContent = cancelButtonText;
-                        cancelButton.onclick = () => currentModalResolve({ confirmed: false });
+                        cancelButton.dataset.action = 'cancel';
                         el.modalActionButtonsContainer.appendChild(cancelButton);
                     } else {
                         el.modalConfirmCancelButtons.classList.remove('hidden');
@@ -1399,7 +1399,7 @@
                         el.modalConfirmBtn.textContent = confirmButtonText;
                         el.modalCancelBtn.textContent = cancelButtonText;
                         el.modalConfirmBtn.classList.remove('hidden');
-
+                        
                         inputs.forEach(inputDef => {
                             const div = document.createElement('div');
                             div.className = 'mb-4';
@@ -1433,30 +1433,8 @@
                             el.modalInputsContainer.appendChild(div);
                         });
 
-                         if (checkboxes.length > 0) {
-                            const selectAllContainer = document.createElement('div');
-                            selectAllContainer.className = 'select-all-checkbox-container';
-                            selectAllContainer.innerHTML = `<label class="inline-flex items-center cursor-pointer"><input type="checkbox" id="modalSelectAllCheckboxes" class="mr-2 transform scale-125"> 全選</label>`;
-                            el.modalInputsContainer.appendChild(selectAllContainer);
-
-                            const checkboxListDiv = document.createElement('div');
-                            checkboxListDiv.className = 'modal-checkbox-list';
-                            checkboxes.forEach(checkboxDef => {
-                                const label = document.createElement('label');
-                                label.innerHTML = `<input type="checkbox" class="modal-checkbox-item" value="${checkboxDef.value}" ${checkboxDef.checked ? 'checked' : ''}><span class="book-name">${checkboxDef.label}</span><span class="book-date ml-auto">${checkboxDef.meta}</span>`;
-                                checkboxListDiv.appendChild(label);
-                            });
-                            el.modalInputsContainer.appendChild(checkboxListDiv);
-
-                            const modalSelectAll = selectAllContainer.querySelector('#modalSelectAllCheckboxes');
-                            const modalCheckboxes = checkboxListDiv.querySelectorAll('.modal-checkbox-item');
-                            modalSelectAll.addEventListener('change', () => modalCheckboxes.forEach(cb => cb.checked = modalSelectAll.checked));
-                            modalCheckboxes.forEach(cb => cb.addEventListener('change', () => modalSelectAll.checked = Array.from(modalCheckboxes).every(item => item.checked)));
-                            modalSelectAll.checked = Array.from(modalCheckboxes).every(item => item.checked);
-                        }
-                    
                         if (itemsToDelete.length > 0) {
-                            const deleteListContainer = document.createElement('div');
+                           const deleteListContainer = document.createElement('div');
                             deleteListContainer.className = 'bulk-delete-list';
                             itemsToDelete.forEach(item => {
                                 const itemDiv = document.createElement('div');
@@ -1468,49 +1446,85 @@
                         }
                     }
 
+                    // Show Modal
                     el.customModal.classList.remove('hidden', 'hide-modal');
                     el.customModal.classList.add('show-modal');
-
                     if (trackHistory) history.pushState({ view: history.state.view, modalOpen: true }, '');
 
                     if (inputs.length > 0) el.modalInputsContainer.querySelector('input, textarea, select')?.focus();
                     else if (actions.length > 0) el.modalActionButtonsContainer.querySelector('button')?.focus();
                     else el.modalConfirmBtn.focus();
-                    
-                    const bookTypeRadios = el.modalInputsContainer.querySelectorAll('input[name="bookType"]');
-                    if (bookTypeRadios.length > 0) {
-                        const toggleMaxNumInput = () => {
-                            const maxNumInputGroup = el.modalInputsContainer.querySelector('.max-num-input-group');
-                            const selectedRadio = el.modalInputsContainer.querySelector('input[name="bookType"]:checked');
-                            if (maxNumInputGroup) maxNumInputGroup.style.display = selectedRadio?.value === 'number' ? 'block' : 'none';
-                        };
-                        bookTypeRadios.forEach(radio => radio.addEventListener('change', toggleMaxNumInput));
-                        toggleMaxNumInput();
-                    }
 
-                    return new Promise(resolve => { currentModalResolve = resolve; });
+                    // Wait for user interaction
+                    return new Promise(resolve => {
+                        const cleanupAndResolve = (result) => {
+                            // Remove all event listeners to prevent "click-through"
+                            el.modalConfirmBtn.onclick = null;
+                            el.modalCancelBtn.onclick = null;
+                            el.customModal.onclick = null;
+                            el.modalActionButtonsContainer.onclick = null;
+                            resolve(result);
+                        };
+
+                        const handleConfirm = () => {
+                            const values = {}; let isValid = true, errorMessage = '';
+                            el.modalInputsContainer.querySelectorAll('input, textarea, select').forEach(input => {
+                                if (input.type === 'radio') { if (input.checked) values[input.name] = input.value; } 
+                                else if (input.id) values[input.id] = input.value;
+                            });
+                            const pinInput = el.modalInputsContainer.querySelector('#pin');
+                            if (pinInput && !/^\d{6}$/.test(pinInput.value)) { errorMessage = 'PIN 碼必須是 6 位數字。'; isValid = false; }
+                            
+                            if (!isValid) { 
+                                el.modalErrorMessage.textContent = errorMessage;
+                                el.modalErrorMessage.classList.remove('hidden');
+                            } else {
+                                cleanupAndResolve({ confirmed: true, values });
+                            }
+                        };
+                        
+                        const handleCancel = () => {
+                            cleanupAndResolve({ confirmed: false });
+                        };
+
+                        // Attach one-time listeners
+                        el.modalConfirmBtn.onclick = handleConfirm;
+                        el.modalCancelBtn.onclick = handleCancel;
+                        el.customModal.onclick = (e) => { if (e.target === el.customModal) handleCancel(); };
+                        
+                        // Listener for action buttons
+                        el.modalActionButtonsContainer.onclick = (e) => {
+                            const button = e.target.closest('button');
+                            if (!button) return;
+                            const action = button.dataset.action;
+                            if (action === 'cancel') {
+                                cleanupAndResolve({ confirmed: false });
+                            } else if (action) {
+                                cleanupAndResolve({ confirmed: true, action });
+                            }
+                        };
+                    });
                 },
 
-                closeCustomModal() {
-                    return new Promise(resolve => {
-                        const el = this.elements.customModal;
-                        if (el.classList.contains('hidden')) return resolve();
-                        
-                        isClosingModalProgrammatically = true;
-                        
-                        el.classList.remove('show-modal');
-                        el.classList.add('hide-modal');
+                async closeCustomModal() {
+                    const el = this.elements.customModal;
+                    if (el.classList.contains('hidden')) return;
 
-                        const onTransitionEnd = (event) => {
+                    isClosingModalProgrammatically = true;
+                    el.classList.remove('show-modal');
+                    el.classList.add('hide-modal');
+
+                    return new Promise(resolve => {
+                         const onTransitionEnd = (event) => {
                             if (event.target !== el) return;
                             el.classList.add('hidden');
                             el.removeEventListener('transitionend', onTransitionEnd);
                             if(history.state && history.state.modalOpen) history.back();
-                            
                             setTimeout(() => { isClosingModalProgrammatically = false; }, 0);
                             resolve();
                         };
                         el.addEventListener('transitionend', onTransitionEnd);
+                        // Fallback timer in case transitionend doesn't fire
                         setTimeout(() => { if (!el.classList.contains('hidden')) onTransitionEnd({ target: el }); }, 350);
                     });
                 },
@@ -1647,8 +1661,8 @@
                             });
 
                             if (pinResult.confirmed) {
-                                await this.closeCustomModal();
                                 if (pinResult.values.pin && /^\d{6}$/.test(pinResult.values.pin)) {
+                                    await this.closeCustomModal();
                                     this.showMessage('正在設定 PIN 碼...');
                                     await this.callCloudApi('setPin', { pin: pinResult.values.pin });
                                     this.showMessage('正在備份資料...');
@@ -1656,22 +1670,24 @@
                                     this.elements.lastBackupTime.textContent = this.formatDateTime(backupResult.data.lastUpdated);
                                     this.showMessage('記事本已成功備份至雲端！');
                                 } else {
-                                    this.showMessage('PIN 碼格式錯誤，必須為 6 位數字。', true);
+                                     // Error message is shown inside modal, just need to close
+                                     await this.closeCustomModal();
+                                     this.showMessage('PIN 碼設定已取消或格式錯誤。', true);
                                 }
                             } else {
                                 await this.closeCustomModal();
                                 this.showMessage('PIN 碼設定已取消。');
                             }
                         } else {
-                            const pinResult = await this.showCustomModal("輸入 PIN 碼", {
+                             const pinResult = await this.showCustomModal("輸入 PIN 碼", {
                                 message: "請輸入您的 6 位數字 PIN 碼以進行備份。",
                                 inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
                                 confirmButtonText: '驗證並備份', trackHistory: true
                             });
                             
                             if (pinResult.confirmed) {
-                                await this.closeCustomModal();
                                 if (pinResult.values.pin) {
+                                    await this.closeCustomModal();
                                     this.showMessage('正在驗證 PIN 碼...');
                                     const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
                                     if (verificationResult.data.verified) {
@@ -1690,7 +1706,7 @@
                         }
                     } catch (error) {
                        this.showMessage(`備份過程中發生錯誤: ${error.message}`, true);
-                       await this.closeCustomModal(); // Ensure modal is closed on error
+                       await this.closeCustomModal();
                     } finally {
                         isCloudActionInProgress = false;
                         this.toggleCloudButtons(true);
@@ -1709,46 +1725,49 @@
                             confirmButtonText: "確定還原", trackHistory: true
                         });
                         
-                        await this.closeCustomModal(); // Manually close the first modal
-
                         if (confirmRestore.confirmed) {
+                            await this.closeCustomModal(); // Explicitly close first modal *before* showing the next one
+                            
                             const pinResult = await this.showCustomModal("輸入 PIN 碼", {
                                 message: "請輸入您的 6 位數字 PIN 碼以還原資料。",
                                 inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
                                 confirmButtonText: '驗證並還原', trackHistory: true
                             });
-                            
-                            await this.closeCustomModal(); // Manually close the second modal
 
-                            if (pinResult.confirmed && pinResult.values.pin) {
-                                this.showMessage('正在驗證 PIN 碼...');
-                                const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
-                                
-                                if (verificationResult.data.verified) {
-                                    this.showMessage('PIN 碼驗證成功，正在從雲端還原資料...');
-                                    const restoreResult = await this.callCloudApi('restoreData');
-                                    const restoredData = restoreResult.data;
+                            if (pinResult.confirmed) {
+                                if (pinResult.values.pin) {
+                                    await this.closeCustomModal(); // Close PIN modal
+                                    this.showMessage('正在驗證 PIN 碼...');
+                                    const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
                                     
-                                    if (restoredData.hasData && restoredData.notebookData) {
-                                        recordBooks = restoredData.notebookData;
-                                        this.saveRecordBooks();
-                                        this.renderManagementView();
-                                        this.showMessage('資料已成功從雲端還原！');
+                                    if (verificationResult.data.verified) {
+                                        this.showMessage('PIN 碼驗證成功，正在從雲端還原資料...');
+                                        const restoreResult = await this.callCloudApi('restoreData');
+                                        const restoredData = restoreResult.data;
+                                        
+                                        if (restoredData.hasData && restoredData.notebookData) {
+                                            recordBooks = restoredData.notebookData;
+                                            this.saveRecordBooks();
+                                            this.renderManagementView();
+                                            this.showMessage('資料已成功從雲端還原！');
+                                        } else {
+                                            this.showMessage('雲端沒有可還原的資料。', true);
+                                        }
                                     } else {
-                                        this.showMessage('雲端沒有可還原的資料。', true);
+                                        this.showMessage('PIN 碼錯誤，還原失敗。', true);
                                     }
-                                } else {
-                                    this.showMessage('PIN 碼錯誤，還原失敗。', true);
                                 }
                             } else {
+                                await this.closeCustomModal(); // User cancelled PIN input
                                 this.showMessage('還原已取消。');
                             }
                         } else {
+                            await this.closeCustomModal(); // User cancelled restore confirmation
                             this.showMessage('還原操作已取消。');
                         }
                     } catch (error) {
                         this.showMessage(`還原過程中發生錯誤: ${error.message}`, true);
-                        await this.closeCustomModal(); // Ensure modal is closed on error
+                        await this.closeCustomModal();
                     } finally {
                         isCloudActionInProgress = false;
                         this.toggleCloudButtons(true);
@@ -2061,21 +2080,9 @@
                     // Global / System
                     document.addEventListener('click', (e) => { if (!el.sortButton.contains(e.target)) el.sortDropdown.classList.add('hidden'); });
                     window.onpopstate = (e) => {
-                        if (isClosingModalProgrammatically) {
-                            return;
-                        }
-
-                        if (el.customModal.classList.contains('show-modal')) {
-                            // When using browser back, we resolve with 'cancelled'
-                            if (currentModalResolve) {
-                                currentModalResolve({ confirmed: false, fromPopState: true });
-                                currentModalResolve = null;
-                            }
-                            this.closeCustomModal();
-                        }
-                        if (el.cloudSyncModal.classList.contains('show-modal')) {
-                            this.closeCloudSyncModal();
-                        }
+                        if (isClosingModalProgrammatically) { return; }
+                        if (el.customModal.classList.contains('show-modal')) { this.closeCustomModal(); }
+                        if (el.cloudSyncModal.classList.contains('show-modal')) { this.closeCloudSyncModal(); }
                         
                         const state = e.state || { view: 'management' };
                         if (state.view === 'management') { currentRecordBookId = null; this.renderManagementView(); }
@@ -2083,32 +2090,6 @@
                     };
                     ['focus', 'click', 'keyup'].forEach(evt => el.recordTextInput.addEventListener(evt, () => this.updateEditorToolbarState()));
                     document.addEventListener('selectionchange', () => { if (document.activeElement === el.recordTextInput) this.updateEditorToolbarState(); });
-
-                    // Modal Buttons - REFACTORED FOR ROBUSTNESS
-                    el.modalConfirmBtn.onclick = () => {
-                        const values = {}; let isValid = true, errorMessage = '';
-                        el.modalInputsContainer.querySelectorAll('input, textarea, select').forEach(input => {
-                            if (input.type === 'radio') { if (input.checked) values[input.name] = input.value; } 
-                            else if (input.id) values[input.id] = input.value;
-                        });
-                        const pinInput = el.modalInputsContainer.querySelector('#pin');
-                        if (pinInput && !/^\d{6}$/.test(pinInput.value)) { errorMessage = 'PIN 碼必須是 6 位數字。'; isValid = false; }
-                        
-                        if (!isValid) { 
-                            el.modalErrorMessage.textContent = errorMessage;
-                            el.modalErrorMessage.classList.remove('hidden');
-                        } else {
-                            if(currentModalResolve) currentModalResolve({ confirmed: true, values });
-                        }
-                    };
-                    el.modalCancelBtn.onclick = () => {
-                        if(currentModalResolve) currentModalResolve({ confirmed: false });
-                    };
-                    el.customModal.onclick = (e) => { 
-                        if (e.target === el.customModal) {
-                            if(currentModalResolve) currentModalResolve({ confirmed: false });
-                        }
-                    };
 
                     // Cloud Sync Modal Buttons
                     el.cloudSyncCancelBtn.onclick = () => this.closeCloudSyncModal();
