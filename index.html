@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -1492,21 +1493,21 @@
 
                 closeCustomModal() {
                     return new Promise(resolve => {
-                        const el = this.elements;
-                        el.modalErrorMessage.classList.add('hidden');
-                        el.modalMessage.classList.add('hidden');
-                        el.customModal.classList.remove('show-modal');
-                        el.customModal.classList.add('hide-modal');
+                        const el = this.elements.customModal;
+                        if (el.classList.contains('hidden')) return resolve();
+                        
+                        el.classList.remove('show-modal');
+                        el.classList.add('hide-modal');
 
                         const onTransitionEnd = (event) => {
-                            if (event.target !== el.customModal) return;
-                            el.customModal.classList.add('hidden');
-                            el.customModal.removeEventListener('transitionend', onTransitionEnd);
+                            if (event.target !== el) return;
+                            el.classList.add('hidden');
+                            el.removeEventListener('transitionend', onTransitionEnd);
                             if(history.state && history.state.modalOpen) history.back();
                             resolve();
                         };
-                        el.customModal.addEventListener('transitionend', onTransitionEnd);
-                        setTimeout(() => { if (!el.customModal.classList.contains('hidden')) onTransitionEnd({ target: el.customModal }); }, 350);
+                        el.addEventListener('transitionend', onTransitionEnd);
+                        setTimeout(() => { if (!el.classList.contains('hidden')) onTransitionEnd({ target: el }); }, 350);
                     });
                 },
 
@@ -1605,14 +1606,14 @@
                     el.cloudRestoreBtn.disabled = !enabled;
                     el.cloudSignOutBtn.disabled = !enabled;
                 },
-                // --- FIX: Create a dedicated promise-based closer for the cloud modal ---
                 closeCloudSyncModal() {
                     return new Promise(resolve => {
                         const el = this.elements.cloudSyncModal;
-                        if (el.classList.contains('hidden')) {
-                            return resolve();
-                        }
+                        if (el.classList.contains('hidden')) return resolve();
+                        
+                        el.classList.remove('show-modal');
                         el.classList.add('hide-modal');
+                        
                         const onTransitionEnd = (event) => {
                             if (event.target !== el) return;
                             el.removeEventListener('transitionend', onTransitionEnd);
@@ -1628,13 +1629,13 @@
                     isCloudActionInProgress = true;
                     this.toggleCloudButtons(false);
                     
+                    // FIX: Wrap the entire operation in try...finally to guarantee button state is reset.
                     try {
                         this.showMessage('正在檢查雲端狀態...');
                         const result = await this.callCloudApi('restoreData');
                         const cloudInfo = result.data;
                         let pinResult;
 
-                        // --- FIX: Properly wait for cloud modal to close before showing PIN modal ---
                         await this.closeCloudSyncModal();
 
                         if (!cloudInfo || !cloudInfo.hasData) {
@@ -1646,7 +1647,7 @@
                             
                             if (!pinResult.confirmed || !pinResult.values.pin || !/^\d{6}$/.test(pinResult.values.pin)) {
                                 this.showMessage('PIN 碼設定已取消或格式錯誤。', true);
-                                throw new Error("PIN cancelled");
+                                return; // Exit gracefully
                             }
                             this.showMessage('正在設定 PIN 碼...');
                             await this.callCloudApi('setPin', { pin: pinResult.values.pin });
@@ -1658,13 +1659,13 @@
                             });
                             if (!pinResult.confirmed || !pinResult.values.pin) {
                                 this.showMessage('備份已取消。');
-                                throw new Error("PIN cancelled");
+                                return; // Exit gracefully
                             }
                             this.showMessage('正在驗證 PIN 碼...');
                             const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
                             if (!verificationResult.data.verified) {
                                 this.showMessage('PIN 碼錯誤，備份失敗。', true);
-                                throw new Error("PIN invalid");
+                                return; // Exit gracefully
                             }
                         }
                         
@@ -1674,9 +1675,7 @@
                         this.showMessage('記事本已成功備份至雲端！');
                     
                     } catch (error) {
-                        if(error.message !== "PIN cancelled" && error.message !== "PIN invalid") {
-                            this.showMessage(`備份過程中發生錯誤: ${error.message}`, true);
-                        }
+                       this.showMessage(`備份過程中發生錯誤: ${error.message}`, true);
                     } finally {
                         isCloudActionInProgress = false;
                         this.toggleCloudButtons(true);
@@ -1687,18 +1686,21 @@
                     isCloudActionInProgress = true;
                     this.toggleCloudButtons(false);
                     
+                    // FIX: Wrap the entire operation in try...finally to guarantee button state is reset.
                     try {
+                        // FIX: First, close the main cloud modal, THEN show subsequent dialogs.
+                        await this.closeCloudSyncModal();
+
                         const confirmRestore = await this.showCustomModal("確認還原", {
                             message: "從雲端還原將會覆蓋您目前所有的本機資料。此操作無法復原，確定要繼續嗎？",
                             confirmButtonText: "確定還原", trackHistory: true
                         });
+
                         if (!confirmRestore.confirmed) {
                             this.showMessage('還原操作已取消。');
-                            throw new Error("Restore cancelled");
+                            return; // Exit gracefully
                         }
                         
-                        await this.closeCloudSyncModal();
-
                         const pinResult = await this.showCustomModal("輸入 PIN 碼", {
                             message: "請輸入您的 6 位數字 PIN 碼以還原資料。",
                             inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
@@ -1707,14 +1709,14 @@
                         
                         if (!pinResult.confirmed || !pinResult.values.pin) {
                             this.showMessage('還原已取消。');
-                             throw new Error("PIN cancelled");
+                            return; // Exit gracefully
                         }
                         
                         this.showMessage('正在驗證 PIN 碼...');
                         const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
                         if (!verificationResult.data.verified) {
                             this.showMessage('PIN 碼錯誤，還原失敗。', true);
-                            throw new Error("PIN invalid");
+                            return; // Exit gracefully
                         }
 
                         this.showMessage('PIN 碼驗證成功，正在從雲端還原資料...');
@@ -1729,9 +1731,7 @@
                             this.showMessage('雲端沒有可還原的資料。', true);
                         }
                     } catch (error) {
-                        if(error.message !== "PIN cancelled" && error.message !== "PIN invalid" && error.message !== "Restore cancelled") {
-                            this.showMessage(`還原過程中發生錯誤: ${error.message}`, true);
-                        }
+                        this.showMessage(`還原過程中發生錯誤: ${error.message}`, true);
                     } finally {
                         isCloudActionInProgress = false;
                         this.toggleCloudButtons(true);
@@ -2044,7 +2044,6 @@
                     // Global / System
                     document.addEventListener('click', (e) => { if (!el.sortButton.contains(e.target)) el.sortDropdown.classList.add('hidden'); });
                     window.onpopstate = (e) => {
-                        // --- FIX: Resolve pending promises when modal is closed via history ---
                         if (el.customModal.classList.contains('show-modal')) {
                             this.closeCustomModal().then(() => {
                                 if (currentModalResolve) {
@@ -2055,6 +2054,11 @@
                         }
                         if (el.cloudSyncModal.classList.contains('show-modal')) {
                             this.closeCloudSyncModal();
+                        }
+                        // FIX: Ensure cloud action state is reset if user navigates back during an operation
+                        if (isCloudActionInProgress) {
+                            isCloudActionInProgress = false;
+                            this.toggleCloudButtons(true);
                         }
 
                         const state = e.state || { view: 'management' };
@@ -2111,10 +2115,9 @@
                     const result = await this.showCustomModal(`操作記事本`, {
                         message: `請選擇要對記事本「${book.name}」執行的操作。`,
                         actions: [{ text: '重新命名', value: 'rename', class: 'rename' }, { text: '刪除', value: 'delete', class: 'delete' }],
-                        trackHistory: false // --- FIX: Do not track history for this intermediate modal ---
+                        trackHistory: false
                     });
                     if (result.confirmed) {
-                        // Use a small timeout to let the first modal finish its closing animation
                         setTimeout(() => {
                            if (result.action === 'rename') this.renameRecordBook(bookId, book.name);
                            else if (result.action === 'delete') this.deleteRecordBook(bookId, book.name);
