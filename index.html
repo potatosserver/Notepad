@@ -1689,7 +1689,7 @@
                     if (isCloudActionInProgress) return;
                     isCloudActionInProgress = true;
                     this.toggleCloudButtons(false);
-                    
+
                     try {
                         await this.closeCloudSyncModal();
 
@@ -1698,39 +1698,38 @@
                             confirmButtonText: "確定還原", trackHistory: true
                         });
 
-                        if (!confirmRestore.confirmed) {
-                            this.showMessage('還原操作已取消。');
-                            return;
-                        }
-                        
-                        const pinResult = await this.showCustomModal("輸入 PIN 碼", {
-                            message: "請輸入您的 6 位數字 PIN 碼以還原資料。",
-                            inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
-                            confirmButtonText: '驗證並還原', trackHistory: true
-                        });
-                        
-                        if (!pinResult.confirmed || !pinResult.values.pin) {
-                            this.showMessage('還原已取消。');
-                            return;
-                        }
-                        
-                        this.showMessage('正在驗證 PIN 碼...');
-                        const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
-                        if (!verificationResult.data.verified) {
-                            this.showMessage('PIN 碼錯誤，還原失敗。', true);
-                            return;
-                        }
-
-                        this.showMessage('PIN 碼驗證成功，正在從雲端還原資料...');
-                        const restoreResult = await this.callCloudApi('restoreData');
-                        const restoredData = restoreResult.data;
-                        if (restoredData.hasData && restoredData.notebookData) {
-                            recordBooks = restoredData.notebookData;
-                            this.saveRecordBooks();
-                            this.renderManagementView();
-                            this.showMessage('資料已成功從雲端還原！');
+                        if (confirmRestore.confirmed) {
+                            const pinResult = await this.showCustomModal("輸入 PIN 碼", {
+                                message: "請輸入您的 6 位數字 PIN 碼以還原資料。",
+                                inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
+                                confirmButtonText: '驗證並還原', trackHistory: true
+                            });
+                            
+                            if (pinResult.confirmed && pinResult.values.pin) {
+                                this.showMessage('正在驗證 PIN 碼...');
+                                const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
+                                
+                                if (verificationResult.data.verified) {
+                                    this.showMessage('PIN 碼驗證成功，正在從雲端還原資料...');
+                                    const restoreResult = await this.callCloudApi('restoreData');
+                                    const restoredData = restoreResult.data;
+                                    
+                                    if (restoredData.hasData && restoredData.notebookData) {
+                                        recordBooks = restoredData.notebookData;
+                                        this.saveRecordBooks();
+                                        this.renderManagementView();
+                                        this.showMessage('資料已成功從雲端還原！');
+                                    } else {
+                                        this.showMessage('雲端沒有可還原的資料。', true);
+                                    }
+                                } else {
+                                    this.showMessage('PIN 碼錯誤，還原失敗。', true);
+                                }
+                            } else {
+                                this.showMessage('還原已取消。');
+                            }
                         } else {
-                            this.showMessage('雲端沒有可還原的資料。', true);
+                            this.showMessage('還原操作已取消。');
                         }
                     } catch (error) {
                         this.showMessage(`還原過程中發生錯誤: ${error.message}`, true);
