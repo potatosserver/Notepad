@@ -1243,6 +1243,7 @@
         let selectedRecordBookIds = new Set();
         let currentModalResolve;
         let isCloudActionInProgress = false;
+        let isClosingModalProgrammatically = false; // --- FIX: State to prevent popstate race condition ---
 
         // --- DECOUPLED GOOGLE SIGN-IN CALLBACK ---
         window.handleCredentialResponse = (response) => {
@@ -1496,6 +1497,8 @@
                         const el = this.elements.customModal;
                         if (el.classList.contains('hidden')) return resolve();
                         
+                        isClosingModalProgrammatically = true; // --- FIX: Set flag
+                        
                         el.classList.remove('show-modal');
                         el.classList.add('hide-modal');
 
@@ -1504,6 +1507,8 @@
                             el.classList.add('hidden');
                             el.removeEventListener('transitionend', onTransitionEnd);
                             if(history.state && history.state.modalOpen) history.back();
+                            
+                            isClosingModalProgrammatically = false; // --- FIX: Reset flag
                             resolve();
                         };
                         el.addEventListener('transitionend', onTransitionEnd);
@@ -1629,7 +1634,6 @@
                     isCloudActionInProgress = true;
                     this.toggleCloudButtons(false);
                     
-                    // FIX: Wrap the entire operation in try...finally to guarantee button state is reset.
                     try {
                         this.showMessage('正在檢查雲端狀態...');
                         const result = await this.callCloudApi('restoreData');
@@ -1647,7 +1651,7 @@
                             
                             if (!pinResult.confirmed || !pinResult.values.pin || !/^\d{6}$/.test(pinResult.values.pin)) {
                                 this.showMessage('PIN 碼設定已取消或格式錯誤。', true);
-                                return; // Exit gracefully
+                                return;
                             }
                             this.showMessage('正在設定 PIN 碼...');
                             await this.callCloudApi('setPin', { pin: pinResult.values.pin });
@@ -1659,13 +1663,13 @@
                             });
                             if (!pinResult.confirmed || !pinResult.values.pin) {
                                 this.showMessage('備份已取消。');
-                                return; // Exit gracefully
+                                return;
                             }
                             this.showMessage('正在驗證 PIN 碼...');
                             const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
                             if (!verificationResult.data.verified) {
                                 this.showMessage('PIN 碼錯誤，備份失敗。', true);
-                                return; // Exit gracefully
+                                return;
                             }
                         }
                         
@@ -1686,9 +1690,7 @@
                     isCloudActionInProgress = true;
                     this.toggleCloudButtons(false);
                     
-                    // FIX: Wrap the entire operation in try...finally to guarantee button state is reset.
                     try {
-                        // FIX: First, close the main cloud modal, THEN show subsequent dialogs.
                         await this.closeCloudSyncModal();
 
                         const confirmRestore = await this.showCustomModal("確認還原", {
@@ -1698,7 +1700,7 @@
 
                         if (!confirmRestore.confirmed) {
                             this.showMessage('還原操作已取消。');
-                            return; // Exit gracefully
+                            return;
                         }
                         
                         const pinResult = await this.showCustomModal("輸入 PIN 碼", {
@@ -1709,14 +1711,14 @@
                         
                         if (!pinResult.confirmed || !pinResult.values.pin) {
                             this.showMessage('還原已取消。');
-                            return; // Exit gracefully
+                            return;
                         }
                         
                         this.showMessage('正在驗證 PIN 碼...');
                         const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
                         if (!verificationResult.data.verified) {
                             this.showMessage('PIN 碼錯誤，還原失敗。', true);
-                            return; // Exit gracefully
+                            return;
                         }
 
                         this.showMessage('PIN 碼驗證成功，正在從雲端還原資料...');
@@ -2044,6 +2046,9 @@
                     // Global / System
                     document.addEventListener('click', (e) => { if (!el.sortButton.contains(e.target)) el.sortDropdown.classList.add('hidden'); });
                     window.onpopstate = (e) => {
+                        // --- FIX: Guard against race condition with programmatic closing ---
+                        if (isClosingModalProgrammatically) return;
+
                         if (el.customModal.classList.contains('show-modal')) {
                             this.closeCustomModal().then(() => {
                                 if (currentModalResolve) {
@@ -2055,7 +2060,6 @@
                         if (el.cloudSyncModal.classList.contains('show-modal')) {
                             this.closeCloudSyncModal();
                         }
-                        // FIX: Ensure cloud action state is reset if user navigates back during an operation
                         if (isCloudActionInProgress) {
                             isCloudActionInProgress = false;
                             this.toggleCloudButtons(true);
