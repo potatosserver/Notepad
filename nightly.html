@@ -1640,58 +1640,57 @@
                         const cloudInfo = result.data;
 
                         if (!cloudInfo || !cloudInfo.hasData) {
-                            let pinResult;
-                            try {
-                                pinResult = await this.showCustomModal("設定雲端同步 PIN 碼", {
-                                    message: "首次備份，請設定一組 6 位數字的 PIN 碼以保護您的資料安全。",
-                                    inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
-                                    confirmButtonText: '設定並備份', trackHistory: true
-                                });
-                            } finally {
-                                await this.closeCustomModal();
-                            }
+                            const pinResult = await this.showCustomModal("設定雲端同步 PIN 碼", {
+                                message: "首次備份，請設定一組 6 位數字的 PIN 碼以保護您的資料安全。",
+                                inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
+                                confirmButtonText: '設定並備份', trackHistory: true
+                            });
 
-                            if (pinResult.confirmed && pinResult.values.pin && /^\d{6}$/.test(pinResult.values.pin)) {
-                                this.showMessage('正在設定 PIN 碼...');
-                                await this.callCloudApi('setPin', { pin: pinResult.values.pin });
-                                this.showMessage('正在備份資料...');
-                                const backupResult = await this.callCloudApi('backupData', { notebookData: recordBooks });
-                                this.elements.lastBackupTime.textContent = this.formatDateTime(backupResult.data.lastUpdated);
-                                this.showMessage('記事本已成功備份至雲端！');
-                            } else if (pinResult.confirmed) {
-                                this.showMessage('PIN 碼格式錯誤，必須為 6 位數字。', true);
-                            } else {
-                                this.showMessage('PIN 碼設定已取消。');
-                            }
-                        } else {
-                            let pinResult;
-                            try {
-                                pinResult = await this.showCustomModal("輸入 PIN 碼", {
-                                    message: "請輸入您的 6 位數字 PIN 碼以進行備份。",
-                                    inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
-                                    confirmButtonText: '驗證並備份', trackHistory: true
-                                });
-                            } finally {
+                            if (pinResult.confirmed) {
                                 await this.closeCustomModal();
-                            }
-                            
-                            if (pinResult.confirmed && pinResult.values.pin) {
-                                this.showMessage('正在驗證 PIN 碼...');
-                                const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
-                                if (verificationResult.data.verified) {
-                                     this.showMessage('PIN 碼驗證成功，正在備份資料...');
+                                if (pinResult.values.pin && /^\d{6}$/.test(pinResult.values.pin)) {
+                                    this.showMessage('正在設定 PIN 碼...');
+                                    await this.callCloudApi('setPin', { pin: pinResult.values.pin });
+                                    this.showMessage('正在備份資料...');
                                     const backupResult = await this.callCloudApi('backupData', { notebookData: recordBooks });
                                     this.elements.lastBackupTime.textContent = this.formatDateTime(backupResult.data.lastUpdated);
                                     this.showMessage('記事本已成功備份至雲端！');
                                 } else {
-                                    this.showMessage('PIN 碼錯誤，備份失敗。', true);
+                                    this.showMessage('PIN 碼格式錯誤，必須為 6 位數字。', true);
                                 }
                             } else {
+                                await this.closeCustomModal();
+                                this.showMessage('PIN 碼設定已取消。');
+                            }
+                        } else {
+                            const pinResult = await this.showCustomModal("輸入 PIN 碼", {
+                                message: "請輸入您的 6 位數字 PIN 碼以進行備份。",
+                                inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
+                                confirmButtonText: '驗證並備份', trackHistory: true
+                            });
+                            
+                            if (pinResult.confirmed) {
+                                await this.closeCustomModal();
+                                if (pinResult.values.pin) {
+                                    this.showMessage('正在驗證 PIN 碼...');
+                                    const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
+                                    if (verificationResult.data.verified) {
+                                         this.showMessage('PIN 碼驗證成功，正在備份資料...');
+                                        const backupResult = await this.callCloudApi('backupData', { notebookData: recordBooks });
+                                        this.elements.lastBackupTime.textContent = this.formatDateTime(backupResult.data.lastUpdated);
+                                        this.showMessage('記事本已成功備份至雲端！');
+                                    } else {
+                                        this.showMessage('PIN 碼錯誤，備份失敗。', true);
+                                    }
+                                }
+                            } else {
+                                await this.closeCustomModal();
                                 this.showMessage('備份已取消。');
                             }
                         }
                     } catch (error) {
                        this.showMessage(`備份過程中發生錯誤: ${error.message}`, true);
+                       await this.closeCustomModal(); // Ensure modal is closed on error
                     } finally {
                         isCloudActionInProgress = false;
                         this.toggleCloudButtons(true);
@@ -1705,28 +1704,22 @@
                     try {
                         await this.closeCloudSyncModal();
                         
-                        let confirmRestore;
-                        try {
-                           confirmRestore = await this.showCustomModal("確認還原", {
-                                message: "從雲端還原將會覆蓋您目前所有的本機資料。此操作無法復原，確定要繼續嗎？",
-                                confirmButtonText: "確定還原", trackHistory: true
-                            });
-                        } finally {
-                            await this.closeCustomModal();
-                        }
+                        const confirmRestore = await this.showCustomModal("確認還原", {
+                            message: "從雲端還原將會覆蓋您目前所有的本機資料。此操作無法復原，確定要繼續嗎？",
+                            confirmButtonText: "確定還原", trackHistory: true
+                        });
+                        
+                        await this.closeCustomModal(); // Manually close the first modal
 
                         if (confirmRestore.confirmed) {
-                            let pinResult;
-                            try {
-                                pinResult = await this.showCustomModal("輸入 PIN 碼", {
-                                    message: "請輸入您的 6 位數字 PIN 碼以還原資料。",
-                                    inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
-                                    confirmButtonText: '驗證並還原', trackHistory: true
-                                });
-                            } finally {
-                                await this.closeCustomModal();
-                            }
+                            const pinResult = await this.showCustomModal("輸入 PIN 碼", {
+                                message: "請輸入您的 6 位數字 PIN 碼以還原資料。",
+                                inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
+                                confirmButtonText: '驗證並還原', trackHistory: true
+                            });
                             
+                            await this.closeCustomModal(); // Manually close the second modal
+
                             if (pinResult.confirmed && pinResult.values.pin) {
                                 this.showMessage('正在驗證 PIN 碼...');
                                 const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
@@ -1755,6 +1748,7 @@
                         }
                     } catch (error) {
                         this.showMessage(`還原過程中發生錯誤: ${error.message}`, true);
+                        await this.closeCustomModal(); // Ensure modal is closed on error
                     } finally {
                         isCloudActionInProgress = false;
                         this.toggleCloudButtons(true);
@@ -2125,19 +2119,16 @@
                 },
 
                 async addNewRecordBook() {
-                    let result;
-                    try {
-                        result = await this.showCustomModal("新增記事本", {
-                            inputs: [
-                                { label: '記事本類型:', type: 'radio', name: 'bookType', options: [{ label: '純文字記事', value: 'text' }, { label: '數字追蹤', value: 'number', checked: true }] },
-                                { id: 'bookName', label: '記事本名稱:', type: 'text', defaultValue: `記事本 ${recordBooks.length + 1}` },
-                                { id: 'maxNum', label: '最大數字設定 (1-100):', type: 'number', defaultValue: defaultMaxNumber, min: '1', max: '100' }
-                            ],
-                            confirmButtonText: '新增', trackHistory: true
-                        });
-                    } finally {
-                        await this.closeCustomModal();
-                    }
+                    const result = await this.showCustomModal("新增記事本", {
+                        inputs: [
+                            { label: '記事本類型:', type: 'radio', name: 'bookType', options: [{ label: '純文字記事', value: 'text' }, { label: '數字追蹤', value: 'number', checked: true }] },
+                            { id: 'bookName', label: '記事本名稱:', type: 'text', defaultValue: `記事本 ${recordBooks.length + 1}` },
+                            { id: 'maxNum', label: '最大數字設定 (1-100):', type: 'number', defaultValue: defaultMaxNumber, min: '1', max: '100' }
+                        ],
+                        confirmButtonText: '新增', trackHistory: true
+                    });
+                    
+                    await this.closeCustomModal();
 
                     if (result.confirmed) {
                         const newBook = { id: this.generateUUID(), name: result.values.bookName.trim() || `未命名 ${recordBooks.length + 1}`, lastUpdated: new Date().toISOString(), notes: "", recordText: "", bookType: result.values.bookType, history: [], checkedNumbers: {}, disabledNumbers: {} };
@@ -2152,16 +2143,13 @@
                     const book = recordBooks.find(b => b.id === bookId);
                     if (!book) return;
                     
-                    let result;
-                    try {
-                        result = await this.showCustomModal(`操作記事本`, {
-                            message: `請選擇要對記事本「${book.name}」執行的操作。`,
-                            actions: [{ text: '重新命名', value: 'rename', class: 'rename' }, { text: '刪除', value: 'delete', class: 'delete' }],
-                            trackHistory: false // This modal shouldn't create a history entry
-                        });
-                    } finally {
-                        await this.closeCustomModal();
-                    }
+                    const result = await this.showCustomModal(`操作記事本`, {
+                        message: `請選擇要對記事本「${book.name}」執行的操作。`,
+                        actions: [{ text: '重新命名', value: 'rename', class: 'rename' }, { text: '刪除', value: 'delete', class: 'delete' }],
+                        trackHistory: false
+                    });
+                    
+                    await this.closeCustomModal();
 
                     if (result.confirmed) {
                        if (result.action === 'rename') this.renameRecordBook(bookId, book.name);
@@ -2169,15 +2157,12 @@
                     }
                 },
                 async renameRecordBook(id, oldName) {
-                    let result;
-                    try {
-                        result = await this.showCustomModal("重新命名記事本", {
-                            inputs: [{ id: 'newName', label: '新名稱:', type: 'text', defaultValue: oldName }],
-                            confirmButtonText: '儲存', trackHistory: true
-                        });
-                    } finally {
-                        await this.closeCustomModal();
-                    }
+                    const result = await this.showCustomModal("重新命名記事本", {
+                        inputs: [{ id: 'newName', label: '新名稱:', type: 'text', defaultValue: oldName }],
+                        confirmButtonText: '儲存', trackHistory: true
+                    });
+                    
+                    await this.closeCustomModal();
 
                     if (result.confirmed && result.values.newName.trim()) {
                         const book = recordBooks.find(b => b.id === id);
@@ -2189,15 +2174,12 @@
                     }
                 },
                 async deleteRecordBook(id, name) {
-                    let result;
-                    try {
-                        result = await this.showCustomModal(`確認刪除`, {
-                            message: `確定要刪除記事本「${name}」嗎？此操作無法復原。`,
-                            confirmButtonText: '確定刪除', trackHistory: true
-                        });
-                    } finally {
-                        await this.closeCustomModal();
-                    }
+                    const result = await this.showCustomModal(`確認刪除`, {
+                        message: `確定要刪除記事本「${name}」嗎？此操作無法復原。`,
+                        confirmButtonText: '確定刪除', trackHistory: true
+                    });
+                    
+                    await this.closeCustomModal();
 
                     if (result.confirmed) {
                         recordBooks = recordBooks.filter(b => b.id !== id);
@@ -2209,15 +2191,12 @@
                     if (selectedRecordBookIds.size === 0) return;
                     const booksToDelete = recordBooks.filter(b => selectedRecordBookIds.has(b.id));
 
-                    let result;
-                    try {
-                        result = await this.showCustomModal(`確認大量刪除`, {
-                            message: `確定要刪除選定的 ${selectedRecordBookIds.size} 個記事本嗎？`,
-                            itemsToDelete: booksToDelete, confirmButtonText: '確定刪除', trackHistory: true
-                        });
-                    } finally {
-                        await this.closeCustomModal();
-                    }
+                    const result = await this.showCustomModal(`確認大量刪除`, {
+                        message: `確定要刪除選定的 ${selectedRecordBookIds.size} 個記事本嗎？`,
+                        itemsToDelete: booksToDelete, confirmButtonText: '確定刪除', trackHistory: true
+                    });
+                    
+                    await this.closeCustomModal();
 
                     if (result.confirmed) {
                         const ids = new Set(selectedRecordBookIds);
@@ -2230,15 +2209,12 @@
                     const book = recordBooks.find(b => b.id === currentRecordBookId);
                     if(!book) return;
 
-                    let result;
-                    try {
-                        result = await this.showCustomModal(`確定要重設記事本 "${book.name}" 嗎？`, {
-                            message: `${book.bookType === 'number' ? '所有打勾與禁用紀錄將被清除。' : '所有內容將被清除。'} 此操作無法復原。`,
-                            confirmButtonText: '確定重設', trackHistory: true
-                        });
-                    } finally {
-                        await this.closeCustomModal();
-                    }
+                    const result = await this.showCustomModal(`確定要重設記事本 "${book.name}" 嗎？`, {
+                        message: `${book.bookType === 'number' ? '所有打勾與禁用紀錄將被清除。' : '所有內容將被清除。'} 此操作無法復原。`,
+                        confirmButtonText: '確定重設', trackHistory: true
+                    });
+                    
+                    await this.closeCustomModal();
 
                      if (result.confirmed) {
                         if (book.bookType === 'number') { book.checkedNumbers = {}; book.disabledNumbers = {}; }
@@ -2256,11 +2232,8 @@
                             <span class="history-log-desc">${entry.description}</span>
                         </div>`).join('')}</div>`;
                     
-                    try {
-                        await this.showCustomModal('操作歷史紀錄', { htmlContent: historyHtml, trackHistory: true });
-                    } finally {
-                        await this.closeCustomModal();
-                    }
+                    await this.showCustomModal('操作歷史紀錄', { htmlContent: historyHtml, trackHistory: true });
+                    await this.closeCustomModal();
                 },
                 async shareAsImage() {
                     const book = recordBooks.find(b => b.id === currentRecordBookId);
@@ -2299,15 +2272,12 @@
                             const data = JSON.parse(content);
                             if (!Array.isArray(data) || !data.every(item => item.id && item.name)) return this.showMessage('匯入的檔案格式不正確。', true);
                             
-                            let result;
-                            try {
-                                result = await this.showCustomModal("匯入記事本資料", {
-                                    inputs: [{ label: '您想如何處理現有的記事本資料？', type: 'radio', name: 'import_mode', options: [{ label: '覆蓋所有', value: 'overwrite' }, { label: '合併資料', value: 'merge', checked: true }] }],
-                                    confirmButtonText: '確定', trackHistory: true
-                                });
-                            } finally {
-                                await this.closeCustomModal();
-                            }
+                            const result = await this.showCustomModal("匯入記事本資料", {
+                                inputs: [{ label: '您想如何處理現有的記事本資料？', type: 'radio', name: 'import_mode', options: [{ label: '覆蓋所有', value: 'overwrite' }, { label: '合併資料', value: 'merge', checked: true }] }],
+                                confirmButtonText: '確定', trackHistory: true
+                            });
+                            
+                            await this.closeCustomModal();
 
                             if (result.confirmed) {
                                 if (result.values.import_mode === 'overwrite') { recordBooks = data; this.showMessage('記事本資料已成功覆蓋！'); }
