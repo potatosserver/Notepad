@@ -1243,7 +1243,7 @@
         let selectedRecordBookIds = new Set();
         let currentModalResolve;
         let isCloudActionInProgress = false;
-        let isClosingModalProgrammatically = false; // --- FIX: State to prevent popstate race condition ---
+        let isClosingModalProgrammatically = false;
 
         // --- DECOUPLED GOOGLE SIGN-IN CALLBACK ---
         window.handleCredentialResponse = (response) => {
@@ -1497,7 +1497,7 @@
                         const el = this.elements.customModal;
                         if (el.classList.contains('hidden')) return resolve();
                         
-                        isClosingModalProgrammatically = true; // --- FIX: Set flag
+                        isClosingModalProgrammatically = true;
                         
                         el.classList.remove('show-modal');
                         el.classList.add('hide-modal');
@@ -1508,7 +1508,7 @@
                             el.removeEventListener('transitionend', onTransitionEnd);
                             if(history.state && history.state.modalOpen) history.back();
                             
-                            isClosingModalProgrammatically = false; // --- FIX: Reset flag
+                            setTimeout(() => { isClosingModalProgrammatically = false; }, 0);
                             resolve();
                         };
                         el.addEventListener('transitionend', onTransitionEnd);
@@ -2046,11 +2046,12 @@
                     // Global / System
                     document.addEventListener('click', (e) => { if (!el.sortButton.contains(e.target)) el.sortDropdown.classList.add('hidden'); });
                     window.onpopstate = (e) => {
-                        // --- FIX: Guard against race condition with programmatic closing ---
-                        if (isClosingModalProgrammatically) return;
+                        if (isClosingModalProgrammatically) {
+                            return;
+                        }
 
                         if (el.customModal.classList.contains('show-modal')) {
-                            this.closeCustomModal().then(() => {
+                             this.closeCustomModal().then(() => {
                                 if (currentModalResolve) {
                                     currentModalResolve({ confirmed: false, fromPopState: true });
                                     currentModalResolve = null;
@@ -2060,11 +2061,7 @@
                         if (el.cloudSyncModal.classList.contains('show-modal')) {
                             this.closeCloudSyncModal();
                         }
-                        if (isCloudActionInProgress) {
-                            isCloudActionInProgress = false;
-                            this.toggleCloudButtons(true);
-                        }
-
+                        
                         const state = e.state || { view: 'management' };
                         if (state.view === 'management') { currentRecordBookId = null; this.renderManagementView(); }
                         else if (state.view === 'tracker' && state.bookId) { currentRecordBookId = state.bookId; this.renderNumberTrackerView(); }
