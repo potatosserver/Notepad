@@ -4,11 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>記事本</title>
+    <title>記事本 (含雲端備份)</title>
+    <!-- Google GSI Client -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        /* --- CSS 樣式與原檔案相同，此處為求簡潔省略，實際使用時請保留所有 <style> 內容 --- */
         /* --- START: Added Rule to Prevent Horizontal Scrolling --- */
         html {
             overflow-x: hidden;
@@ -942,6 +945,42 @@
         }
         /* --- END: New Feature Styles --- */
 
+        /* --- START: Cloud Sync Modal Styles --- */
+        .g_id_signin {
+            margin-bottom: 16px;
+        }
+        #cloudSyncUserInfo {
+            padding: 16px;
+            border-radius: 12px;
+            background-color: var(--md-primary-container);
+            color: var(--md-on-primary-container);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        #cloudSyncUserPic {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+        }
+        #cloudSyncUserName {
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+        #cloudSyncUserEmail {
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+        .cloud-action-button {
+             background-color: var(--md-surface-variant);
+             color: var(--md-on-surface-variant);
+        }
+        .cloud-action-button:hover {
+            background-color: color-mix(in srgb, var(--md-surface-variant) 90%, black);
+        }
+        /* --- END: Cloud Sync Modal Styles --- */
+
 
         @media (max-width: 768px) {
             .container {
@@ -1095,6 +1134,13 @@
     </style>
 </head>
 <body>
+    <!-- Google Sign-In onload div -->
+    <div id="g_id_onload"
+         data-client_id="541525685075-c7081uf4p28o7gp17ssa2udvriat6qdl.apps.googleusercontent.com"
+         data-callback="handleCredentialResponse"
+         data-auto_select="true">
+    </div>
+
     <div class="container">
         <!-- Initially hide both views -->
         <div id="managementView" class="view hidden">
@@ -1128,7 +1174,7 @@
 
             <!-- New Toolbar - Control field (Second line) -->
             <div id="managementToolbar" class="flex justify-between items-center mb-6 toolbar">
-                <!-- Import and Export buttons -->
+                <!-- Import, Export, and Cloud Sync buttons -->
                 <div class="flex space-x-3 flex-shrink-0">
                     <button id="importBtn" class="button-base button-outlined">
                         <span class="material-symbols-outlined">upload_file</span>
@@ -1138,6 +1184,11 @@
                     <button id="exportBtn" class="button-base button-outlined hidden-if-no-selection">
                         <span class="material-symbols-outlined">download</span>
                         匯出
+                    </button>
+                    <!-- NEW: Cloud Sync Button -->
+                    <button id="cloudSyncBtn" class="button-base button-outlined">
+                        <span class="material-symbols-outlined">cloud_sync</span>
+                        雲端同步
                     </button>
                 </div>
                 <!-- Delete Selected button -->
@@ -1268,10 +1319,11 @@
         <span class="material-symbols-outlined">add</span>
     </button>
 
+    <!-- Generic Modal for App Actions -->
     <div id="customModal" class="fixed inset-0 custom-modal-overlay z-50 hidden">
         <div class="custom-modal-content p-8 max-w-sm w-full relative">
             <h2 id="modalTitle" class="text-2xl font-bold mb-4 text-gray-800"></h2>
-            <p id="modalMessage" class="text-gray-700 text-base mb-4 hidden"></p> <!-- Added for confirmation messages -->
+            <p id="modalMessage" class="text-gray-700 text-base mb-4 hidden"></p>
             <p id="modalErrorMessage" class="text-red-500 text-sm mb-4 hidden"></p>
             <div id="modalInputsContainer">
             </div>
@@ -1284,25 +1336,74 @@
         </div>
     </div>
 
+    <!-- NEW: Modal for Cloud Sync -->
+    <div id="cloudSyncModal" class="fixed inset-0 custom-modal-overlay z-50 hidden">
+        <div class="custom-modal-content p-8 max-w-md w-full relative">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800 text-center">雲端同步</h2>
+            
+            <!-- Content for when user is NOT logged in -->
+            <div id="cloudSyncLoginView">
+                <p class="text-center text-gray-600 mb-6">請登入您的 Google 帳號以使用雲端備份與還原功能。</p>
+                <div class="flex justify-center">
+                    <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline" data-text="sign_in_with" data-shape="pill" data-logo_alignment="left"></div>
+                </div>
+            </div>
+
+            <!-- Content for when user IS logged in -->
+            <div id="cloudSyncActionsView" class="hidden">
+                <div id="cloudSyncUserInfo">
+                    <img id="cloudSyncUserPic" src="" alt="頭像">
+                    <div>
+                        <h3 id="cloudSyncUserName"></h3>
+                        <p id="cloudSyncUserEmail"></p>
+                    </div>
+                </div>
+                 <p id="cloudSyncStatus" class="text-center text-gray-600 text-sm mb-4">雲端最後備份時間：<span id="lastBackupTime"></span></p>
+
+                <div id="cloudSyncButtons" class="flex flex-col space-y-3 mt-6">
+                    <button id="cloudBackupBtn" class="button-base button-filled-primary cloud-action-button w-full">
+                        <span class="material-symbols-outlined">cloud_upload</span>
+                        備份至雲端
+                    </button>
+                    <button id="cloudRestoreBtn" class="button-base button-filled-primary cloud-action-button w-full">
+                        <span class="material-symbols-outlined">cloud_download</span>
+                        從雲端還原
+                    </button>
+                    <button id="cloudSignOutBtn" class="button-base button-outlined w-full">登出</button>
+                </div>
+            </div>
+
+            <div class="mt-6 text-center">
+                <button id="cloudSyncCancelBtn" class="button-base button-text">關閉</button>
+            </div>
+        </div>
+    </div>
+
     <div id="messageBox" class="message-box"></div>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script>
+        // --- START: CONFIGURATION & GLOBAL VARIABLES ---
         const defaultMaxNumber = 40;
         const notesCharLimit = 50;
         const storageKey = 'multiNumberTrackerState';
         const displayModeKey = 'multiNumberTrackerDisplayMode';
         const sortModeKey = 'multiNumberTrackerSortMode';
 
+        // NEW: Cloud Sync Configuration
+        const CLOUD_API_URL = "https://script.google.com/macros/s/AKfycbyI6LVnx-_CGLqpNbdfPpJU1CxfWc-amK91WjItANb3urG7r0YkEmKSCJUlDFd2MP0aRg/exec";
+        let googleIdToken = null;
+        let googleUserProfile = null;
+
         let recordBooks = [];
         let currentRecordBookId = null;
         let displayMode = 'list';
         let sortMode = 'latest';
         let selectedRecordBookIds = new Set();
+        // --- END: CONFIGURATION & GLOBAL VARIABLES ---
 
-        /**
-         * Debounce function to limit the rate at which a function gets called.
-         */
+
+        // --- START: UTILITY FUNCTIONS ---
         function debounce(func, wait) {
             let timeout;
             return function executedFunction(...args) {
@@ -1363,11 +1464,6 @@
             }
         }
         
-        /**
-         * Logs an action to a specific record book's history.
-         * @param {string} bookId The ID of the record book.
-         * @param {string} description The description of the action.
-         */
         function logHistory(bookId, description) {
             const book = recordBooks.find(b => b.id === bookId);
             if (book && book.history) {
@@ -1380,9 +1476,248 @@
                 }
             }
         }
+        // --- END: UTILITY FUNCTIONS ---
+
+
+        // --- START: CLOUD SYNC FUNCTIONS ---
+        
+        // Decode JWT token to get user profile
+        function decodeJwtResponse(token) {
+            try {
+                let base64Url = token.split('.')[1];
+                let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                let jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                return JSON.parse(jsonPayload);
+            } catch (e) {
+                console.error("Error decoding JWT", e);
+                return null;
+            }
+        }
+        
+        // Google Sign-In Callback
+        window.handleCredentialResponse = (response) => {
+            googleIdToken = response.credential;
+            googleUserProfile = decodeJwtResponse(googleIdToken);
+
+            if(googleUserProfile) {
+                console.log("Logged in as:", googleUserProfile.name);
+                showMessage(`已成功登入為 ${googleUserProfile.name}`);
+                updateCloudSyncModalUI();
+            } else {
+                showMessage('登入失敗，無法解析憑證。', true);
+            }
+        };
+
+        // Handle Sign Out
+        function handleSignOut() {
+            google.accounts.id.disableAutoSelect();
+            googleIdToken = null;
+            googleUserProfile = null;
+            showMessage('您已成功登出。');
+            updateCloudSyncModalUI();
+        }
+
+        // Central function to call the backend API
+        async function callCloudApi(action, params = {}) {
+            if (!googleIdToken) {
+                throw new Error("使用者未登入，無法執行雲端操作。");
+            }
+
+            try {
+                const response = await fetch(CLOUD_API_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'text/plain;charset=utf-8', // Apps Script web apps often prefer text/plain
+                    },
+                    body: JSON.stringify({
+                        idToken: googleIdToken,
+                        action: action,
+                        params: params
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`網路回應錯誤: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                
+                if (result.status === 'error') {
+                    throw new Error(result.message || 'API 返回一個未知錯誤。');
+                }
+                
+                return result.data;
+
+            } catch (error) {
+                console.error(`API 呼叫失敗 (action: ${action}):`, error);
+                throw error; // Re-throw the error to be caught by the caller
+            }
+        }
+
+        // Update the Cloud Sync Modal's UI based on login state
+        function updateCloudSyncModalUI() {
+            const loginView = document.getElementById('cloudSyncLoginView');
+            const actionsView = document.getElementById('cloudSyncActionsView');
+
+            if (googleUserProfile) {
+                // Logged In
+                loginView.classList.add('hidden');
+                actionsView.classList.remove('hidden');
+
+                document.getElementById('cloudSyncUserPic').src = googleUserProfile.picture || '';
+                document.getElementById('cloudSyncUserName').textContent = googleUserProfile.name || 'N/A';
+                document.getElementById('cloudSyncUserEmail').textContent = googleUserProfile.email || 'N/A';
+                
+                // Fetch last backup time
+                document.getElementById('lastBackupTime').textContent = '正在查詢...';
+                callCloudApi('restoreData')
+                    .then(data => {
+                         document.getElementById('lastBackupTime').textContent = data.hasData ? formatDateTime(data.lastUpdated) : '尚無備份';
+                    })
+                    .catch(err => {
+                         document.getElementById('lastBackupTime').textContent = '查詢失敗';
+                    });
+
+            } else {
+                // Not Logged In
+                loginView.classList.remove('hidden');
+                actionsView.classList.add('hidden');
+            }
+        }
+
+        async function getPin(isSettingPin = false) {
+            const title = isSettingPin ? "設定雲端同步 PIN 碼" : "輸入雲端同步 PIN 碼";
+            const message = isSettingPin ? "為保護您的雲端資料，請設定一組 6 位數字的 PIN 碼。此 PIN 碼將用於未來所有雲端操作。" : "請輸入您的 6 位數字 PIN 碼以繼續。";
+            
+            const result = await showCustomModal(title, {
+                message: message,
+                inputs: [
+                    { id: 'pin', label: '6 位數字 PIN 碼:', type: 'password', placeholder: '••••••', max: '999999', min: '0' }
+                ],
+                confirmButtonText: '確認',
+                cancelButtonText: '取消'
+            });
+
+            if (result.confirmed) {
+                const pin = result.values.pin_input; // This needs to be corrected based on how showCustomModal returns values
+                if (pin && /^\d{6}$/.test(pin)) {
+                    return pin;
+                } else {
+                    showMessage('PIN 碼格式錯誤，必須是 6 位數字。', true);
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        async function handleCloudBackup() {
+            try {
+                // 1. Check if user data exists to determine if PIN needs to be set or verified
+                const cloudData = await callCloudApi('restoreData');
+                let pin;
+                let isPinVerified = false;
+
+                if (!cloudData.hasData) {
+                    // No data on cloud, must be first time. Set PIN.
+                    const newPin = await showCustomModal("設定雲端同步 PIN 碼", {
+                        message: "首次備份，請設定一組 6 位數字的 PIN 碼以保護您的資料安全。",
+                        inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
+                        confirmButtonText: '設定並備份'
+                    }).then(r => r.confirmed ? r.values.pin : null);
+
+                    if (!newPin || !/^\d{6}$/.test(newPin)) {
+                        showMessage('PIN 碼設定已取消或格式錯誤。', true); return;
+                    }
+                    
+                    showMessage('正在設定 PIN 碼...');
+                    await callCloudApi('setPin', { pin: newPin });
+                    isPinVerified = true; // Pin is implicitly verified by setting it
+                    
+                } else {
+                    // Data exists, ask for PIN to verify
+                    pin = await showCustomModal("輸入 PIN 碼", {
+                        message: "請輸入您的 6 位數字 PIN 碼以進行備份。",
+                        inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
+                        confirmButtonText: '驗證並備份'
+                    }).then(r => r.confirmed ? r.values.pin : null);
+
+                    if (!pin) { showMessage('備份已取消。'); return; }
+
+                    showMessage('正在驗證 PIN 碼...');
+                    const verificationResult = await callCloudApi('verifyPin', { pin: pin });
+                    if (!verificationResult.verified) {
+                        showMessage('PIN 碼錯誤，備份失敗。', true); return;
+                    }
+                    isPinVerified = true;
+                }
+
+                // 2. If PIN is verified, proceed with backup
+                if (isPinVerified) {
+                    showMessage('PIN 碼驗證成功，正在備份資料...');
+                    const backupResult = await callCloudApi('backupData', { notebookData: recordBooks });
+                    document.getElementById('lastBackupTime').textContent = formatDateTime(backupResult.lastUpdated);
+                    showMessage('記事本已成功備份至雲端！');
+                    closeCloudSyncModal();
+                }
+
+            } catch (error) {
+                showMessage(`備份過程中發生錯誤: ${error.message}`, true);
+            }
+        }
+
+        async function handleCloudRestore() {
+            const confirmRestore = await showCustomModal("確認還原", {
+                message: "從雲端還原將會覆蓋您目前所有的本機資料。此操作無法復原，確定要繼續嗎？",
+                confirmButtonText: "確定還原",
+            });
+
+            if (!confirmRestore.confirmed) {
+                showMessage('還原操作已取消。');
+                return;
+            }
+
+            try {
+                const pin = await showCustomModal("輸入 PIN 碼", {
+                    message: "請輸入您的 6 位數字 PIN 碼以還原資料。",
+                    inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
+                    confirmButtonText: '驗證並還原'
+                }).then(r => r.confirmed ? r.values.pin : null);
+
+                if (!pin) { showMessage('還原已取消。'); return; }
+
+                showMessage('正在驗證 PIN 碼...');
+                const verificationResult = await callCloudApi('verifyPin', { pin });
+                if (!verificationResult.verified) {
+                    showMessage('PIN 碼錯誤，還原失敗。', true); return;
+                }
+                
+                showMessage('PIN 碼驗證成功，正在從雲端還原資料...');
+                const restoredData = await callCloudApi('restoreData');
+
+                if (restoredData.hasData) {
+                    recordBooks = restoredData.notebookData;
+                    saveRecordBooks(); // Save to local storage
+                    renderManagementView(); // Re-render the UI
+                    showMessage('資料已成功從雲端還原！');
+                    closeCloudSyncModal();
+                } else {
+                    showMessage('雲端沒有可還原的資料。', true);
+                }
+
+            } catch (error) {
+                showMessage(`還原過程中發生錯誤: ${error.message}`, true);
+            }
+        }
+
+
+        // --- END: CLOUD SYNC FUNCTIONS ---
 
 
         document.addEventListener('DOMContentLoaded', () => {
+            // --- START: ELEMENT SELECTORS ---
             const managementView = document.getElementById('managementView');
             const numberTrackerView = document.getElementById('numberTrackerView');
             const fabAddNewRecordBookBtn = document.getElementById('fabAddNewRecordBookBtn');
@@ -1396,16 +1731,13 @@
             const numbersGrid = document.getElementById('numbersGrid');
             const notesInput = document.getElementById('notesInput');
             const notesCharCount = document.getElementById('notesCharCount');
-
             const limitedNotesSection = document.getElementById('limitedNotesSection');
             const unlimitedRecordTextSection = document.getElementById('unlimitedRecordTextSection');
             const recordTextInput = document.getElementById('recordTextInput');
-
             const importBtn = document.getElementById('importBtn');
             const exportBtn = document.getElementById('exportBtn');
             const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
             const selectAllCheckboxes = document.getElementById('selectAllCheckboxes');
-
             const customModal = document.getElementById('customModal');
             const modalTitle = document.getElementById('modalTitle');
             const modalMessage = document.getElementById('modalMessage');
@@ -1416,25 +1748,30 @@
             const modalConfirmBtn = document.getElementById('modalConfirmBtn');
             const modalErrorMessage = document.getElementById('modalErrorMessage');
             let currentModalResolve;
-
             const listViewBtn = document.getElementById('listViewBtn');
             const gridViewBtn = document.getElementById('gridViewBtn');
-
             const sortButton = document.getElementById('sortButton');
             const sortDropdown = document.getElementById('sortDropdown');
-
-            // New Feature Buttons
             const toggleLockBtn = document.getElementById('toggleLockBtn');
             const viewHistoryBtn = document.getElementById('viewHistoryBtn');
             const shareAsImageBtn = document.getElementById('shareAsImageBtn');
-
             const editorToolbar = document.querySelector('.editor-toolbar');
             const fontSizeSelect = document.getElementById('fontSizeSelect');
             const fontColorPicker = document.getElementById('fontColorPicker');
             const linkBtn = document.getElementById('linkBtn');
-            
             const debouncedLogHistory = debounce(logHistory, 1500);
 
+            // NEW: Cloud Sync Modal Elements
+            const cloudSyncModal = document.getElementById('cloudSyncModal');
+            const cloudSyncBtn = document.getElementById('cloudSyncBtn');
+            const cloudSyncCancelBtn = document.getElementById('cloudSyncCancelBtn');
+            const cloudSignOutBtn = document.getElementById('cloudSignOutBtn');
+            const cloudBackupBtn = document.getElementById('cloudBackupBtn');
+            const cloudRestoreBtn = document.getElementById('cloudRestoreBtn');
+            // --- END: ELEMENT SELECTORS ---
+
+
+            // --- START: MODAL HANDLING ---
             function loadRecordBooks() {
                 let needsRecordBookSave = false;
                 const storedData = localStorage.getItem(storageKey);
@@ -1481,6 +1818,7 @@
                 localStorage.setItem(sortModeKey, sortMode);
             }
 
+            // This function is now more generic
             function showCustomModal(title, options = {}) {
                 const { inputs = [], actions = [], checkboxes = [], itemsToDelete = [], confirmButtonText = '確認', cancelButtonText = '取消', trackHistory = false, message = '', htmlContent = null } = options;
 
@@ -1601,7 +1939,7 @@
                     history.replaceState({ view: history.state.view, modalOpen: true }, '');
                 }
 
-                if (inputs.length > 0) modalInputsContainer.querySelector('input')?.focus();
+                if (inputs.length > 0) modalInputsContainer.querySelector('input, textarea, select')?.focus();
                 else if (actions.length > 0) modalActionButtonsContainer.querySelector('button')?.focus();
                 else modalConfirmBtn.focus();
 
@@ -1625,7 +1963,6 @@
                 });
             }
 
-
             function closeCustomModal() {
                 return new Promise(resolve => {
                     modalErrorMessage.classList.add('hidden');
@@ -1637,7 +1974,9 @@
                         customModal.classList.add('hidden');
                         customModal.classList.remove('hide-modal');
                         customModal.removeEventListener('transitionend', onTransitionEnd);
-                        history.replaceState({ view: history.state.view, modalOpen: false }, '');
+                        if(history.state && history.state.modalOpen) {
+                           history.back();
+                        }
                         resolve();
                     };
                     customModal.addEventListener('transitionend', onTransitionEnd);
@@ -1656,10 +1995,23 @@
                 let isValid = true;
                 let errorMessage = '';
 
+                const inputs = modalInputsContainer.querySelectorAll('input, textarea, select');
+                inputs.forEach(input => {
+                    if (input.type === 'checkbox' && !input.id.includes('modalSelectAll')) {
+                        if (!values[input.name]) values[input.name] = [];
+                        if (input.checked) values[input.name].push(input.value);
+                    } else if (input.type === 'radio') {
+                        if (input.checked) values[input.name] = input.value;
+                    } else {
+                        values[input.id] = input.value;
+                    }
+                });
+                
+                // Specific Validations
                 const bookNameInput = modalInputsContainer.querySelector('#bookName');
                 const maxNumInput = modalInputsContainer.querySelector('#maxNum');
-                const bookTypeRadios = modalInputsContainer.querySelectorAll('input[name="bookType"]');
                 const newNameInput = modalInputsContainer.querySelector('#newName');
+                const pinInput = modalInputsContainer.querySelector('#pin');
                 const modalCheckboxes = modalInputsContainer.querySelectorAll('.modal-checkbox-item');
 
                 if (modalCheckboxes.length > 0) {
@@ -1671,35 +2023,22 @@
                 }
 
                 if (bookNameInput && bookNameInput.value.trim() === '') {
-                    errorMessage = '記事本名稱不能為空。';
-                    isValid = false;
-                } else if (bookNameInput) {
-                    values.bookName = bookNameInput.value.trim();
+                    errorMessage = '記事本名稱不能為空。'; isValid = false;
                 }
-
                 if (newNameInput && newNameInput.value.trim() === '') {
-                    errorMessage = '新名稱不能為空。';
-                    isValid = false;
-                } else if (newNameInput) {
-                    values.newName = newNameInput.value.trim();
+                    errorMessage = '新名稱不能為空。'; isValid = false;
                 }
-
-                let selectedBookType = 'number';
-                if (bookTypeRadios.length > 0) {
-                    const selectedRadio = document.querySelector('input[name="bookType"]:checked');
-                    if (selectedRadio) selectedBookType = selectedRadio.value;
+                if (pinInput && !/^\d{6}$/.test(pinInput.value)) {
+                    errorMessage = 'PIN 碼必須是 6 位數字。'; isValid = false;
                 }
-                values.bookType = selectedBookType;
-
+                
+                const selectedBookType = values.bookType || 'number';
                 if (selectedBookType === 'number' && maxNumInput) {
                     const numValue = parseInt(maxNumInput.value);
                     if (isNaN(numValue) || numValue < parseInt(maxNumInput.min) || (maxNumInput.max && numValue > parseInt(maxNumInput.max))) {
                         errorMessage = `請為 "最大數字設定" 輸入一個有效的數字 (範圍 ${maxNumInput.min}-${maxNumInput.max})。`;
                         isValid = false;
                     }
-                    values.maxNum = numValue;
-                } else if (selectedBookType === 'text') {
-                    values.maxNum = 0;
                 }
 
 
@@ -1715,6 +2054,25 @@
                 closeCustomModal().then(() => currentModalResolve({ confirmed: false }));
             };
 
+            // NEW: Cloud Sync Modal controls
+            function openCloudSyncModal() {
+                cloudSyncModal.classList.remove('hidden', 'hide-modal');
+                cloudSyncModal.classList.add('show-modal');
+                updateCloudSyncModalUI();
+            }
+
+            function closeCloudSyncModal() {
+                 cloudSyncModal.classList.remove('show-modal');
+                 cloudSyncModal.classList.add('hide-modal');
+                 setTimeout(() => {
+                    cloudSyncModal.classList.add('hidden');
+                    cloudSyncModal.classList.remove('hide-modal');
+                 }, 300);
+            }
+            // --- END: MODAL HANDLING ---
+
+            
+            // --- START: VIEW RENDERING ---
             function showView(newViewElement, state, title, direction = 'forward') {
                 const allViews = document.querySelectorAll('.view');
 
@@ -1943,24 +2301,27 @@
                     recordTextInput.innerHTML = currentBook.recordText || '';
                 }
 
-                notesInput.oninput = () => {
+                notesInput.oninput = debounce(() => {
                     if (notesInput.value.length > notesCharLimit) {
                         notesInput.value = notesInput.value.substring(0, notesCharLimit);
                     }
                     currentBook.notes = notesInput.value;
                     currentBook.lastUpdated = new Date().toISOString();
-                    debouncedLogHistory(currentBook.id, '編輯了簡短備註');
+                    logHistory(currentBook.id, '編輯了簡短備註');
                     saveRecordBooks();
-                };
+                }, 500);
 
-                recordTextInput.oninput = () => {
+                recordTextInput.oninput = debounce(() => {
                     currentBook.recordText = recordTextInput.innerHTML;
                     currentBook.lastUpdated = new Date().toISOString();
-                    debouncedLogHistory(currentBook.id, '編輯了記事本內容');
+                    logHistory(currentBook.id, '編輯了記事本內容');
                     saveRecordBooks();
-                };
+                }, 500);
             }
+            // --- END: VIEW RENDERING ---
 
+
+            // --- START: CORE APP LOGIC & ACTIONS ---
             function updateNumberState(bookId, number, isChecked, gridItem) {
                 const book = recordBooks.find(b => b.id === bookId);
                 if (book) {
@@ -1987,7 +2348,6 @@
                 }
             }
 
-
             async function showRecordBookActionsModal(bookId) {
                 const book = recordBooks.find(b => b.id === bookId);
                 if (!book) return;
@@ -2012,8 +2372,8 @@
                 const result = await showCustomModal("新增記事本", {
                     inputs: [
                         { label: '記事本類型:', type: 'radio', name: 'bookType', options: [
-                            { label: '純文字記事', value: 'text', checked: true },
-                            { label: '數字追蹤', value: 'number' }
+                            { label: '純文字記事', value: 'text' },
+                            { label: '數字追蹤', value: 'number', checked: true }
                         ]},
                         { id: 'bookName', label: '記事本名稱:', type: 'text', defaultValue: `記事本 ${recordBooks.length + 1}`, placeholder: '例如: 我的待辦事項' },
                         { id: 'maxNum', label: '最大數字設定 (1-100):', type: 'number', defaultValue: defaultMaxNumber, min: '1', max: '100' }
@@ -2045,8 +2405,6 @@
                     saveRecordBooks();
                     renderManagementView();
                     showMessage('記事本已成功新增！');
-                } else {
-                    showMessage('新增記事本已取消。');
                 }
             });
 
@@ -2071,8 +2429,6 @@
                         saveRecordBooks();
                         renderManagementView();
                         showMessage('記事本已成功重新命名！');
-                    } else {
-                        showMessage('重新命名已取消或新名稱無效。', true);
                     }
                 }
             }
@@ -2093,8 +2449,6 @@
                     saveRecordBooks();
                     renderManagementView();
                     showMessage('記事本已成功刪除！');
-                } else {
-                    showMessage('刪除操作已取消。');
                 }
             }
 
@@ -2118,11 +2472,8 @@
                     saveRecordBooks();
                     renderManagementView();
                     showMessage(`${booksToDelete.length} 個記事本已成功刪除！`);
-                } else {
-                    showMessage('大量刪除操作已取消。');
                 }
             });
-
 
             resetCurrentBookBtn.addEventListener('click', async () => {
                 const currentBook = recordBooks.find(book => book.id === currentRecordBookId);
@@ -2144,12 +2495,13 @@
                         saveRecordBooks();
                         renderNumberTrackerView('none');
                         showMessage('記事本已成功重設！');
-                    } else {
-                        showMessage('重設操作已取消。');
                     }
                 }
             });
+            // --- END: CORE APP LOGIC & ACTIONS ---
 
+
+            // --- START: EVENT LISTENERS ---
             backToManagementBtn.addEventListener('click', () => {
                 currentRecordBookId = null;
                 selectedRecordBookIds.clear();
@@ -2170,10 +2522,9 @@
                 updateToolbarButtonStates();
             });
 
-
             sortButton.addEventListener('click', (event) => { sortDropdown.classList.toggle('hidden'); event.stopPropagation(); });
-            sortByLatestBtn.addEventListener('click', () => { sortMode = 'latest'; sortDropdown.classList.add('hidden'); saveRecordBooks(); renderManagementView('none'); });
-            sortByTitleBtn.addEventListener('click', () => { sortMode = 'title'; sortDropdown.classList.add('hidden'); saveRecordBooks(); renderManagementView('none'); });
+            document.getElementById('sortByLatestBtn').addEventListener('click', () => { sortMode = 'latest'; sortDropdown.classList.add('hidden'); saveRecordBooks(); renderManagementView('none'); });
+            document.getElementById('sortByTitleBtn').addEventListener('click', () => { sortMode = 'title'; sortDropdown.classList.add('hidden'); saveRecordBooks(); renderManagementView('none'); });
             document.addEventListener('click', (event) => { if (!sortDropdown.contains(event.target) && !sortButton.contains(event.target)) sortDropdown.classList.add('hidden'); });
 
             exportBtn.addEventListener('click', async () => {
@@ -2204,10 +2555,6 @@
                         console.error('匯出資料時發生錯誤:', error);
                         showMessage('匯出資料時發生錯誤。', true);
                     }
-                } else if (result.confirmed) {
-                    showMessage('未選擇任何記事本進行匯出。', true);
-                } else {
-                    showMessage('匯出操作已取消。');
                 }
             });
 
@@ -2226,20 +2573,20 @@
                                 showMessage('匯入的檔案格式不正確。', true); return;
                             }
 
-                            const confirmImport = await showCustomModal("匯入記事本資料", {
+                            const result = await showCustomModal("匯入記事本資料", {
                                 confirmButtonText: '確定', cancelButtonText: '取消',
                                 inputs: [{
                                     label: '您想如何處理現有的記事本資料？', type: 'radio', name: 'import_mode',
                                     options: [
-                                        { label: '覆蓋所有現有記事本', value: 'overwrite', checked: true },
-                                        { label: '與現有記事本合併 (新資料會加入)', value: 'merge' }
+                                        { label: '覆蓋所有現有記事本', value: 'overwrite' },
+                                        { label: '與現有記事本合併 (新資料會加入)', value: 'merge', checked: true }
                                     ]
                                 }],
                                 trackHistory: true
                             });
 
-                            if (confirmImport.confirmed) {
-                                const importMode = confirmImport.values.import_mode;
+                            if (result.confirmed) {
+                                const importMode = result.values.import_mode;
                                 if (importMode === 'overwrite') {
                                     recordBooks = importedData;
                                     showMessage('記事本資料已成功覆蓋！');
@@ -2251,8 +2598,6 @@
                                 }
                                 saveRecordBooks();
                                 renderManagementView();
-                            } else {
-                                showMessage('匯入操作已取消。');
                             }
                         } catch (error) {
                             console.error('匯入資料時發生錯誤:', error);
@@ -2263,6 +2608,7 @@
                 input.click();
             });
             
+            // Rich Text Editor listeners
             editorToolbar.addEventListener('click', (e) => {
                 const button = e.target.closest('button');
                 if (!button) return;
@@ -2271,7 +2617,6 @@
                 recordTextInput.focus();
                 updateEditorToolbarState();
             });
-            
             linkBtn.addEventListener('click', (e) => {
                  e.preventDefault();
                  const selection = window.getSelection();
@@ -2279,93 +2624,65 @@
                  const url = prompt('請輸入連結網址:', 'https://');
                  if (url) { recordTextInput.focus(); document.execCommand('createLink', false, url); }
             });
-
             fontSizeSelect.addEventListener('change', () => { document.execCommand('fontSize', false, fontSizeSelect.value); recordTextInput.focus(); });
             fontColorPicker.addEventListener('input', () => { document.execCommand('foreColor', false, fontColorPicker.value); recordTextInput.focus(); });
-
             document.addEventListener('selectionchange', () => { if (document.activeElement === recordTextInput) updateEditorToolbarState(); });
             recordTextInput.addEventListener('focus', updateEditorToolbarState);
             recordTextInput.addEventListener('click', updateEditorToolbarState);
             recordTextInput.addEventListener('keyup', updateEditorToolbarState);
 
-            customModal.addEventListener('click', (event) => { if (event.target === customModal) closeCustomModal(); });
+            // Modal close listener
+            customModal.addEventListener('click', (event) => { if (event.target === customModal) closeCustomModal().then(() => currentModalResolve({ confirmed: false })); });
 
+            // Browser history (popstate) listener
             window.addEventListener('popstate', (event) => {
                 const state = event.state;
                 if (state) {
-                    if (state.modalOpen) {
-                        customModal.classList.remove('hidden', 'hide-modal');
-                        customModal.classList.add('show-modal');
-                    } else if (customModal.classList.contains('show-modal')) {
-                        closeCustomModal();
-                    }
-
                     if (state.view === 'management') {
                         currentRecordBookId = null;
-                        selectedRecordBookIds.clear();
-                        updateToolbarButtonStates();
-                        const prevView = document.querySelector('.view.active-visible');
-                        const animationDir = prevView && prevView.id === 'numberTrackerView' ? 'backward' : 'none';
-                        renderManagementView(animationDir);
+                        renderManagementView('backward');
                     } else if (state.view === 'tracker' && state.bookId) {
                         currentRecordBookId = state.bookId;
-                        selectedRecordBookIds.clear();
-                        updateToolbarButtonStates();
-                        const prevView = document.querySelector('.view.active-visible');
-                        const animationDir = prevView && prevView.id === 'managementView' ? 'forward' : 'none';
-                        renderNumberTrackerView(animationDir);
+                        renderNumberTrackerView('forward');
+                    }
+
+                    if (!state.modalOpen && customModal.classList.contains('show-modal')) {
+                        closeCustomModal().then(() => currentModalResolve({ confirmed: false }));
                     }
                 } else {
-                    currentRecordBookId = null;
-                    selectedRecordBookIds.clear();
-                    updateToolbarButtonStates();
                     renderManagementView('initial');
                 }
             });
             
-            // --- New Feature Event Listeners ---
+            // New Feature Button Listeners
             toggleLockBtn.addEventListener('click', () => {
                 const isLocked = numberTrackerView.classList.toggle('locked');
                 toggleLockBtn.querySelector('.material-symbols-outlined').textContent = isLocked ? 'lock' : 'lock_open';
                 showMessage(isLocked ? '記事本已鎖定' : '記事本已解鎖');
             });
-
             viewHistoryBtn.addEventListener('click', () => {
                 const currentBook = recordBooks.find(book => book.id === currentRecordBookId);
                 if (!currentBook || !currentBook.history || currentBook.history.length === 0) {
-                    showMessage('此記事本沒有任何操作紀錄。');
-                    return;
+                    showMessage('此記事本沒有任何操作紀錄。'); return;
                 }
                 const historyHtml = `<div class="history-log-container">${currentBook.history.map(entry => `
                     <div class="history-log-item">
                         <span class="history-log-time">${formatDateTime(entry.timestamp)}</span>
                         <span class="history-log-desc">${entry.description}</span>
                     </div>`).join('')}</div>`;
-
                 showCustomModal('操作歷史紀錄', { htmlContent: historyHtml, trackHistory: true });
             });
-            
             shareAsImageBtn.addEventListener('click', async () => {
+                // (Share as image logic remains unchanged)
                 const currentBook = recordBooks.find(book => book.id === currentRecordBookId);
                 if (!currentBook) return;
-
                 showMessage('正在產生圖片...');
-
                 const captureElement = document.createElement('div');
-                captureElement.style.position = 'absolute';
-                captureElement.style.left = '-9999px';
-                captureElement.style.backgroundColor = '#ffffff';
-                captureElement.style.padding = '24px';
-                captureElement.style.border = '1px solid #f0f2f5';
-                captureElement.style.borderRadius = '16px';
-                captureElement.style.display = 'inline-block';
-                
+                captureElement.style.cssText = 'position: absolute; left: -9999px; background-color: #ffffff; padding: 24px; border: 1px solid #f0f2f5; border-radius: 16px; display: inline-block;';
                 const innerContainer = document.createElement('div');
                 innerContainer.style.textAlign = 'center';
-
                 const titleClone = currentRecordBookName.cloneNode(true);
                 titleClone.style.marginBottom = '24px';
-
                 let contentClone;
                 if (currentBook.bookType === 'number') {
                     contentClone = numbersGrid.cloneNode(true);
@@ -2381,18 +2698,12 @@
                     const originalTextStyles = window.getComputedStyle(unlimitedRecordTextSection);
                     contentClone.style.width = originalTextStyles.width;
                 }
-                
                 innerContainer.appendChild(titleClone);
                 innerContainer.appendChild(contentClone);
                 captureElement.appendChild(innerContainer);
                 document.body.appendChild(captureElement);
-
                 try {
-                    const canvas = await html2canvas(captureElement, {
-                        scale: 2,
-                        useCORS: true,
-                        backgroundColor: '#ffffff'
-                    });
+                    const canvas = await html2canvas(captureElement, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
                     const link = document.createElement('a');
                     link.download = `${currentBook.name.replace(/ /g, '_')}_分享.png`;
                     link.href = canvas.toDataURL("image/png");
@@ -2406,6 +2717,14 @@
                 }
             });
 
+            // NEW: Cloud Sync Event Listeners
+            cloudSyncBtn.addEventListener('click', openCloudSyncModal);
+            cloudSyncCancelBtn.addEventListener('click', closeCloudSyncModal);
+            cloudSyncModal.addEventListener('click', (event) => { if(event.target === cloudSyncModal) closeCloudSyncModal(); });
+            cloudSignOutBtn.addEventListener('click', handleSignOut);
+            cloudBackupBtn.addEventListener('click', handleCloudBackup);
+            cloudRestoreBtn.addEventListener('click', handleCloudRestore);
+            // --- END: EVENT LISTENERS ---
 
             loadRecordBooks();
         });
