@@ -905,6 +905,18 @@
             transition: opacity 0.3s ease-in-out;
         }
         
+        /* START: Added Lock Styles */
+        #numberTrackerView.locked #tracker-content-wrapper {
+            pointer-events: none;
+            opacity: 0.5;
+            transition: opacity 0.3s ease-in-out;
+        }
+        #numberTrackerView:not(.locked) #tracker-content-wrapper {
+            opacity: 1;
+            transition: opacity 0.3s ease-in-out;
+        }
+        /* END: Added Lock Styles */
+        
         /* Cloud Sync Modal Styles */
         .g_id_signin {
             margin-bottom: 16px;
@@ -974,7 +986,8 @@
             .number-tracker-header #backToManagementBtn,
             .number-tracker-header #resetCurrentBookBtn { padding-left: 10px; padding-right: 10px; }
             .number-tracker-header #shareAsImageBtn,
-            .number-tracker-header #viewHistoryBtn { padding: 8px; }
+            .number-tracker-header #viewHistoryBtn,
+            .number-tracker-header #toggleLockBtn { padding: 8px; } /* Added toggleLockBtn */
         }
         @media (max-width: 600px) {
             .container { padding: 10px; }
@@ -1089,6 +1102,11 @@
                         <button id="viewHistoryBtn" title="檢視歷史紀錄" class="button-base button-outlined">
                             <span class="material-symbols-outlined">history</span>
                         </button>
+                        <!-- START: Added Lock Button -->
+                        <button id="toggleLockBtn" title="鎖定/解鎖" class="button-base button-outlined">
+                            <span class="material-symbols-outlined">lock_open</span>
+                        </button>
+                        <!-- END: Added Lock Button -->
                         <button id="resetCurrentBookBtn" class="button-base button-filled-secondary whitespace-nowrap">
                             <span class="material-symbols-outlined">refresh</span>
                             <span class="button-text-content">重設</span>
@@ -1297,6 +1315,7 @@
                         fontSizeSelect: document.getElementById('fontSizeSelect'),
                         fontColorPicker: document.getElementById('fontColorPicker'),
                         linkBtn: document.getElementById('linkBtn'),
+                        toggleLockBtn: document.getElementById('toggleLockBtn'), // Added Lock Button
                         
                         // Modals
                         customModal: document.getElementById('customModal'),
@@ -1954,6 +1973,11 @@
                     const el = this.elements;
                     el.currentRecordBookName.textContent = currentBook.name;
                     el.numbersGrid.innerHTML = '';
+                    
+                    // START: Auto-lock on open
+                    el.numberTrackerView.classList.add('locked');
+                    el.toggleLockBtn.querySelector('.material-symbols-outlined').textContent = 'lock';
+                    // END: Auto-lock on open
 
                     if (currentBook.bookType === 'number') {
                         el.limitedNotesSection.classList.remove('hidden');
@@ -2063,6 +2087,14 @@
                             this.saveRecordBooks();
                         }
                     }, 500);
+                    
+                    // START: Added Lock Button Listener
+                    el.toggleLockBtn.onclick = () => {
+                        const isLocked = el.numberTrackerView.classList.toggle('locked');
+                        el.toggleLockBtn.querySelector('.material-symbols-outlined').textContent = isLocked ? 'lock' : 'lock_open';
+                        this.showMessage(isLocked ? '記事本已鎖定' : '記事本已解鎖');
+                    };
+                    // END: Added Lock Button Listener
 
                     // Rich Text Editor
                     el.editorToolbar.onclick = (e) => {
