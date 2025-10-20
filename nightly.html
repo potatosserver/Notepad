@@ -1240,7 +1240,6 @@
         let displayMode = 'list';
         let sortMode = 'latest';
         let selectedRecordBookIds = new Set();
-        let isCloudActionInProgress = false;
         let isClosingModalProgrammatically = false;
 
         // --- DECOUPLED GOOGLE SIGN-IN CALLBACK ---
@@ -1524,6 +1523,7 @@
                             resolve();
                         };
                         el.addEventListener('transitionend', onTransitionEnd);
+                        // Fallback timer in case transitionend doesn't fire
                         setTimeout(() => { if (!el.classList.contains('hidden')) onTransitionEnd({ target: el }); }, 350);
                     });
                 },
@@ -1617,12 +1617,6 @@
                         el.cloudSyncActionsView.classList.add('hidden');
                     }
                 },
-                toggleCloudButtons(enabled) {
-                    const el = this.elements;
-                    el.cloudBackupBtn.disabled = !enabled;
-                    el.cloudRestoreBtn.disabled = !enabled;
-                    el.cloudSignOutBtn.disabled = !enabled;
-                },
                 closeCloudSyncModal() {
                     return new Promise(resolve => {
                         const el = this.elements.cloudSyncModal;
@@ -1642,10 +1636,6 @@
                     });
                 },
                 async handleCloudBackup() {
-                    if (isCloudActionInProgress) return;
-                    isCloudActionInProgress = true;
-                    this.toggleCloudButtons(false);
-
                     try {
                         await this.closeCloudSyncModal();
                         this.showMessage('正在檢查雲端狀態...');
@@ -1666,7 +1656,6 @@
                                 await this.callCloudApi('setPin', { pin: pinResult.values.pin });
                                 this.showMessage('正在備份資料...');
                                 const backupResult = await this.callCloudApi('backupData', { notebookData: recordBooks });
-                                this.elements.lastBackupTime.textContent = this.formatDateTime(backupResult.data.lastUpdated);
                                 this.showMessage('記事本已成功備份至雲端！');
                             } else {
                                 await this.closeCustomModal();
@@ -1686,7 +1675,6 @@
                                 if (verificationResult.data.verified) {
                                      this.showMessage('PIN 碼驗證成功，正在備份資料...');
                                     const backupResult = await this.callCloudApi('backupData', { notebookData: recordBooks });
-                                    this.elements.lastBackupTime.textContent = this.formatDateTime(backupResult.data.lastUpdated);
                                     this.showMessage('記事本已成功備份至雲端！');
                                 } else {
                                     this.showMessage('PIN 碼錯誤，備份失敗。', true);
@@ -1699,16 +1687,9 @@
                     } catch (error) {
                        this.showMessage(`備份過程中發生錯誤: ${error.message}`, true);
                        await this.closeCustomModal();
-                    } finally {
-                        isCloudActionInProgress = false;
-                        this.toggleCloudButtons(true);
                     }
                 },
                 async handleCloudRestore() {
-                    if (isCloudActionInProgress) return;
-                    isCloudActionInProgress = true;
-                    this.toggleCloudButtons(false);
-
                     try {
                         await this.closeCloudSyncModal();
                         
@@ -1759,9 +1740,6 @@
                     } catch (error) {
                         this.showMessage(`還原過程中發生錯誤: ${error.message}`, true);
                         await this.closeCustomModal();
-                    } finally {
-                        isCloudActionInProgress = false;
-                        this.toggleCloudButtons(true);
                     }
                 },
                 
