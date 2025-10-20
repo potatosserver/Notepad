@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>記事本 (含雲端備份)</title>
+    <title>記事本 (nightly)</title>
     <!-- Google GSI Client -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -1356,114 +1356,116 @@
                 },
 
                 // --- MODAL HANDLING (REWRITTEN FOR ROBUSTNESS) ---
-                async showCustomModal(title, options = {}) {
-                    const { inputs = [], actions = [], checkboxes = [], itemsToDelete = [], confirmButtonText = '確認', cancelButtonText = '取消', trackHistory = false, message = '', htmlContent = null } = options;
-                    const el = this.elements;
-
-                    // Setup UI
-                    el.modalTitle.textContent = title;
-                    el.modalInputsContainer.innerHTML = '';
-                    el.modalActionButtonsContainer.innerHTML = '';
-                    el.modalErrorMessage.classList.add('hidden');
-                    el.modalMessage.classList.add('hidden');
-
-                    if (message) {
-                        el.modalMessage.textContent = message;
-                        el.modalMessage.classList.remove('hidden');
-                    }
-                    
-                    if (htmlContent) {
-                        el.modalInputsContainer.innerHTML = htmlContent;
-                        el.modalActionButtonsContainer.classList.add('hidden');
-                        el.modalConfirmCancelButtons.classList.remove('hidden');
-                        el.modalConfirmBtn.classList.add('hidden');
-                        el.modalCancelBtn.textContent = '關閉';
-                    } else if (actions.length > 0) {
-                        el.modalConfirmCancelButtons.classList.add('hidden');
-                        el.modalActionButtonsContainer.classList.remove('hidden');
-                        actions.forEach(actionDef => {
-                            const button = document.createElement('button');
-                            button.className = `modal-action-button ${actionDef.class}`;
-                            button.textContent = actionDef.text;
-                            button.dataset.action = actionDef.value; // Store action value
-                            el.modalActionButtonsContainer.appendChild(button);
-                        });
-                        const cancelButton = document.createElement('button');
-                        cancelButton.className = 'modal-action-button cancel';
-                        cancelButton.textContent = cancelButtonText;
-                        cancelButton.dataset.action = 'cancel';
-                        el.modalActionButtonsContainer.appendChild(cancelButton);
-                    } else {
-                        el.modalConfirmCancelButtons.classList.remove('hidden');
-                        el.modalActionButtonsContainer.classList.add('hidden');
-                        el.modalConfirmBtn.textContent = confirmButtonText;
-                        el.modalCancelBtn.textContent = cancelButtonText;
-                        el.modalConfirmBtn.classList.remove('hidden');
-                        
-                        inputs.forEach(inputDef => {
-                            const div = document.createElement('div');
-                            div.className = 'mb-4';
-                            if (inputDef.id === 'maxNum') div.classList.add('max-num-input-group');
-                            
-                            const label = document.createElement('label');
-                            label.className = 'block text-gray-700 text-sm font-bold mb-2';
-                            label.textContent = inputDef.label;
-                            div.appendChild(label);
-
-                            if (inputDef.type === 'radio') {
-                                const radioGroupDiv = document.createElement('div');
-                                radioGroupDiv.className = 'flex space-x-4 radio-group';
-                                inputDef.options.forEach(option => {
-                                    const radioLabel = document.createElement('label');
-                                    radioLabel.innerHTML = `<input type="radio" name="${inputDef.name}" value="${option.value}" ${option.checked ? 'checked' : ''} class="mr-2"> ${option.label}`;
-                                    radioGroupDiv.appendChild(radioLabel);
-                                });
-                                div.appendChild(radioGroupDiv);
-                            } else {
-                                const input = document.createElement('input');
-                                input.type = inputDef.type;
-                                input.id = inputDef.id;
-                                input.value = inputDef.defaultValue || '';
-                                input.placeholder = inputDef.placeholder || '';
-                                input.className = 'w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500';
-                                if (inputDef.min !== undefined) input.min = inputDef.min;
-                                if (inputDef.max !== undefined) input.max = inputDef.max;
-                                div.appendChild(input);
-                            }
-                            el.modalInputsContainer.appendChild(div);
-                        });
-
-                        if (itemsToDelete.length > 0) {
-                           const deleteListContainer = document.createElement('div');
-                            deleteListContainer.className = 'bulk-delete-list';
-                            itemsToDelete.forEach(item => {
-                                const itemDiv = document.createElement('div');
-                                itemDiv.className = 'bulk-delete-list-item';
-                                itemDiv.innerHTML = `<span class="bulk-delete-item-name">${item.name}</span><span class="bulk-delete-item-date">${this.formatDateTime(item.lastUpdated)}</span>`;
-                                deleteListContainer.appendChild(itemDiv);
-                            });
-                            el.modalInputsContainer.appendChild(deleteListContainer);
-                        }
-                    }
-
-                    // Show Modal
-                    el.customModal.classList.remove('hidden', 'hide-modal');
-                    el.customModal.classList.add('show-modal');
-                    if (trackHistory) history.pushState({ view: history.state.view, modalOpen: true }, '');
-
-                    if (inputs.length > 0) el.modalInputsContainer.querySelector('input, textarea, select')?.focus();
-                    else if (actions.length > 0) el.modalActionButtonsContainer.querySelector('button')?.focus();
-                    else el.modalConfirmBtn.focus();
-
-                    // Wait for user interaction
+                showCustomModal(title, options = {}) {
                     return new Promise(resolve => {
+                        const { inputs = [], actions = [], checkboxes = [], itemsToDelete = [], confirmButtonText = '確認', cancelButtonText = '取消', trackHistory = false, message = '', htmlContent = null } = options;
+                        const el = this.elements;
+
+                        // Setup UI
+                        el.modalTitle.textContent = title;
+                        el.modalInputsContainer.innerHTML = '';
+                        el.modalActionButtonsContainer.innerHTML = '';
+                        el.modalErrorMessage.classList.add('hidden');
+                        el.modalMessage.classList.add('hidden');
+
+                        if (message) {
+                            el.modalMessage.textContent = message;
+                            el.modalMessage.classList.remove('hidden');
+                        }
+                        
+                        if (htmlContent) {
+                            el.modalInputsContainer.innerHTML = htmlContent;
+                            el.modalActionButtonsContainer.classList.add('hidden');
+                            el.modalConfirmCancelButtons.classList.remove('hidden');
+                            el.modalConfirmBtn.classList.add('hidden');
+                            el.modalCancelBtn.textContent = '關閉';
+                        } else if (actions.length > 0) {
+                            el.modalConfirmCancelButtons.classList.add('hidden');
+                            el.modalActionButtonsContainer.classList.remove('hidden');
+                            actions.forEach(actionDef => {
+                                const button = document.createElement('button');
+                                button.className = `modal-action-button ${actionDef.class}`;
+                                button.textContent = actionDef.text;
+                                button.dataset.action = actionDef.value;
+                                el.modalActionButtonsContainer.appendChild(button);
+                            });
+                            const cancelButton = document.createElement('button');
+                            cancelButton.className = 'modal-action-button cancel';
+                            cancelButton.textContent = cancelButtonText;
+                            cancelButton.dataset.action = 'cancel';
+                            el.modalActionButtonsContainer.appendChild(cancelButton);
+                        } else {
+                            el.modalConfirmCancelButtons.classList.remove('hidden');
+                            el.modalActionButtonsContainer.classList.add('hidden');
+                            el.modalConfirmBtn.textContent = confirmButtonText;
+                            el.modalCancelBtn.textContent = cancelButtonText;
+                            el.modalConfirmBtn.classList.remove('hidden');
+                            
+                            inputs.forEach(inputDef => {
+                                const div = document.createElement('div');
+                                div.className = 'mb-4';
+                                if (inputDef.id === 'maxNum') div.classList.add('max-num-input-group');
+                                const label = document.createElement('label');
+                                label.className = 'block text-gray-700 text-sm font-bold mb-2';
+                                label.textContent = inputDef.label;
+                                div.appendChild(label);
+                                if (inputDef.type === 'radio') {
+                                    const radioGroupDiv = document.createElement('div');
+                                    radioGroupDiv.className = 'flex space-x-4 radio-group';
+                                    inputDef.options.forEach(option => {
+                                        const radioLabel = document.createElement('label');
+                                        radioLabel.innerHTML = `<input type="radio" name="${inputDef.name}" value="${option.value}" ${option.checked ? 'checked' : ''} class="mr-2"> ${option.label}`;
+                                        radioGroupDiv.appendChild(radioLabel);
+                                    });
+                                    div.appendChild(radioGroupDiv);
+                                } else {
+                                    const input = document.createElement('input');
+                                    input.type = inputDef.type;
+                                    input.id = inputDef.id;
+                                    input.value = inputDef.defaultValue || '';
+                                    input.placeholder = inputDef.placeholder || '';
+                                    input.className = 'w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500';
+                                    if (inputDef.min !== undefined) input.min = inputDef.min;
+                                    if (inputDef.max !== undefined) input.max = inputDef.max;
+                                    div.appendChild(input);
+                                }
+                                el.modalInputsContainer.appendChild(div);
+                            });
+
+                            if (itemsToDelete.length > 0) {
+                               const deleteListContainer = document.createElement('div');
+                                deleteListContainer.className = 'bulk-delete-list';
+                                itemsToDelete.forEach(item => {
+                                    const itemDiv = document.createElement('div');
+                                    itemDiv.className = 'bulk-delete-list-item';
+                                    itemDiv.innerHTML = `<span class="bulk-delete-item-name">${item.name}</span><span class="bulk-delete-item-date">${this.formatDateTime(item.lastUpdated)}</span>`;
+                                    deleteListContainer.appendChild(itemDiv);
+                                });
+                                el.modalInputsContainer.appendChild(deleteListContainer);
+                            }
+                        }
+
+                        // Show Modal
+                        el.customModal.classList.remove('hidden', 'hide-modal');
+                        el.customModal.classList.add('show-modal');
+                        if (trackHistory) history.pushState({ view: history.state.view, modalOpen: true }, '');
+
+                        if (inputs.length > 0) el.modalInputsContainer.querySelector('input, textarea, select')?.focus();
+                        else if (actions.length > 0) el.modalActionButtonsContainer.querySelector('button')?.focus();
+                        else el.modalConfirmBtn.focus();
+
+                        // --- Event Handling Logic ---
+                        let currentResolve = resolve;
+
                         const cleanupAndResolve = (result) => {
-                            // Remove all event listeners to prevent "click-through"
+                            if (!currentResolve) return; // Prevent double resolving
+                            // Remove all event listeners to prevent memory leaks and "click-through"
                             el.modalConfirmBtn.onclick = null;
                             el.modalCancelBtn.onclick = null;
                             el.customModal.onclick = null;
                             el.modalActionButtonsContainer.onclick = null;
-                            resolve(result);
+                            currentResolve(result);
+                            currentResolve = null; // Mark as resolved
                         };
 
                         const handleConfirm = () => {
@@ -1487,12 +1489,10 @@
                             cleanupAndResolve({ confirmed: false });
                         };
 
-                        // Attach one-time listeners
                         el.modalConfirmBtn.onclick = handleConfirm;
                         el.modalCancelBtn.onclick = handleCancel;
                         el.customModal.onclick = (e) => { if (e.target === el.customModal) handleCancel(); };
                         
-                        // Listener for action buttons
                         el.modalActionButtonsContainer.onclick = (e) => {
                             const button = e.target.closest('button');
                             if (!button) return;
@@ -1508,8 +1508,8 @@
 
                 async closeCustomModal() {
                     const el = this.elements.customModal;
-                    if (el.classList.contains('hidden')) return;
-
+                    if (el.classList.contains('hidden')) return Promise.resolve();
+                    
                     isClosingModalProgrammatically = true;
                     el.classList.remove('show-modal');
                     el.classList.add('hide-modal');
@@ -1519,12 +1519,11 @@
                             if (event.target !== el) return;
                             el.classList.add('hidden');
                             el.removeEventListener('transitionend', onTransitionEnd);
-                            if(history.state && history.state.modalOpen) history.back();
+                            if(history.state && history.state.modalOpen) { try { history.back(); } catch(e) {} }
                             setTimeout(() => { isClosingModalProgrammatically = false; }, 0);
                             resolve();
                         };
                         el.addEventListener('transitionend', onTransitionEnd);
-                        // Fallback timer in case transitionend doesn't fire
                         setTimeout(() => { if (!el.classList.contains('hidden')) onTransitionEnd({ target: el }); }, 350);
                     });
                 },
@@ -1652,52 +1651,45 @@
                         this.showMessage('正在檢查雲端狀態...');
                         const result = await this.callCloudApi('restoreData');
                         const cloudInfo = result.data;
+                        let pinResult;
 
                         if (!cloudInfo || !cloudInfo.hasData) {
-                            const pinResult = await this.showCustomModal("設定雲端同步 PIN 碼", {
+                            pinResult = await this.showCustomModal("設定雲端同步 PIN 碼", {
                                 message: "首次備份，請設定一組 6 位數字的 PIN 碼以保護您的資料安全。",
                                 inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
                                 confirmButtonText: '設定並備份', trackHistory: true
                             });
 
                             if (pinResult.confirmed) {
-                                if (pinResult.values.pin && /^\d{6}$/.test(pinResult.values.pin)) {
-                                    await this.closeCustomModal();
-                                    this.showMessage('正在設定 PIN 碼...');
-                                    await this.callCloudApi('setPin', { pin: pinResult.values.pin });
-                                    this.showMessage('正在備份資料...');
-                                    const backupResult = await this.callCloudApi('backupData', { notebookData: recordBooks });
-                                    this.elements.lastBackupTime.textContent = this.formatDateTime(backupResult.data.lastUpdated);
-                                    this.showMessage('記事本已成功備份至雲端！');
-                                } else {
-                                     // Error message is shown inside modal, just need to close
-                                     await this.closeCustomModal();
-                                     this.showMessage('PIN 碼設定已取消或格式錯誤。', true);
-                                }
+                                await this.closeCustomModal();
+                                this.showMessage('正在設定 PIN 碼...');
+                                await this.callCloudApi('setPin', { pin: pinResult.values.pin });
+                                this.showMessage('正在備份資料...');
+                                const backupResult = await this.callCloudApi('backupData', { notebookData: recordBooks });
+                                this.elements.lastBackupTime.textContent = this.formatDateTime(backupResult.data.lastUpdated);
+                                this.showMessage('記事本已成功備份至雲端！');
                             } else {
                                 await this.closeCustomModal();
                                 this.showMessage('PIN 碼設定已取消。');
                             }
                         } else {
-                             const pinResult = await this.showCustomModal("輸入 PIN 碼", {
+                             pinResult = await this.showCustomModal("輸入 PIN 碼", {
                                 message: "請輸入您的 6 位數字 PIN 碼以進行備份。",
                                 inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
                                 confirmButtonText: '驗證並備份', trackHistory: true
                             });
                             
                             if (pinResult.confirmed) {
-                                if (pinResult.values.pin) {
-                                    await this.closeCustomModal();
-                                    this.showMessage('正在驗證 PIN 碼...');
-                                    const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
-                                    if (verificationResult.data.verified) {
-                                         this.showMessage('PIN 碼驗證成功，正在備份資料...');
-                                        const backupResult = await this.callCloudApi('backupData', { notebookData: recordBooks });
-                                        this.elements.lastBackupTime.textContent = this.formatDateTime(backupResult.data.lastUpdated);
-                                        this.showMessage('記事本已成功備份至雲端！');
-                                    } else {
-                                        this.showMessage('PIN 碼錯誤，備份失敗。', true);
-                                    }
+                                await this.closeCustomModal();
+                                this.showMessage('正在驗證 PIN 碼...');
+                                const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
+                                if (verificationResult.data.verified) {
+                                     this.showMessage('PIN 碼驗證成功，正在備份資料...');
+                                    const backupResult = await this.callCloudApi('backupData', { notebookData: recordBooks });
+                                    this.elements.lastBackupTime.textContent = this.formatDateTime(backupResult.data.lastUpdated);
+                                    this.showMessage('記事本已成功備份至雲端！');
+                                } else {
+                                    this.showMessage('PIN 碼錯誤，備份失敗。', true);
                                 }
                             } else {
                                 await this.closeCustomModal();
@@ -1726,8 +1718,9 @@
                         });
                         
                         if (confirmRestore.confirmed) {
-                            await this.closeCustomModal(); // Explicitly close first modal *before* showing the next one
-                            
+                            await this.closeCustomModal();
+                            await new Promise(resolve => setTimeout(resolve, 50)); // <<< THE CRITICAL FIX
+
                             const pinResult = await this.showCustomModal("輸入 PIN 碼", {
                                 message: "請輸入您的 6 位數字 PIN 碼以還原資料。",
                                 inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
@@ -1735,34 +1728,32 @@
                             });
 
                             if (pinResult.confirmed) {
-                                if (pinResult.values.pin) {
-                                    await this.closeCustomModal(); // Close PIN modal
-                                    this.showMessage('正在驗證 PIN 碼...');
-                                    const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
+                                await this.closeCustomModal();
+                                this.showMessage('正在驗證 PIN 碼...');
+                                const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
+                                
+                                if (verificationResult.data.verified) {
+                                    this.showMessage('PIN 碼驗證成功，正在從雲端還原資料...');
+                                    const restoreResult = await this.callCloudApi('restoreData');
+                                    const restoredData = restoreResult.data;
                                     
-                                    if (verificationResult.data.verified) {
-                                        this.showMessage('PIN 碼驗證成功，正在從雲端還原資料...');
-                                        const restoreResult = await this.callCloudApi('restoreData');
-                                        const restoredData = restoreResult.data;
-                                        
-                                        if (restoredData.hasData && restoredData.notebookData) {
-                                            recordBooks = restoredData.notebookData;
-                                            this.saveRecordBooks();
-                                            this.renderManagementView();
-                                            this.showMessage('資料已成功從雲端還原！');
-                                        } else {
-                                            this.showMessage('雲端沒有可還原的資料。', true);
-                                        }
+                                    if (restoredData.hasData && restoredData.notebookData) {
+                                        recordBooks = restoredData.notebookData;
+                                        this.saveRecordBooks();
+                                        this.renderManagementView();
+                                        this.showMessage('資料已成功從雲端還原！');
                                     } else {
-                                        this.showMessage('PIN 碼錯誤，還原失敗。', true);
+                                        this.showMessage('雲端沒有可還原的資料。', true);
                                     }
+                                } else {
+                                    this.showMessage('PIN 碼錯誤，還原失敗。', true);
                                 }
                             } else {
-                                await this.closeCustomModal(); // User cancelled PIN input
+                                await this.closeCustomModal();
                                 this.showMessage('還原已取消。');
                             }
                         } else {
-                            await this.closeCustomModal(); // User cancelled restore confirmation
+                            await this.closeCustomModal();
                             this.showMessage('還原操作已取消。');
                         }
                     } catch (error) {
@@ -2129,12 +2120,17 @@
                         actions: [{ text: '重新命名', value: 'rename', class: 'rename' }, { text: '刪除', value: 'delete', class: 'delete' }],
                         trackHistory: false
                     });
-                    
-                    await this.closeCustomModal();
 
                     if (result.confirmed) {
-                       if (result.action === 'rename') this.renameRecordBook(bookId, book.name);
-                       else if (result.action === 'delete') this.deleteRecordBook(bookId, book.name);
+                        await this.closeCustomModal();
+                        await new Promise(resolve => setTimeout(resolve, 50)); // Prevent click-through
+                       if (result.action === 'rename') {
+                           this.renameRecordBook(bookId, book.name);
+                       } else if (result.action === 'delete') {
+                           this.deleteRecordBook(bookId, book.name);
+                       }
+                    } else {
+                         await this.closeCustomModal();
                     }
                 },
                 async renameRecordBook(id, oldName) {
@@ -2213,7 +2209,7 @@
                             <span class="history-log-desc">${entry.description}</span>
                         </div>`).join('')}</div>`;
                     
-                    await this.showCustomModal('操作歷史紀錄', { htmlContent: historyHtml, trackHistory: true });
+                    const result = await this.showCustomModal('操作歷史紀錄', { htmlContent: historyHtml, trackHistory: true });
                     await this.closeCustomModal();
                 },
                 async shareAsImage() {
