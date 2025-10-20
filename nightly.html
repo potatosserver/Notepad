@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -897,12 +898,7 @@
             color: #333;
         }
 
-        #numberTrackerView.locked #tracker-content-wrapper {
-            pointer-events: none;
-            opacity: 0.5;
-            transition: opacity 0.3s ease-in-out;
-        }
-        #numberTrackerView:not(.locked) #tracker-content-wrapper {
+        #tracker-content-wrapper {
             opacity: 1;
             transition: opacity 0.3s ease-in-out;
         }
@@ -976,8 +972,7 @@
             .number-tracker-header #backToManagementBtn,
             .number-tracker-header #resetCurrentBookBtn { padding-left: 10px; padding-right: 10px; }
             .number-tracker-header #shareAsImageBtn,
-            .number-tracker-header #viewHistoryBtn,
-            .number-tracker-header #toggleLockBtn { padding: 8px; }
+            .number-tracker-header #viewHistoryBtn { padding: 8px; }
         }
         @media (max-width: 600px) {
             .container { padding: 10px; }
@@ -1051,7 +1046,7 @@
                         雲端同步
                     </button>
                 </div>
-                <div class="flex-shrink-0">
+                <div class="flex-shrink: 0;">
                     <button id="deleteSelectedBtn" class="button-base button-filled-secondary hidden-if-no-selection" disabled>
                         <span class="material-symbols-outlined">delete</span>
                         刪除選取項目
@@ -1089,9 +1084,6 @@
                         </button>
                         <button id="viewHistoryBtn" title="檢視歷史紀錄" class="button-base button-outlined">
                             <span class="material-symbols-outlined">history</span>
-                        </button>
-                        <button id="toggleLockBtn" title="鎖定/解鎖" class="button-base button-outlined">
-                            <span class="material-symbols-outlined">lock_open</span>
                         </button>
                         <button id="resetCurrentBookBtn" class="button-base button-filled-secondary whitespace-nowrap">
                             <span class="material-symbols-outlined">refresh</span>
@@ -1294,7 +1286,6 @@
                         sortDropdown: document.getElementById('sortDropdown'),
                         sortByLatestBtn: document.getElementById('sortByLatestBtn'),
                         sortByTitleBtn: document.getElementById('sortByTitleBtn'),
-                        toggleLockBtn: document.getElementById('toggleLockBtn'),
                         viewHistoryBtn: document.getElementById('viewHistoryBtn'),
                         shareAsImageBtn: document.getElementById('shareAsImageBtn'),
                         editorToolbar: document.querySelector('.editor-toolbar'),
@@ -1648,6 +1639,7 @@
 
                     try {
                         await this.closeCloudSyncModal();
+                        await new Promise(resolve => setTimeout(resolve, 50)); // Prevent modal transition race condition
                         this.showMessage('正在檢查雲端狀態...');
                         const result = await this.callCloudApi('restoreData');
                         const cloudInfo = result.data;
@@ -1942,8 +1934,6 @@
                     const el = this.elements;
                     el.currentRecordBookName.textContent = currentBook.name;
                     el.numbersGrid.innerHTML = '';
-                    el.numberTrackerView.classList.add('locked');
-                    el.toggleLockBtn.querySelector('.material-symbols-outlined').textContent = 'lock';
 
                     if (currentBook.bookType === 'number') {
                         el.limitedNotesSection.classList.remove('hidden');
@@ -2004,7 +1994,18 @@
                     el.importBtn.onclick = () => this.importData();
                     el.exportBtn.onclick = () => this.exportData();
                     el.deleteSelectedBtn.onclick = () => this.deleteSelectedBooks();
-                    el.cloudSyncBtn.onclick = () => { el.cloudSyncModal.classList.add('show-modal'); el.cloudSyncModal.classList.remove('hidden'); this.updateCloudSyncModalUI(); };
+                    
+                    el.cloudSyncBtn.onclick = () => {
+                        // FIX: Explicitly remove 'hide-modal' to prevent class conflicts on reopen
+                        el.cloudSyncModal.classList.remove('hide-modal');
+                        
+                        el.cloudSyncModal.classList.remove('hidden');
+                        el.cloudSyncModal.classList.add('show-modal');
+                        
+                        this.updateCloudSyncModalUI();
+                        this.toggleCloudButtons(!isCloudActionInProgress);
+                    };
+
                     el.listViewBtn.onclick = () => { displayMode = 'list'; this.saveRecordBooks(); this.renderManagementView(); };
                     el.gridViewBtn.onclick = () => { displayMode = 'grid'; this.saveRecordBooks(); this.renderManagementView(); };
                     el.selectAllCheckboxes.onchange = () => {
@@ -2022,11 +2023,6 @@
                     // Tracker View
                     el.backToManagementBtn.onclick = () => history.back();
                     el.resetCurrentBookBtn.onclick = () => this.resetCurrentBook();
-                    el.toggleLockBtn.onclick = () => {
-                        const isLocked = el.numberTrackerView.classList.toggle('locked');
-                        el.toggleLockBtn.querySelector('.material-symbols-outlined').textContent = isLocked ? 'lock' : 'lock_open';
-                        this.showMessage(isLocked ? '記事本已鎖定' : '記事本已解鎖');
-                    };
                     el.viewHistoryBtn.onclick = () => this.viewHistory();
                     el.shareAsImageBtn.onclick = () => this.shareAsImage();
                     el.notesInput.oninput = this.debounce(() => {
