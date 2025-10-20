@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>記事本 (含雲端備份)</title>
+    <title>記事本 (下載修復完成)</title>
     <!-- Google GSI Client -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -898,12 +898,7 @@
             color: #333;
         }
 
-        #numberTrackerView.locked #tracker-content-wrapper {
-            pointer-events: none;
-            opacity: 0.5;
-            transition: opacity 0.3s ease-in-out;
-        }
-        #numberTrackerView:not(.locked) #tracker-content-wrapper {
+        #tracker-content-wrapper {
             opacity: 1;
             transition: opacity 0.3s ease-in-out;
         }
@@ -977,8 +972,7 @@
             .number-tracker-header #backToManagementBtn,
             .number-tracker-header #resetCurrentBookBtn { padding-left: 10px; padding-right: 10px; }
             .number-tracker-header #shareAsImageBtn,
-            .number-tracker-header #viewHistoryBtn,
-            .number-tracker-header #toggleLockBtn { padding: 8px; }
+            .number-tracker-header #viewHistoryBtn { padding: 8px; }
         }
         @media (max-width: 600px) {
             .container { padding: 10px; }
@@ -1003,12 +997,6 @@
     </style>
 </head>
 <body>
-    <!-- Google Sign-In onload div -->
-    <div id="g_id_onload"
-         data-client_id="541525685075-c7081uf4p28o7gp17ssa2udvriat6qdl.apps.googleusercontent.com"
-         data-callback="handleCredentialResponse"
-         data-auto_select="false">
-    </div>
 
     <div class="container">
         <div id="managementView" class="view active-visible">
@@ -1052,7 +1040,7 @@
                         雲端同步
                     </button>
                 </div>
-                <div class="flex-shrink-0">
+                <div class="flex-shrink: 0;">
                     <button id="deleteSelectedBtn" class="button-base button-filled-secondary hidden-if-no-selection" disabled>
                         <span class="material-symbols-outlined">delete</span>
                         刪除選取項目
@@ -1090,9 +1078,6 @@
                         </button>
                         <button id="viewHistoryBtn" title="檢視歷史紀錄" class="button-base button-outlined">
                             <span class="material-symbols-outlined">history</span>
-                        </button>
-                        <button id="toggleLockBtn" title="鎖定/解鎖" class="button-base button-outlined">
-                            <span class="material-symbols-outlined">lock_open</span>
                         </button>
                         <button id="resetCurrentBookBtn" class="button-base button-filled-secondary whitespace-nowrap">
                             <span class="material-symbols-outlined">refresh</span>
@@ -1241,7 +1226,6 @@
         let displayMode = 'list';
         let sortMode = 'latest';
         let selectedRecordBookIds = new Set();
-        let currentModalResolve;
         let isCloudActionInProgress = false;
         let isClosingModalProgrammatically = false;
 
@@ -1296,7 +1280,6 @@
                         sortDropdown: document.getElementById('sortDropdown'),
                         sortByLatestBtn: document.getElementById('sortByLatestBtn'),
                         sortByTitleBtn: document.getElementById('sortByTitleBtn'),
-                        toggleLockBtn: document.getElementById('toggleLockBtn'),
                         viewHistoryBtn: document.getElementById('viewHistoryBtn'),
                         shareAsImageBtn: document.getElementById('shareAsImageBtn'),
                         editorToolbar: document.querySelector('.editor-toolbar'),
@@ -1357,157 +1340,171 @@
                     setTimeout(() => messageBox.classList.remove('show'), 3000);
                 },
 
-                // --- MODAL HANDLING ---
+                // --- MODAL HANDLING (REWRITTEN FOR ROBUSTNESS) ---
                 showCustomModal(title, options = {}) {
-                    const { inputs = [], actions = [], checkboxes = [], itemsToDelete = [], confirmButtonText = '確認', cancelButtonText = '取消', trackHistory = false, message = '', htmlContent = null } = options;
-                    const el = this.elements;
+                    return new Promise(resolve => {
+                        const { inputs = [], actions = [], checkboxes = [], itemsToDelete = [], confirmButtonText = '確認', cancelButtonText = '取消', trackHistory = false, message = '', htmlContent = null } = options;
+                        const el = this.elements;
 
-                    el.modalTitle.textContent = title;
-                    el.modalInputsContainer.innerHTML = '';
-                    el.modalActionButtonsContainer.innerHTML = '';
-                    el.modalErrorMessage.classList.add('hidden');
-                    el.modalMessage.classList.add('hidden');
+                        // Setup UI
+                        el.modalTitle.textContent = title;
+                        el.modalInputsContainer.innerHTML = '';
+                        el.modalActionButtonsContainer.innerHTML = '';
+                        el.modalErrorMessage.classList.add('hidden');
+                        el.modalMessage.classList.add('hidden');
 
-                    if (message) {
-                        el.modalMessage.textContent = message;
-                        el.modalMessage.classList.remove('hidden');
-                    }
-                    
-                    if (htmlContent) {
-                        el.modalInputsContainer.innerHTML = htmlContent;
-                        el.modalActionButtonsContainer.classList.add('hidden');
-                        el.modalConfirmCancelButtons.classList.remove('hidden');
-                        el.modalConfirmBtn.classList.add('hidden');
-                        el.modalCancelBtn.textContent = '關閉';
-                    } else if (actions.length > 0) {
-                        el.modalConfirmCancelButtons.classList.add('hidden');
-                        el.modalActionButtonsContainer.classList.remove('hidden');
-                        actions.forEach(actionDef => {
-                            const button = document.createElement('button');
-                            button.className = `modal-action-button ${actionDef.class}`;
-                            button.textContent = actionDef.text;
-                            button.onclick = () => this.closeCustomModal().then(() => currentModalResolve({ confirmed: true, action: actionDef.value }));
-                            el.modalActionButtonsContainer.appendChild(button);
-                        });
-                        const cancelButton = document.createElement('button');
-                        cancelButton.className = 'modal-action-button cancel';
-                        cancelButton.textContent = cancelButtonText;
-                        cancelButton.onclick = () => this.closeCustomModal().then(() => currentModalResolve({ confirmed: false }));
-                        el.modalActionButtonsContainer.appendChild(cancelButton);
-                    } else {
-                        el.modalConfirmCancelButtons.classList.remove('hidden');
-                        el.modalActionButtonsContainer.classList.add('hidden');
-                        el.modalConfirmBtn.textContent = confirmButtonText;
-                        el.modalCancelBtn.textContent = cancelButtonText;
-                        el.modalConfirmBtn.classList.remove('hidden');
-
-                        inputs.forEach(inputDef => {
-                            const div = document.createElement('div');
-                            div.className = 'mb-4';
-                            if (inputDef.id === 'maxNum') div.classList.add('max-num-input-group');
+                        if (message) {
+                            el.modalMessage.textContent = message;
+                            el.modalMessage.classList.remove('hidden');
+                        }
+                        
+                        if (htmlContent) {
+                            el.modalInputsContainer.innerHTML = htmlContent;
+                            el.modalActionButtonsContainer.classList.add('hidden');
+                            el.modalConfirmCancelButtons.classList.remove('hidden');
+                            el.modalConfirmBtn.classList.add('hidden');
+                            el.modalCancelBtn.textContent = '關閉';
+                        } else if (actions.length > 0) {
+                            el.modalConfirmCancelButtons.classList.add('hidden');
+                            el.modalActionButtonsContainer.classList.remove('hidden');
+                            actions.forEach(actionDef => {
+                                const button = document.createElement('button');
+                                button.className = `modal-action-button ${actionDef.class}`;
+                                button.textContent = actionDef.text;
+                                button.dataset.action = actionDef.value;
+                                el.modalActionButtonsContainer.appendChild(button);
+                            });
+                            const cancelButton = document.createElement('button');
+                            cancelButton.className = 'modal-action-button cancel';
+                            cancelButton.textContent = cancelButtonText;
+                            cancelButton.dataset.action = 'cancel';
+                            el.modalActionButtonsContainer.appendChild(cancelButton);
+                        } else {
+                            el.modalConfirmCancelButtons.classList.remove('hidden');
+                            el.modalActionButtonsContainer.classList.add('hidden');
+                            el.modalConfirmBtn.textContent = confirmButtonText;
+                            el.modalCancelBtn.textContent = cancelButtonText;
+                            el.modalConfirmBtn.classList.remove('hidden');
                             
-                            const label = document.createElement('label');
-                            label.className = 'block text-gray-700 text-sm font-bold mb-2';
-                            label.textContent = inputDef.label;
-                            div.appendChild(label);
-
-                            if (inputDef.type === 'radio') {
-                                const radioGroupDiv = document.createElement('div');
-                                radioGroupDiv.className = 'flex space-x-4 radio-group';
-                                inputDef.options.forEach(option => {
-                                    const radioLabel = document.createElement('label');
-                                    radioLabel.innerHTML = `<input type="radio" name="${inputDef.name}" value="${option.value}" ${option.checked ? 'checked' : ''} class="mr-2"> ${option.label}`;
-                                    radioGroupDiv.appendChild(radioLabel);
-                                });
-                                div.appendChild(radioGroupDiv);
-                            } else {
-                                const input = document.createElement('input');
-                                input.type = inputDef.type;
-                                input.id = inputDef.id;
-                                input.value = inputDef.defaultValue || '';
-                                input.placeholder = inputDef.placeholder || '';
-                                input.className = 'w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500';
-                                if (inputDef.min !== undefined) input.min = inputDef.min;
-                                if (inputDef.max !== undefined) input.max = inputDef.max;
-                                div.appendChild(input);
-                            }
-                            el.modalInputsContainer.appendChild(div);
-                        });
-
-                         if (checkboxes.length > 0) {
-                            const selectAllContainer = document.createElement('div');
-                            selectAllContainer.className = 'select-all-checkbox-container';
-                            selectAllContainer.innerHTML = `<label class="inline-flex items-center cursor-pointer"><input type="checkbox" id="modalSelectAllCheckboxes" class="mr-2 transform scale-125"> 全選</label>`;
-                            el.modalInputsContainer.appendChild(selectAllContainer);
-
-                            const checkboxListDiv = document.createElement('div');
-                            checkboxListDiv.className = 'modal-checkbox-list';
-                            checkboxes.forEach(checkboxDef => {
+                            inputs.forEach(inputDef => {
+                                const div = document.createElement('div');
+                                div.className = 'mb-4';
+                                if (inputDef.id === 'maxNum') div.classList.add('max-num-input-group');
                                 const label = document.createElement('label');
-                                label.innerHTML = `<input type="checkbox" class="modal-checkbox-item" value="${checkboxDef.value}" ${checkboxDef.checked ? 'checked' : ''}><span class="book-name">${checkboxDef.label}</span><span class="book-date ml-auto">${checkboxDef.meta}</span>`;
-                                checkboxListDiv.appendChild(label);
+                                label.className = 'block text-gray-700 text-sm font-bold mb-2';
+                                label.textContent = inputDef.label;
+                                div.appendChild(label);
+                                if (inputDef.type === 'radio') {
+                                    const radioGroupDiv = document.createElement('div');
+                                    radioGroupDiv.className = 'flex space-x-4 radio-group';
+                                    inputDef.options.forEach(option => {
+                                        const radioLabel = document.createElement('label');
+                                        radioLabel.innerHTML = `<input type="radio" name="${inputDef.name}" value="${option.value}" ${option.checked ? 'checked' : ''} class="mr-2"> ${option.label}`;
+                                        radioGroupDiv.appendChild(radioLabel);
+                                    });
+                                    div.appendChild(radioGroupDiv);
+                                } else {
+                                    const input = document.createElement('input');
+                                    input.type = inputDef.type;
+                                    input.id = inputDef.id;
+                                    input.value = inputDef.defaultValue || '';
+                                    input.placeholder = inputDef.placeholder || '';
+                                    input.className = 'w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500';
+                                    if (inputDef.min !== undefined) input.min = inputDef.min;
+                                    if (inputDef.max !== undefined) input.max = inputDef.max;
+                                    div.appendChild(input);
+                                }
+                                el.modalInputsContainer.appendChild(div);
                             });
-                            el.modalInputsContainer.appendChild(checkboxListDiv);
 
-                            const modalSelectAll = selectAllContainer.querySelector('#modalSelectAllCheckboxes');
-                            const modalCheckboxes = checkboxListDiv.querySelectorAll('.modal-checkbox-item');
-                            modalSelectAll.addEventListener('change', () => modalCheckboxes.forEach(cb => cb.checked = modalSelectAll.checked));
-                            modalCheckboxes.forEach(cb => cb.addEventListener('change', () => modalSelectAll.checked = Array.from(modalCheckboxes).every(item => item.checked)));
-                            modalSelectAll.checked = Array.from(modalCheckboxes).every(item => item.checked);
+                            if (itemsToDelete.length > 0) {
+                               const deleteListContainer = document.createElement('div');
+                                deleteListContainer.className = 'bulk-delete-list';
+                                itemsToDelete.forEach(item => {
+                                    const itemDiv = document.createElement('div');
+                                    itemDiv.className = 'bulk-delete-list-item';
+                                    itemDiv.innerHTML = `<span class="bulk-delete-item-name">${item.name}</span><span class="bulk-delete-item-date">${this.formatDateTime(item.lastUpdated)}</span>`;
+                                    deleteListContainer.appendChild(itemDiv);
+                                });
+                                el.modalInputsContainer.appendChild(deleteListContainer);
+                            }
                         }
-                    
-                        if (itemsToDelete.length > 0) {
-                            const deleteListContainer = document.createElement('div');
-                            deleteListContainer.className = 'bulk-delete-list';
-                            itemsToDelete.forEach(item => {
-                                const itemDiv = document.createElement('div');
-                                itemDiv.className = 'bulk-delete-list-item';
-                                itemDiv.innerHTML = `<span class="bulk-delete-item-name">${item.name}</span><span class="bulk-delete-item-date">${this.formatDateTime(item.lastUpdated)}</span>`;
-                                deleteListContainer.appendChild(itemDiv);
-                            });
-                            el.modalInputsContainer.appendChild(deleteListContainer);
-                        }
-                    }
 
-                    el.customModal.classList.remove('hidden', 'hide-modal');
-                    el.customModal.classList.add('show-modal');
+                        // Show Modal
+                        el.customModal.classList.remove('hidden', 'hide-modal');
+                        el.customModal.classList.add('show-modal');
+                        if (trackHistory) history.pushState({ view: history.state.view, modalOpen: true }, '');
 
-                    if (trackHistory) history.pushState({ view: history.state.view, modalOpen: true }, '');
+                        if (inputs.length > 0) el.modalInputsContainer.querySelector('input, textarea, select')?.focus();
+                        else if (actions.length > 0) el.modalActionButtonsContainer.querySelector('button')?.focus();
+                        else el.modalConfirmBtn.focus();
 
-                    if (inputs.length > 0) el.modalInputsContainer.querySelector('input, textarea, select')?.focus();
-                    else if (actions.length > 0) el.modalActionButtonsContainer.querySelector('button')?.focus();
-                    else el.modalConfirmBtn.focus();
-                    
-                    const bookTypeRadios = el.modalInputsContainer.querySelectorAll('input[name="bookType"]');
-                    if (bookTypeRadios.length > 0) {
-                        const toggleMaxNumInput = () => {
-                            const maxNumInputGroup = el.modalInputsContainer.querySelector('.max-num-input-group');
-                            const selectedRadio = el.modalInputsContainer.querySelector('input[name="bookType"]:checked');
-                            if (maxNumInputGroup) maxNumInputGroup.style.display = selectedRadio?.value === 'number' ? 'block' : 'none';
+                        // --- Event Handling Logic ---
+                        let currentResolve = resolve;
+
+                        const cleanupAndResolve = (result) => {
+                            if (!currentResolve) return; // Prevent double resolving
+                            // Remove all event listeners to prevent memory leaks and "click-through"
+                            el.modalConfirmBtn.onclick = null;
+                            el.modalCancelBtn.onclick = null;
+                            el.customModal.onclick = null;
+                            el.modalActionButtonsContainer.onclick = null;
+                            currentResolve(result);
+                            currentResolve = null; // Mark as resolved
                         };
-                        bookTypeRadios.forEach(radio => radio.addEventListener('change', toggleMaxNumInput));
-                        toggleMaxNumInput();
-                    }
 
-                    return new Promise(resolve => { currentModalResolve = resolve; });
+                        const handleConfirm = () => {
+                            const values = {}; let isValid = true, errorMessage = '';
+                            el.modalInputsContainer.querySelectorAll('input, textarea, select').forEach(input => {
+                                if (input.type === 'radio') { if (input.checked) values[input.name] = input.value; } 
+                                else if (input.id) values[input.id] = input.value;
+                            });
+                            const pinInput = el.modalInputsContainer.querySelector('#pin');
+                            if (pinInput && !/^\d{6}$/.test(pinInput.value)) { errorMessage = 'PIN 碼必須是 6 位數字。'; isValid = false; }
+                            
+                            if (!isValid) { 
+                                el.modalErrorMessage.textContent = errorMessage;
+                                el.modalErrorMessage.classList.remove('hidden');
+                            } else {
+                                cleanupAndResolve({ confirmed: true, values });
+                            }
+                        };
+                        
+                        const handleCancel = () => {
+                            cleanupAndResolve({ confirmed: false });
+                        };
+
+                        el.modalConfirmBtn.onclick = handleConfirm;
+                        el.modalCancelBtn.onclick = handleCancel;
+                        el.customModal.onclick = (e) => { if (e.target === el.customModal) handleCancel(); };
+                        
+                        el.modalActionButtonsContainer.onclick = (e) => {
+                            const button = e.target.closest('button');
+                            if (!button) return;
+                            const action = button.dataset.action;
+                            if (action === 'cancel') {
+                                cleanupAndResolve({ confirmed: false });
+                            } else if (action) {
+                                cleanupAndResolve({ confirmed: true, action });
+                            }
+                        };
+                    });
                 },
 
-                closeCustomModal() {
-                    return new Promise(resolve => {
-                        const el = this.elements.customModal;
-                        if (el.classList.contains('hidden')) return resolve();
-                        
-                        isClosingModalProgrammatically = true;
-                        
-                        el.classList.remove('show-modal');
-                        el.classList.add('hide-modal');
+                async closeCustomModal() {
+                    const el = this.elements.customModal;
+                    if (el.classList.contains('hidden')) return Promise.resolve();
+                    
+                    isClosingModalProgrammatically = true;
+                    el.classList.remove('show-modal');
+                    el.classList.add('hide-modal');
 
-                        const onTransitionEnd = (event) => {
+                    return new Promise(resolve => {
+                         const onTransitionEnd = (event) => {
                             if (event.target !== el) return;
                             el.classList.add('hidden');
                             el.removeEventListener('transitionend', onTransitionEnd);
-                            if(history.state && history.state.modalOpen) history.back();
-                            
+                            if(history.state && history.state.modalOpen) { try { history.back(); } catch(e) {} }
                             setTimeout(() => { isClosingModalProgrammatically = false; }, 0);
                             resolve();
                         };
@@ -1633,21 +1630,24 @@
                     if (isCloudActionInProgress) return;
                     isCloudActionInProgress = true;
                     this.toggleCloudButtons(false);
-                    
+
                     try {
                         await this.closeCloudSyncModal();
+                        await new Promise(resolve => setTimeout(resolve, 50)); // Prevent modal transition race condition
                         this.showMessage('正在檢查雲端狀態...');
                         const result = await this.callCloudApi('restoreData');
                         const cloudInfo = result.data;
+                        let pinResult;
 
                         if (!cloudInfo || !cloudInfo.hasData) {
-                            const pinResult = await this.showCustomModal("設定雲端同步 PIN 碼", {
+                            pinResult = await this.showCustomModal("設定雲端同步 PIN 碼", {
                                 message: "首次備份，請設定一組 6 位數字的 PIN 碼以保護您的資料安全。",
                                 inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
                                 confirmButtonText: '設定並備份', trackHistory: true
                             });
-                            
-                            if (pinResult.confirmed && pinResult.values.pin && /^\d{6}$/.test(pinResult.values.pin)) {
+
+                            if (pinResult.confirmed) {
+                                await this.closeCustomModal();
                                 this.showMessage('正在設定 PIN 碼...');
                                 await this.callCloudApi('setPin', { pin: pinResult.values.pin });
                                 this.showMessage('正在備份資料...');
@@ -1655,15 +1655,18 @@
                                 this.elements.lastBackupTime.textContent = this.formatDateTime(backupResult.data.lastUpdated);
                                 this.showMessage('記事本已成功備份至雲端！');
                             } else {
-                                this.showMessage('PIN 碼設定已取消或格式錯誤。', true);
+                                await this.closeCustomModal();
+                                this.showMessage('PIN 碼設定已取消。');
                             }
                         } else {
-                            const pinResult = await this.showCustomModal("輸入 PIN 碼", {
+                             pinResult = await this.showCustomModal("輸入 PIN 碼", {
                                 message: "請輸入您的 6 位數字 PIN 碼以進行備份。",
                                 inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
                                 confirmButtonText: '驗證並備份', trackHistory: true
                             });
-                            if (pinResult.confirmed && pinResult.values.pin) {
+                            
+                            if (pinResult.confirmed) {
+                                await this.closeCustomModal();
                                 this.showMessage('正在驗證 PIN 碼...');
                                 const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
                                 if (verificationResult.data.verified) {
@@ -1675,11 +1678,13 @@
                                     this.showMessage('PIN 碼錯誤，備份失敗。', true);
                                 }
                             } else {
+                                await this.closeCustomModal();
                                 this.showMessage('備份已取消。');
                             }
                         }
                     } catch (error) {
                        this.showMessage(`備份過程中發生錯誤: ${error.message}`, true);
+                       await this.closeCustomModal();
                     } finally {
                         isCloudActionInProgress = false;
                         this.toggleCloudButtons(true);
@@ -1692,20 +1697,24 @@
 
                     try {
                         await this.closeCloudSyncModal();
-
+                        
                         const confirmRestore = await this.showCustomModal("確認還原", {
                             message: "從雲端還原將會覆蓋您目前所有的本機資料。此操作無法復原，確定要繼續嗎？",
                             confirmButtonText: "確定還原", trackHistory: true
                         });
-
+                        
                         if (confirmRestore.confirmed) {
+                            await this.closeCustomModal();
+                            await new Promise(resolve => setTimeout(resolve, 50)); // <<< THE CRITICAL FIX
+
                             const pinResult = await this.showCustomModal("輸入 PIN 碼", {
                                 message: "請輸入您的 6 位數字 PIN 碼以還原資料。",
                                 inputs: [{ id: 'pin', label: '6 位 PIN 碼:', type: 'password', placeholder: '••••••' }],
                                 confirmButtonText: '驗證並還原', trackHistory: true
                             });
-                            
-                            if (pinResult.confirmed && pinResult.values.pin) {
+
+                            if (pinResult.confirmed) {
+                                await this.closeCustomModal();
                                 this.showMessage('正在驗證 PIN 碼...');
                                 const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
                                 
@@ -1726,13 +1735,16 @@
                                     this.showMessage('PIN 碼錯誤，還原失敗。', true);
                                 }
                             } else {
+                                await this.closeCustomModal();
                                 this.showMessage('還原已取消。');
                             }
                         } else {
+                            await this.closeCustomModal();
                             this.showMessage('還原操作已取消。');
                         }
                     } catch (error) {
                         this.showMessage(`還原過程中發生錯誤: ${error.message}`, true);
+                        await this.closeCustomModal();
                     } finally {
                         isCloudActionInProgress = false;
                         this.toggleCloudButtons(true);
@@ -1916,8 +1928,6 @@
                     const el = this.elements;
                     el.currentRecordBookName.textContent = currentBook.name;
                     el.numbersGrid.innerHTML = '';
-                    el.numberTrackerView.classList.add('locked');
-                    el.toggleLockBtn.querySelector('.material-symbols-outlined').textContent = 'lock';
 
                     if (currentBook.bookType === 'number') {
                         el.limitedNotesSection.classList.remove('hidden');
@@ -1978,7 +1988,18 @@
                     el.importBtn.onclick = () => this.importData();
                     el.exportBtn.onclick = () => this.exportData();
                     el.deleteSelectedBtn.onclick = () => this.deleteSelectedBooks();
-                    el.cloudSyncBtn.onclick = () => { el.cloudSyncModal.classList.add('show-modal'); el.cloudSyncModal.classList.remove('hidden'); this.updateCloudSyncModalUI(); };
+                    
+                    el.cloudSyncBtn.onclick = () => {
+                        // FIX: Explicitly remove 'hide-modal' to prevent class conflicts on reopen
+                        el.cloudSyncModal.classList.remove('hide-modal');
+                        
+                        el.cloudSyncModal.classList.remove('hidden');
+                        el.cloudSyncModal.classList.add('show-modal');
+                        
+                        this.updateCloudSyncModalUI();
+                        this.toggleCloudButtons(!isCloudActionInProgress);
+                    };
+
                     el.listViewBtn.onclick = () => { displayMode = 'list'; this.saveRecordBooks(); this.renderManagementView(); };
                     el.gridViewBtn.onclick = () => { displayMode = 'grid'; this.saveRecordBooks(); this.renderManagementView(); };
                     el.selectAllCheckboxes.onchange = () => {
@@ -1996,11 +2017,6 @@
                     // Tracker View
                     el.backToManagementBtn.onclick = () => history.back();
                     el.resetCurrentBookBtn.onclick = () => this.resetCurrentBook();
-                    el.toggleLockBtn.onclick = () => {
-                        const isLocked = el.numberTrackerView.classList.toggle('locked');
-                        el.toggleLockBtn.querySelector('.material-symbols-outlined').textContent = isLocked ? 'lock' : 'lock_open';
-                        this.showMessage(isLocked ? '記事本已鎖定' : '記事本已解鎖');
-                    };
                     el.viewHistoryBtn.onclick = () => this.viewHistory();
                     el.shareAsImageBtn.onclick = () => this.shareAsImage();
                     el.notesInput.oninput = this.debounce(() => {
@@ -2045,21 +2061,9 @@
                     // Global / System
                     document.addEventListener('click', (e) => { if (!el.sortButton.contains(e.target)) el.sortDropdown.classList.add('hidden'); });
                     window.onpopstate = (e) => {
-                        if (isClosingModalProgrammatically) {
-                            return;
-                        }
-
-                        if (el.customModal.classList.contains('show-modal')) {
-                             this.closeCustomModal().then(() => {
-                                if (currentModalResolve) {
-                                    currentModalResolve({ confirmed: false, fromPopState: true });
-                                    currentModalResolve = null;
-                                }
-                            });
-                        }
-                        if (el.cloudSyncModal.classList.contains('show-modal')) {
-                            this.closeCloudSyncModal();
-                        }
+                        if (isClosingModalProgrammatically) { return; }
+                        if (el.customModal.classList.contains('show-modal')) { this.closeCustomModal(); }
+                        if (el.cloudSyncModal.classList.contains('show-modal')) { this.closeCloudSyncModal(); }
                         
                         const state = e.state || { view: 'management' };
                         if (state.view === 'management') { currentRecordBookId = null; this.renderManagementView(); }
@@ -2067,21 +2071,6 @@
                     };
                     ['focus', 'click', 'keyup'].forEach(evt => el.recordTextInput.addEventListener(evt, () => this.updateEditorToolbarState()));
                     document.addEventListener('selectionchange', () => { if (document.activeElement === el.recordTextInput) this.updateEditorToolbarState(); });
-
-                    // Modal Buttons
-                    el.modalConfirmBtn.onclick = () => {
-                        const values = {}; let isValid = true, errorMessage = '';
-                        el.modalInputsContainer.querySelectorAll('input, textarea, select').forEach(input => {
-                            if (input.type === 'radio') { if (input.checked) values[input.name] = input.value; } 
-                            else if (input.id) values[input.id] = input.value;
-                        });
-                        const pinInput = el.modalInputsContainer.querySelector('#pin');
-                        if (pinInput && !/^\d{6}$/.test(pinInput.value)) { errorMessage = 'PIN 碼必須是 6 位數字。'; isValid = false; }
-                        if (!isValid) { el.modalErrorMessage.textContent = errorMessage; el.modalErrorMessage.classList.remove('hidden'); } 
-                        else { this.closeCustomModal().then(() => currentModalResolve({ confirmed: true, values })); }
-                    };
-                    el.modalCancelBtn.onclick = () => this.closeCustomModal().then(() => currentModalResolve({ confirmed: false }));
-                    el.customModal.onclick = (e) => { if (e.target === el.customModal) this.closeCustomModal().then(() => currentModalResolve({ confirmed: false })); };
 
                     // Cloud Sync Modal Buttons
                     el.cloudSyncCancelBtn.onclick = () => this.closeCloudSyncModal();
@@ -2100,6 +2089,9 @@
                         ],
                         confirmButtonText: '新增', trackHistory: true
                     });
+                    
+                    await this.closeCustomModal();
+
                     if (result.confirmed) {
                         const newBook = { id: this.generateUUID(), name: result.values.bookName.trim() || `未命名 ${recordBooks.length + 1}`, lastUpdated: new Date().toISOString(), notes: "", recordText: "", bookType: result.values.bookType, history: [], checkedNumbers: {}, disabledNumbers: {} };
                         if (newBook.bookType === 'number') newBook.maxNumber = parseInt(result.values.maxNum, 10) || defaultMaxNumber;
@@ -2112,16 +2104,23 @@
                 async showRecordBookActionsModal(bookId) {
                     const book = recordBooks.find(b => b.id === bookId);
                     if (!book) return;
+                    
                     const result = await this.showCustomModal(`操作記事本`, {
                         message: `請選擇要對記事本「${book.name}」執行的操作。`,
                         actions: [{ text: '重新命名', value: 'rename', class: 'rename' }, { text: '刪除', value: 'delete', class: 'delete' }],
                         trackHistory: false
                     });
+
                     if (result.confirmed) {
-                        setTimeout(() => {
-                           if (result.action === 'rename') this.renameRecordBook(bookId, book.name);
-                           else if (result.action === 'delete') this.deleteRecordBook(bookId, book.name);
-                        }, 50);
+                        await this.closeCustomModal();
+                        await new Promise(resolve => setTimeout(resolve, 50)); // Prevent click-through
+                       if (result.action === 'rename') {
+                           this.renameRecordBook(bookId, book.name);
+                       } else if (result.action === 'delete') {
+                           this.deleteRecordBook(bookId, book.name);
+                       }
+                    } else {
+                         await this.closeCustomModal();
                     }
                 },
                 async renameRecordBook(id, oldName) {
@@ -2129,6 +2128,9 @@
                         inputs: [{ id: 'newName', label: '新名稱:', type: 'text', defaultValue: oldName }],
                         confirmButtonText: '儲存', trackHistory: true
                     });
+                    
+                    await this.closeCustomModal();
+
                     if (result.confirmed && result.values.newName.trim()) {
                         const book = recordBooks.find(b => b.id === id);
                         if (book) {
@@ -2143,6 +2145,9 @@
                         message: `確定要刪除記事本「${name}」嗎？此操作無法復原。`,
                         confirmButtonText: '確定刪除', trackHistory: true
                     });
+                    
+                    await this.closeCustomModal();
+
                     if (result.confirmed) {
                         recordBooks = recordBooks.filter(b => b.id !== id);
                         selectedRecordBookIds.delete(id);
@@ -2152,10 +2157,14 @@
                 async deleteSelectedBooks() {
                     if (selectedRecordBookIds.size === 0) return;
                     const booksToDelete = recordBooks.filter(b => selectedRecordBookIds.has(b.id));
+
                     const result = await this.showCustomModal(`確認大量刪除`, {
                         message: `確定要刪除選定的 ${selectedRecordBookIds.size} 個記事本嗎？`,
                         itemsToDelete: booksToDelete, confirmButtonText: '確定刪除', trackHistory: true
                     });
+                    
+                    await this.closeCustomModal();
+
                     if (result.confirmed) {
                         const ids = new Set(selectedRecordBookIds);
                         recordBooks = recordBooks.filter(b => !ids.has(b.id));
@@ -2166,10 +2175,14 @@
                 async resetCurrentBook() {
                     const book = recordBooks.find(b => b.id === currentRecordBookId);
                     if(!book) return;
+
                     const result = await this.showCustomModal(`確定要重設記事本 "${book.name}" 嗎？`, {
                         message: `${book.bookType === 'number' ? '所有打勾與禁用紀錄將被清除。' : '所有內容將被清除。'} 此操作無法復原。`,
                         confirmButtonText: '確定重設', trackHistory: true
                     });
+                    
+                    await this.closeCustomModal();
+
                      if (result.confirmed) {
                         if (book.bookType === 'number') { book.checkedNumbers = {}; book.disabledNumbers = {}; }
                         else { book.recordText = ""; }
@@ -2185,7 +2198,9 @@
                             <span class="history-log-time">${this.formatDateTime(entry.timestamp)}</span>
                             <span class="history-log-desc">${entry.description}</span>
                         </div>`).join('')}</div>`;
-                    this.showCustomModal('操作歷史紀錄', { htmlContent: historyHtml, trackHistory: true });
+                    
+                    const result = await this.showCustomModal('操作歷史紀錄', { htmlContent: historyHtml, trackHistory: true });
+                    await this.closeCustomModal();
                 },
                 async shareAsImage() {
                     const book = recordBooks.find(b => b.id === currentRecordBookId);
@@ -2223,10 +2238,14 @@
                             const content = await file.text();
                             const data = JSON.parse(content);
                             if (!Array.isArray(data) || !data.every(item => item.id && item.name)) return this.showMessage('匯入的檔案格式不正確。', true);
+                            
                             const result = await this.showCustomModal("匯入記事本資料", {
                                 inputs: [{ label: '您想如何處理現有的記事本資料？', type: 'radio', name: 'import_mode', options: [{ label: '覆蓋所有', value: 'overwrite' }, { label: '合併資料', value: 'merge', checked: true }] }],
                                 confirmButtonText: '確定', trackHistory: true
                             });
+                            
+                            await this.closeCustomModal();
+
                             if (result.confirmed) {
                                 if (result.values.import_mode === 'overwrite') { recordBooks = data; this.showMessage('記事本資料已成功覆蓋！'); }
                                 else { const ids = new Set(recordBooks.map(b => b.id)); recordBooks.push(...data.filter(b => !ids.has(b.id))); this.showMessage('記事本資料已成功合併！'); }
