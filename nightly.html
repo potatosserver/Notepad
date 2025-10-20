@@ -1542,11 +1542,11 @@
                                 googleIdToken = storedToken;
                                 googleUserProfile = decodedToken;
                             } else {
-                                localStorage.removeItem(googleIdTokenKey);
+                                this.handleSignOut(); // Clean up expired token
                             }
                         } catch(e) {
                             console.error("Error decoding stored JWT", e);
-                            localStorage.removeItem(googleIdTokenKey);
+                            this.handleSignOut();
                         }
                     }
                 },
@@ -1575,7 +1575,8 @@
                     googleIdToken = null;
                     googleUserProfile = null;
                     localStorage.removeItem(googleIdTokenKey);
-                    this.showMessage('您已成功登出。');
+                    // This will be called from within the modal, so no need to show a message
+                    // this.showMessage('您已成功登出。');
                     this.updateCloudSyncModalUI();
                 },
                 async callCloudApi(action, params = {}) {
@@ -1598,7 +1599,7 @@
                 },
                 updateCloudSyncModalUI() {
                     const el = this.elements;
-                    if (googleUserProfile) {
+                    if (googleUserProfile && googleIdToken) {
                         el.cloudSyncLoginView.classList.add('hidden');
                         el.cloudSyncActionsView.classList.remove('hidden');
                         el.cloudSyncUserPic.src = googleUserProfile.picture || '';
@@ -1611,7 +1612,11 @@
                                 const data = result.data;
                                 el.lastBackupTime.textContent = data.hasData && data.lastUpdated ? this.formatDateTime(data.lastUpdated) : '尚無備份';
                             })
-                            .catch(err => { el.lastBackupTime.textContent = '查詢失敗'; });
+                            .catch(err => { 
+                                el.lastBackupTime.textContent = '查詢失敗'; 
+                                this.showMessage('無法獲取雲端狀態，權杖可能已失效，請嘗試重新登入。', true);
+                                this.handleSignOut();
+                            });
                     } else {
                         el.cloudSyncLoginView.classList.remove('hidden');
                         el.cloudSyncActionsView.classList.add('hidden');
@@ -1655,8 +1660,9 @@
                                 this.showMessage('正在設定 PIN 碼...');
                                 await this.callCloudApi('setPin', { pin: pinResult.values.pin });
                                 this.showMessage('正在備份資料...');
-                                const backupResult = await this.callCloudApi('backupData', { notebookData: recordBooks });
+                                await this.callCloudApi('backupData', { notebookData: recordBooks });
                                 this.showMessage('記事本已成功備份至雲端！');
+                                this.handleSignOut();
                             } else {
                                 await this.closeCustomModal();
                                 this.showMessage('PIN 碼設定已取消。');
@@ -1674,8 +1680,9 @@
                                 const verificationResult = await this.callCloudApi('verifyPin', { pin: pinResult.values.pin });
                                 if (verificationResult.data.verified) {
                                      this.showMessage('PIN 碼驗證成功，正在備份資料...');
-                                    const backupResult = await this.callCloudApi('backupData', { notebookData: recordBooks });
+                                    await this.callCloudApi('backupData', { notebookData: recordBooks });
                                     this.showMessage('記事本已成功備份至雲端！');
+                                    this.handleSignOut();
                                 } else {
                                     this.showMessage('PIN 碼錯誤，備份失敗。', true);
                                 }
@@ -1685,8 +1692,9 @@
                             }
                         }
                     } catch (error) {
-                       this.showMessage(`備份過程中發生錯誤: ${error.message}`, true);
+                       this.showMessage(`雲端操作失敗: ${error.message}`, true);
                        await this.closeCustomModal();
+                       this.handleSignOut();
                     }
                 },
                 async handleCloudRestore() {
@@ -1700,7 +1708,7 @@
                         
                         if (confirmRestore.confirmed) {
                             await this.closeCustomModal();
-                            await new Promise(resolve => setTimeout(resolve, 50)); // <<< THE CRITICAL FIX
+                            await new Promise(resolve => setTimeout(resolve, 50)); // Prevent click-through
 
                             const pinResult = await this.showCustomModal("輸入 PIN 碼", {
                                 message: "請輸入您的 6 位數字 PIN 碼以還原資料。",
@@ -1723,6 +1731,7 @@
                                         this.saveRecordBooks();
                                         this.renderManagementView();
                                         this.showMessage('資料已成功從雲端還原！');
+                                        this.handleSignOut();
                                     } else {
                                         this.showMessage('雲端沒有可還原的資料。', true);
                                     }
@@ -1738,8 +1747,9 @@
                             this.showMessage('還原操作已取消。');
                         }
                     } catch (error) {
-                        this.showMessage(`還原過程中發生錯誤: ${error.message}`, true);
+                        this.showMessage(`雲端操作失敗: ${error.message}`, true);
                         await this.closeCustomModal();
+                        this.handleSignOut();
                     }
                 },
                 
