@@ -1,22 +1,4 @@
-好的，這是一個很好的想法，將這個網頁應用程式（Web App）轉換為漸進式網頁應用程式（PWA），可以讓使用者將其「安裝」到主畫面上，並提供離線存取的能力。
 
-為了實現這一點，我們需要做三件事：
-1.  在 `index.html` 中新增一個指向 `manifest.json` 檔案的連結。
-2.  在 `index.html` 中加入註冊 Service Worker 的 JavaScript 程式碼。
-3.  建立 `manifest.json` 檔案，它描述了您的應用程式。
-4.  建立 `sw.js` (Service Worker) 檔案，它處理快取和離線功能。
-
-以下是您需要的程式碼和說明。
-
-### 1. 更新後的 `index.html`
-
-我已經在您的 `index.html` 中加入了必要的程式碼。
-
-**主要變更點：**
-*   在 `<head>` 區塊中，我加入了一行 `<link rel="manifest" href="manifest.json">`。
-*   在 `DOMContentLoaded` 事件監聽器的 `app.init()` 函數中，我呼叫了一個新的 `registerServiceWorker()` 函數來註冊 Service Worker。
-
-```html
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
