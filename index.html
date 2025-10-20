@@ -1237,6 +1237,8 @@
     <div id="messageBox" class="message-box"></div>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- [SECURITY FIX] 引入 DOMPurify 來防止 XSS 攻擊 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.5/purify.min.js" integrity="sha512-Jv1Lu7lD0iQhBGa2IcvKqw7VscEGItMpuVLfL8sPjL0qS6zGVEAnM02sT2xM54xBvj22N+s99p1Nq1G12v4wQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script>
         // --- GLOBAL CONFIGURATION & STATE ---
         const defaultMaxNumber = 40;
@@ -2026,7 +2028,8 @@
                         el.limitedNotesSection.classList.add('hidden');
                         el.numbersGrid.classList.add('hidden');
                         el.unlimitedRecordTextSection.classList.remove('hidden');
-                        el.recordTextInput.innerHTML = currentBook.recordText || '';
+                        // [SECURITY FIX] 使用 DOMPurify 淨化來自 localStorage 的 HTML 內容
+                        el.recordTextInput.innerHTML = DOMPurify.sanitize(currentBook.recordText || '');
                     }
                 },
                 
@@ -2251,10 +2254,12 @@
                 async viewHistory() {
                     const book = recordBooks.find(b => b.id === currentRecordBookId);
                     if (!book || !book.history || book.history.length === 0) return this.showMessage('此記事本沒有任何操作紀錄。');
+                    
+                    // [SECURITY FIX] 對歷史紀錄中的描述進行淨化
                     const historyHtml = `<div class="history-log-container">${book.history.map(entry => `
                         <div class="history-log-item">
                             <span class="history-log-time">${this.formatDateTime(entry.timestamp)}</span>
-                            <span class="history-log-desc">${entry.description}</span>
+                            <span class="history-log-desc">${DOMPurify.sanitize(entry.description)}</span>
                         </div>`).join('')}</div>`;
                     
                     const result = await this.showCustomModal('操作歷史紀錄', { htmlContent: historyHtml, trackHistory: true });
@@ -2265,14 +2270,26 @@
                     if (!book) return;
                     this.showMessage('正在產生圖片...');
                     const elToClone = book.bookType === 'number' ? this.elements.numbersGrid : this.elements.unlimitedRecordTextSection;
+                    
                     const captureElement = document.createElement('div');
                     captureElement.style.cssText = 'position: absolute; left: -9999px; background-color: #ffffff; padding: 24px; border-radius: 16px; display: inline-block;';
-                    captureElement.innerHTML = `<h1 style="text-align: center; font-size: 1.5rem; font-weight: bold; margin-bottom: 24px;">${book.name}</h1>`;
+                    
+                    // [SECURITY FIX] 使用 textContent 而非 innerHTML 來設定標題，防止 XSS
+                    const titleElement = document.createElement('h1');
+                    titleElement.style.cssText = "text-align: center; font-size: 1.5rem; font-weight: bold; margin-bottom: 24px;";
+                    titleElement.textContent = book.name;
+                    captureElement.appendChild(titleElement);
+                    
                     const contentClone = elToClone.cloneNode(true);
                     if (book.bookType === 'text') {
                        contentClone.style.display = 'block';
                        contentClone.querySelector('label')?.remove();
                        contentClone.querySelector('.editor-toolbar')?.remove();
+                       // [SECURITY FIX] 同樣淨化要繪製成圖片的內容
+                       const recordTextDiv = contentClone.querySelector('#recordTextInput');
+                       if (recordTextDiv) {
+                           recordTextDiv.innerHTML = DOMPurify.sanitize(recordTextDiv.innerHTML);
+                       }
                     }
                     captureElement.appendChild(contentClone);
                     document.body.appendChild(captureElement);
@@ -2296,6 +2313,26 @@
                             const content = await file.text();
                             const data = JSON.parse(content);
                             if (!Array.isArray(data) || !data.every(item => item.id && item.name)) return this.showMessage('匯入的檔案格式不正確。', true);
+
+                            // [SECURITY FIX] 在處理匯入資料前，對其進行全面淨化
+                            const sanitizedData = data.map(book => {
+                                const sanitizedBook = { ...book };
+                                // 淨化不應包含 HTML 的欄位
+                                sanitizedBook.name = DOMPurify.sanitize(book.name || '', { USE_PROFILES: { html: false } });
+                                sanitizedBook.notes = DOMPurify.sanitize(book.notes || '', { USE_PROFILES: { html: false } });
+                                // 淨化允許安全 HTML 的富文本內容
+                                sanitizedBook.recordText = DOMPurify.sanitize(book.recordText || '');
+                                // 淨化歷史紀錄
+                                if (Array.isArray(sanitizedBook.history)) {
+                                    sanitizedBook.history = sanitizedBook.history.map(entry => {
+                                        if (entry && typeof entry.description === 'string') {
+                                            entry.description = DOMPurify.sanitize(entry.description);
+                                        }
+                                        return entry;
+                                    });
+                                }
+                                return sanitizedBook;
+                            });
                             
                             const result = await this.showCustomModal("匯入記事本資料", {
                                 inputs: [{ label: '您想如何處理現有的記事本資料？', type: 'radio', name: 'import_mode', options: [{ label: '覆蓋所有', value: 'overwrite' }, { label: '合併資料', value: 'merge', checked: true }] }],
@@ -2305,8 +2342,15 @@
                             await this.closeCustomModal();
 
                             if (result.confirmed) {
-                                if (result.values.import_mode === 'overwrite') { recordBooks = data; this.showMessage('記事本資料已成功覆蓋！'); }
-                                else { const ids = new Set(recordBooks.map(b => b.id)); recordBooks.push(...data.filter(b => !ids.has(b.id))); this.showMessage('記事本資料已成功合併！'); }
+                                // [SECURITY FIX] 使用淨化後的 sanitizedData 而非原始的 data
+                                if (result.values.import_mode === 'overwrite') {
+                                    recordBooks = sanitizedData;
+                                    this.showMessage('記事本資料已成功覆蓋！');
+                                } else {
+                                    const ids = new Set(recordBooks.map(b => b.id));
+                                    recordBooks.push(...sanitizedData.filter(b => !ids.has(b.id)));
+                                    this.showMessage('記事本資料已成功合併！');
+                                }
                                 this.saveRecordBooks(); this.renderManagementView();
                             }
                         } catch (err) { this.showMessage('匯入失敗，請確認檔案格式。', true); }
